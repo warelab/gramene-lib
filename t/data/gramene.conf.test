@@ -1,0 +1,28 @@
+<prefs>
+  favorite_color blue
+</prefs>
+
+<database>
+  host cabot
+  dbd  mysql
+
+  <features>
+    name features34
+  </features>
+
+  <foo>
+    name foo34
+  </foo>
+
+  <bar>
+    name bar34
+  </bar>
+
+  <baz>
+    name baz34
+  </baz>
+
+  <test>
+    name test
+  </test>
+</database>

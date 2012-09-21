@@ -1,0 +1,17 @@
+---
+base_dir: /home/kclark/gramene-lib
+
+version: 36
+
+database:
+  default: 
+    host     : cabot
+    dbd      : mysql
+    user     : gramene_rw
+    password : ()ryz@
+
+  maps:
+    name: maps36
+  
+  ontology: 
+    name: ontology36
