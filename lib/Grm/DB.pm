@@ -98,6 +98,9 @@ sub BUILD {
            $db_name, $self->config->filename
         )
     );
+    my $default_db_conf = $all_db_conf->{'default'} or croak(
+        sprintf('No default db config in %s', $self->config->filename)
+    );
 
     if ( my $real_name = $db_conf->{'name'} ) {
         $self->real_name( $real_name );
@@ -107,22 +110,27 @@ sub BUILD {
     }
 
     if ( ! $self->has_user ) {
-        $self->user( $db_conf->{'user'} || $all_db_conf->{'user'} || '' );
+        $self->user( $db_conf->{'user'} || $default_db_conf->{'user'} || '' );
     }
 
     if ( ! $self->has_password ) {
         $self->password( 
-            $db_conf->{'password'} || $all_db_conf->{'password'} || ''
+            $db_conf->{'pass'}         || 
+            $db_conf->{'password'}     || 
+            $default_db_conf->{'password'} || 
+            ''
         );
     }
 
     if ( ! $self->has_host ) {
-        $self->host( $db_conf->{'host'} || $all_db_conf->{'host'} || '' );
+        $self->host( $db_conf->{'host'} || $default_db_conf->{'host'} || '' );
     }
 
     if ( ! $self->has_dbd ) {
         $self->dbd( 
-            $db_conf->{'dbd'} || $all_db_conf->{'dbd'} || $self->default_dbd
+            $db_conf->{'dbd'}         || 
+            $default_db_conf->{'dbd'} || 
+            $self->default_dbd
         )
     }
 
@@ -142,7 +150,6 @@ sub BUILD {
 sub _build_dbh {
     my $self           = shift;
     my $db_name        = $self->db_name;
-    my $db_conf        = $self->config->get('database');
     my $dsn            = $self->dsn;
     my $user           = $self->user;
     my $host           = $self->host;

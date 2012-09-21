@@ -2,9 +2,10 @@ package Grm::Config;
 
 use namespace::autoclean;
 use Carp qw( croak );
-use YAML qw( LoadFile );
-use Moose;
+use File::Spec::Functions;
 use Moose::Util::TypeConstraints;
+use Moose;
+use YAML qw( LoadFile );
 
 subtype 'ExistingFile'
     => as 'Str' 
@@ -54,7 +55,6 @@ sub _build_filename {
 
     $self->clear_config;
 
-    my $file = $_[0] || $ENV{'GrmConfPath'} || $self->default_filename;
     return $_[0] || $ENV{'GrmConfPath'} || $self->default_filename;
 }
 
@@ -63,6 +63,55 @@ sub _build_config {
     my $self = shift;
     my $file = $self->filename   or croak('No filename');
     my $conf = LoadFile( $file ) or croak("Error reading config file: '$file'");
+
+    #
+    # Add in Ensembl as modules, set their db info
+    #
+    if ( my $reg_file = $conf->{'ensembl'}{'registry_file'} ) {
+        if ( my $install_dir = $conf->{'ensembl'}{'install_dir'} ) {
+            my %inc = map { $_, 1 } @INC;
+            for my $dir ( qw{
+                conf
+                ensembl-compara/modules
+                ensembl-draw/modules
+                ensembl-external/modules
+                ensembl-variation/modules
+                ensembl/modules
+                modules
+            } ) {
+                my $path = catdir( $install_dir, $dir );
+
+                if ( !$inc{ $path } ) {
+                    push @INC, $path;
+                }
+            }
+        }
+
+        my $reg_class = 'Bio::EnsEMBL::Registry';
+
+        eval "require $reg_class";
+
+        if ( $@ ) {
+            warn "Cannot load $reg_class\n";
+        }
+        else {
+            $reg_class->load_all( $reg_file );
+
+            for my $db ( @{ $reg_class->get_all_DBAdaptors() } ) {
+                my $species = 'ensembl_' . lc $db->species; 
+                my $dbc     = $db->dbc;
+
+                $conf->{'database'}{ $species } = {
+                    name     => $dbc->dbname,
+                    user     => $dbc->username,
+                    password => $dbc->password,
+                    host     => $dbc->host,
+                };
+
+                push @{ $conf->{'modules'} }, $species;
+            }
+        }
+    }
     
     return $conf;
 }
@@ -114,13 +163,13 @@ __END__
 
 =head1 NAME
 
-Gramene::Config - Read local configuration information
+Grm::Config - Read local configuration information
 
 =head1 SYNOPSIS
 
-  use Gramene::Conf;
+  use Grm::Conf;
 
-  my $config  = Gramene::Conf->new;
+  my $config  = Grm::Conf->new;
   my $db_info = $config->get('db_info');
 
 =head1 DESCRIPTION
@@ -166,11 +215,9 @@ Returns one or all options from the config file.
   
 =head2 config
 
-Returns the full config hashref, just as Config::General's "getall" does.
-
+Returns the full config hashref.
 
   my $conf_hashref = $config->config;
-  my $conf_hashref = $config->getall; # for backward-compatibility
 
 =head1 AUTHOR
 
@@ -178,7 +225,7 @@ Ken Youens-Clark E<lt>kclark@cshl.orgE<gt>.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2011 Cold Spring Harbor Laboratory
+Copyright (c) 2012 Cold Spring Harbor Laboratory
 
 This library is free software;  you can redistribute it and/or modify
 it under the same terms as Perl itself.

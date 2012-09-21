@@ -16,13 +16,21 @@ use IO::Prompt qw( prompt );
 use Pod::Usage;
 use Readonly;
 
-my $out_dir = '';
-my $db_name = '';
-my $prompt  =  1;
-my $debug   =  0;
+if ( !@ARGV ) {
+    pod2usage('No arguments, perhaps use "-l" to list dbs?');
+}
+
+my $out_dir   = '';
+my $db_names  = '';
+my $make_all  =  0;
+my $prompt    =  1;
+my $debug     =  0;
+my $show_list =  0;
 my ( $help, $man_page );
 GetOptions(
-    'd|db=s'    => \$db_name,
+    'all'       => \$make_all,
+    'd|db=s'    => \$db_names,
+    'l|list'    => \$show_list,
     'o|out:s'   => \$out_dir,
     'p|prompt!' => \$prompt,
     'debug'     => \$debug,
@@ -37,25 +45,34 @@ if ( $help || $man_page ) {
     });
 }; 
 
-my $config = Grm::Config->new;
+my $config  = Grm::Config->new;
+my @modules = $config->get('modules');
+
+if ( $show_list ) {
+    say join "\n", 'Valid module:', map { " - $_" } @modules;
+    exit 0;
+}
 
 if ( !$out_dir ) {
-    my $main_conf = $config->get('main');
-    my $base_dir  = $main_conf->{'base_dir'} 
+    my $base_dir  = $config->get('base_dir')
         or croak(sprintf('No "base_dir" in conf "%s"'), $config->filename);
-    $out_dir = catdir( $base_dir, qw/ lib perl / );
+    $out_dir = catdir( $base_dir, 'lib' );
 }
 
-if ( !$db_name ) {
-    pod2usage('No db name');
+if ( !$db_names && !$make_all ) {
+    pod2usage('No db name(s)');
 }
 
-my $db  = Grm::DB->new( $db_name );
-my $dbh = $db->dbh;
+my @dbs = $make_all ? @modules : split( /\s*,\s*/, $db_names );
+my %is_valid = map { $_, 1 } @modules;
+
+if ( my @bad = grep { !$is_valid{ $_ } } @dbs ) {
+    die "Invalid modules: ", join(', ', @bad), "\n";
+}
 
 if ( $prompt ) {
-    my $ok = prompt -yn, sprintf('OK to export "%s" to "%s"? [yn] ',
-        $db->real_name, $out_dir
+    my $ok    = prompt -yn, sprintf('OK to export "%s" to "%s"? [yn] ',
+        join(', ', @dbs), $out_dir
     );
 
     if ( !$ok ) {
@@ -73,23 +90,33 @@ else {
     mkpath( $out_dir );
 }
 
-my $class = join('::', qw/ Grm DBIC /, 
-    join('', map { ucfirst } split( /_/, $db_name ))
-);
+for my $db_name ( @dbs ) {
+    my $db    = Grm::DB->new( $db_name );
+    my $class = join('::', qw/ Grm DBIC /, 
+        join('', map { ucfirst } split( /_/, $db_name ))
+    );
 
-make_schema_at(
-    $class,
-    { 
-        debug          => $debug,
-        dump_directory => $out_dir,
-        use_moose      => 1,
-    },
-    [ 
-        $db->dsn,
-        $db->user,
-        $db->password,
-    ],
-);
+    print "Exporting $db_name => $class\n";
+
+    make_schema_at(
+        $class,
+        { 
+            debug          => $debug,
+            dump_directory => $out_dir,
+            use_moose      => 1,
+        },
+        [ 
+            $db->dsn,
+            $db->user,
+            $db->password,
+        ],
+    );
+
+    print '-' x 40, "\n";
+}
+
+my $num = scalar @dbs;
+printf "Done, exported %s database%s\n", $num, $num == 1 ? '' : 's';
 
 __END__
 
@@ -105,14 +132,15 @@ mk-gdbic.pl - generate Grm::DBIC classes from the db
 
   mk-gdbic.pl -d features 
 
-Required:
-
-  -d|--db     The db symbol in the Gramene config, e.g., "maps"
 
 Options:
 
+  --all        Make for all databases
+  -d|--db      A comma-separated list of database symbols 
+               in the Gramene config, e.g., "maps"
   -o|--out     The output directory
   -p|--prompt  Prompt or not (can do --no-prompt to suppress
+  -l|--list    Show a list of the valid modules/dbs
   --debug      Debug flag
   --help       Show brief help and exit
   --man        Show full documentation
