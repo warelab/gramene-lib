@@ -5,16 +5,16 @@ use warnings;
 use feature qw( say );
 use autodie;
 use Carp qw( croak );
-use DBIx::Class::Schema::Loader qw/ make_schema_at /;
+use DBIx::Class::Schema::Loader qw( make_schema_at );
 use File::Basename;
 use File::Path qw( mkpath );
 use File::Spec::Functions;
 use Getopt::Long;
+use Grm::Config;
+use Grm::DB;
 use IO::Prompt qw( prompt );
 use Pod::Usage;
 use Readonly;
-use Grm::Config;
-use Grm::DB;
 
 my $out_dir = '';
 my $db_name = '';
@@ -88,7 +88,6 @@ make_schema_at(
         $db->dsn,
         $db->user,
         $db->password,
-#        { loader_class => 'MyLoader' } # optionally
     ],
 );
 
@@ -108,7 +107,7 @@ mk-gdbic.pl - generate Grm::DBIC classes from the db
 
 Required:
 
-  -d|--db     The db symbol in the Gramene config, e.g., "features"
+  -d|--db     The db symbol in the Gramene config, e.g., "maps"
 
 Options:
 

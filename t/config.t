@@ -5,12 +5,12 @@ use warnings;
 use FindBin qw($Bin);
 use File::Spec::Functions;
 use Test::Exception;
-use Test::More tests => 22;
+use Test::More tests => 18;
 
-my $test_conf_file  = catfile( $Bin, 'data', 'gramene.conf.test'  );
-my $alt_conf_file   = catfile( $Bin, 'data', 'gramene.conf.alt'   );
-my $empty_conf_file = catfile( $Bin, 'data', 'gramene.conf.empty' );
-my $bad_conf_file   = catfile( $Bin, 'data', 'gramene.conf.bad'   );
+my $test_conf_file  = catfile( $Bin, 'data', 'gramene.yaml.test'  );
+my $alt_conf_file   = catfile( $Bin, 'data', 'gramene.yaml.alt'   );
+my $empty_conf_file = catfile( $Bin, 'data', 'gramene.yaml.empty' );
+my $bad_conf_file   = catfile( $Bin, 'data', 'gramene.yaml.bad'   );
 
 use_ok('Grm::Config');
 
@@ -18,16 +18,8 @@ use_ok('Grm::Config');
 {
     my $conf = new_ok('Grm::Config');
 
-    is( $conf->filename, $conf->default_filename,
-        "Default filename is '" . $conf->default_filename ."'"
-    );
-
     $conf->filename( $alt_conf_file );
     is( $conf->filename, $alt_conf_file, "Changed to '$alt_conf_file'" );
-
-    my $config_obj = $conf->config_object;
-    ok( $config_obj, 'Got the config object' );
-    isa_ok( $config_obj, 'Config::General', '...and it\'s a Config::General' );
 
     my $conf_hash = $conf->config;
     ok( $conf_hash, 'Got the config' );
@@ -57,19 +49,16 @@ use_ok('Grm::Config');
         qr/does not pass the type constraint/, 'Dies on empty file'
     );
 
-    
-    $conf->clear_filename;
-
-    is( $conf->has_filename, '', 'filename cleared, predicate method works' );
-
     my $prefs = $conf->get('prefs');
     isa_ok( $prefs, 'HASH', '"prefs"' );
 
     is( $prefs->{'favorite_color'}, 'blue', 
         'Blue is the favorite color, no, wait, red -- aaaaaaaah!'
     );
+    
+    $conf->clear_filename;
 
-    is_deeply( $conf->config, $conf->getall, '"getall" is alias for "config"' );
+    is( $conf->has_filename, '', 'filename cleared, predicate method works' );
 }
 
 # Config path from argument
@@ -88,9 +77,9 @@ use_ok('Grm::Config');
 
 # Config path from $ENV
 {
-    $ENV{'GrameneConfPath'} = $test_conf_file;
+    $ENV{'GrmConfPath'} = $test_conf_file;
     my $conf = Grm::Config->new;
-    is( $conf->filename, $ENV{'GrameneConfPath'},
-        "New uses \$ENV '$ENV{GrameneConfPath}'"
+    is( $conf->filename, $ENV{'GrmConfPath'},
+        "New uses \$ENV '$ENV{GrmConfPath}'"
     );
 }

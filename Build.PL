@@ -6,6 +6,7 @@ use Module::Build;
 my $builder = Module::Build->new(
     module_name         => 'Gramene',
     license             => 'gpl',
+    dist_abstract       => 'Gramene libraries',
     dist_author         => q{Ken Youens-Clark <kclark@cshl.edu>},
     dist_version        => '36.0.0',
     build_requires => {

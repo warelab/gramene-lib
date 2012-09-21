@@ -5,9 +5,9 @@ use warnings;
 use FindBin qw($Bin);
 use File::Spec::Functions;
 use Test::Exception;
-use Test::More 'no_plan'; #tests => 21;
+use Test::More tests => 16;
 
-$ENV{'GrameneConfPath'} = catfile( $Bin, 'data', 'gramene.conf.test' );
+$ENV{'GrmConfPath'} = catfile( $Bin, 'data', 'gramene.yaml.test' );
 
 use_ok('Grm::DB');
 
@@ -36,7 +36,7 @@ use_ok('Grm::DB');
 {
     my $db1 = Grm::DB->new( db_name => 'foo' );
     is( $db1->db_name, 'foo', '"db_name" works' );
-    is( $db1->real_name, 'foo34', '"real_name" OK' );
+    is( $db1->real_name, 'foo_db', '"real_name" OK' );
 
     my $db2 = Grm::DB->new( db => 'bar' );
     is( $db2->db_name, 'bar', '"db" alias works' );

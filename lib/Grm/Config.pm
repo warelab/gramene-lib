@@ -54,6 +54,7 @@ sub _build_filename {
 
     $self->clear_config;
 
+    my $file = $_[0] || $ENV{'GrmConfPath'} || $self->default_filename;
     return $_[0] || $ENV{'GrmConfPath'} || $self->default_filename;
 }
 

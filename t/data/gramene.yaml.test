@@ -1,0 +1,21 @@
+prefs:
+  favorite_color: blue
+
+database:
+  host: cabot
+  dbd: mysql
+
+  maps:
+    name: maps_db
+
+  foo:
+    name: foo_db
+
+  bar:
+    name: bar_db
+
+  baz:
+    name: baz_db
+
+  test:
+    name: test
