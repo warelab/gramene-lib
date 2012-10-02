@@ -98,9 +98,8 @@ sub BUILD {
            $db_name, $self->config->filename
         )
     );
-    my $default_db_conf = $all_db_conf->{'default'} or croak(
-        sprintf('No default db config in %s', $self->config->filename)
-    );
+
+    my $default_db_conf = $all_db_conf->{'default'} || {};
 
     if ( my $real_name = $db_conf->{'name'} ) {
         $self->real_name( $real_name );
@@ -115,8 +114,8 @@ sub BUILD {
 
     if ( ! $self->has_password ) {
         $self->password( 
-            $db_conf->{'pass'}         || 
-            $db_conf->{'password'}     || 
+            $db_conf->{'pass'}             || 
+            $db_conf->{'password'}         || 
             $default_db_conf->{'password'} || 
             ''
         );

@@ -5,7 +5,7 @@ use warnings;
 use FindBin qw($Bin);
 use File::Spec::Functions;
 use Test::Exception;
-use Test::More 'no_plan';
+use Test::More;
 
 use_ok('Grm::Config');
 use_ok('Grm::DB');
@@ -18,7 +18,7 @@ my $count = scalar @modules;
 
 ok( $count, "Got $count modules" );
 
-plan tests => $count + 3;
+plan tests => $count + 4;
 
 for my $module ( @modules ) {
    ok( Grm::DB->new( $module ), "$module OK" );

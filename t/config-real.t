@@ -19,5 +19,3 @@ my %dbs = map  { $_, 1 } keys %{ $conf_hash->{'database'} };
 my @bad = grep { !defined $dbs{ $_ } } @{ $config->get('modules') };
 
 is( scalar @bad, 0, 'No bad dbs' );
-
-use Data::Dumper; print STDERR Dumper($conf_hash), "\n";
