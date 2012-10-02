@@ -6,6 +6,7 @@ version: 36
 ensembl:
   install_dir: /usr/local/ensembl-live
   registry_file: /usr/local/gramene/conf/ensembl.registry
+  sql_file: /usr/local/ensembl-live/ensembl/sql/table.sql
   foreign_key_file: /usr/local/ensembl-live/ensembl/sql/foreign_keys.sql
 
 modules:

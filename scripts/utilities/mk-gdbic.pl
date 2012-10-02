@@ -14,25 +14,27 @@ use Grm::Config;
 use Grm::DB;
 use IO::Prompt qw( prompt );
 use Pod::Usage;
+use Perl6::Slurp qw( slurp );
 use Readonly;
+use SQL::Translator;
 
 if ( !@ARGV ) {
     pod2usage('No arguments, perhaps use "-l" to list dbs?');
 }
 
-my $out_dir   = '';
 my $db_names  = '';
-my $make_all  =  0;
-my $prompt    =  1;
 my $debug     =  0;
+my $make_all  =  0;
+my $out_dir   = '';
 my $show_list =  0;
+my $force     =  0;
 my ( $help, $man_page );
 GetOptions(
     'all'       => \$make_all,
     'd|db=s'    => \$db_names,
+    'f|force'   => \$force,
     'l|list'    => \$show_list,
     'o|out:s'   => \$out_dir,
-    'p|prompt!' => \$prompt,
     'debug'     => \$debug,
     'help'      => \$help,
     'man'       => \$man_page,
@@ -49,7 +51,7 @@ my $config  = Grm::Config->new;
 my @modules = $config->get('modules');
 
 if ( $show_list ) {
-    say join "\n", 'Valid module:', map { " - $_" } @modules;
+    say join "\n", 'Valid module:', map { " - $_" } sort @modules;
     exit 0;
 }
 
@@ -70,7 +72,7 @@ if ( my @bad = grep { !$is_valid{ $_ } } @dbs ) {
     die "Invalid modules: ", join(', ', @bad), "\n";
 }
 
-if ( $prompt ) {
+unless ( $force ) {
     my $ok    = prompt -yn, sprintf('OK to export "%s" to "%s"? [yn] ',
         join(', ', @dbs), $out_dir
     );
@@ -90,9 +92,70 @@ else {
     mkpath( $out_dir );
 }
 
+my %seen;
+DB:
 for my $db_name ( @dbs ) {
     my $db    = Grm::DB->new( $db_name );
-    my $class = join('::', qw/ Grm DBIC /, 
+    my $dsn   = $db->dsn;
+    my $user  = $db->user;
+    my $pass  = $db->password;
+    my $host  = $db->host;
+    my $class = '';
+
+    if ( $db_name =~ /^ensembl_/ ) {
+        next DB if $host eq 'ensembldb.ensembl.org'; 
+
+        $db_name = 'ensembl';
+
+        next DB if $seen{ $db_name }++;
+
+        my $tmp_db_name = '_ensembl_gcdbi_build';
+        $db->dbh->do("drop database if exists $tmp_db_name");
+        $db->dbh->do("create database $tmp_db_name");
+
+        $dsn = "dbi:mysql:host=$host;database=$tmp_db_name";
+        my $build_db = DBI->connect( $dsn, $user, $pass, { RaiseError => 1 } );
+
+        my $ens_conf = $config->get('ensembl') or die "No Ensembl config\n";;
+        my $sql      = '';
+
+        for my $file ( qw[ sql_file ] ) { #foreign_key_file 
+            my $path = $ens_conf->{ $file } or next;
+            $sql .= slurp( $path );
+        }
+
+        if ( !$sql ) {
+            die "Did not get any SQL from Ensembl config\n";
+        }
+
+        $sql =~ s/MyISAM/InnoDB/gi;
+        $sql =~ s!/\*([^*]|\*[^/])*\*/!!g;
+        $sql =~ s/collate=\w+//gi;
+        $sql =~ s/"/'/gi;
+        $sql =~ s/(small)?int(eger)(\d+) unsigned/integer unsigned/gi;
+
+        my $sqlt = SQL::Translator->new;
+
+        my $new  = $sqlt->translate(
+            from => 'MySQL',
+            to   => 'MySQL',
+            data => \$sql,
+            add_drop_table => 1,
+        );
+
+        for my $cmd ( split( /;/, $new ) ) {
+            next if !$cmd || $cmd =~ /^\s*$/;
+            $build_db->do( $cmd );
+        }
+
+        $db = $build_db;
+    }
+    elsif ( $db_name =~ /^(diversity|pathway)_/ ) {
+        $db_name = $1;
+        next DB if $seen{ $db_name }++;
+    }
+
+    $class = join('::', qw/ Grm DBIC /, 
         join('', map { ucfirst } split( /_/, $db_name ))
     );
 
@@ -106,9 +169,9 @@ for my $db_name ( @dbs ) {
             use_moose      => 1,
         },
         [ 
-            $db->dsn,
-            $db->user,
-            $db->password,
+            $dsn ,
+            $user,
+            $pass,
         ],
     );
 
@@ -139,7 +202,7 @@ Options:
   -d|--db      A comma-separated list of database symbols 
                in the Gramene config, e.g., "maps"
   -o|--out     The output directory
-  -p|--prompt  Prompt or not (can do --no-prompt to suppress
+  -f|--force   Do not prompt 
   -l|--list    Show a list of the valid modules/dbs
   --debug      Debug flag
   --help       Show brief help and exit
