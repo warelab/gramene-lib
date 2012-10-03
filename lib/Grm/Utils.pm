@@ -1,17 +1,6 @@
 package Grm::Utils;
 
-BEGIN{
-    $ENV{'GrameneDir'} ||= '/usr/local/gramene/';
-    $ENV{'EnsemblDir'} ||= '/usr/local/ensembl-live/';
-}
-
-use lib map { $ENV{'GrameneDir'}."/$_" } qw ( lib/perl );
-use lib map { $ENV{'EnsemblDir'}."/$_" } qw (modules ensembl/modules
-    ensembl-external/modules ensembl-variation/modules ensembl-draw/modules
-    ensembl-compara/modules );
-
 use strict;
-use Bio::EnsEMBL::Registry;
 use CGI;
 use Carp qw( carp croak );
 use Data::Dumper;
@@ -32,23 +21,16 @@ use vars qw( @EXPORT @EXPORT_OK );
 use base 'Exporter';
 
 my @subs = qw[ 
-    commify 
-    database_name_to_module_name
-    expand_taxonomy
-    format_reference
+    commify
     get_logger
     gramene_cdbi_class_to_module_name
     gramene_cdbi_class_to_table_name
     iterative_search_values
     match_context
-    module_name_to_database_connection_info
-    module_name_to_database_name
-    module_name_to_gramene_cdbi_class
+    module_name_to_gdbic_class
     pager
-    paginate
     parse_words
     table_name_to_gdbic_class
-    web_link
 ];
 
 @EXPORT_OK = @subs;
@@ -62,46 +44,9 @@ sub commify {
 }
 
 # ----------------------------------------------------
-sub format_reference {
-    my $ref    = shift or return;
-    my $format = shift || ''; 
-    my $t      = Gramene::Template->new( TRIM => CHOMP_ALL );
-    my $temp   = qq{
-        [% PROCESS 'common/macros.tmpl'; format_reference("$ref", "$format"); %]
-    };
-    my $return = '';
-
-    $t->process( \$temp, {}, \$return ) or $return = $t->error;
-
-    return $return;
-}
-
-# ----------------------------------------------------
-sub iterative_search_values {
-    my $v       = shift || '';
-    my $options = shift || {};
-
-    my @return;
-
-    if ( $v ) {
-        push @return, $v;
-
-        unless ( $v =~ /^\*.+\*$/ ) {
-            push @return, "$v*" unless $v =~ /\*$/;
-            push @return, "*$v*" unless $options->{'no_leading_wildcard'};
-        }
-    }
-    else {
-        @return = ('*');
-    }
-
-    return @return;
-}
-
-# ----------------------------------------------------
 sub get_logger {
     my %opts      = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
-    my $config    = Gramene::Config->new;
+    my $config    = Grm::Config->new;
     my $log_conf  = $config->get('logging');
     my $log_file  = $log_conf->{'log_file'} or croak 'No log file defined';
     my $log_level = $opts{'log_level'} || $log_conf->{'log_level'} || 'warn';
@@ -130,6 +75,55 @@ sub get_logger {
     );
 
     return $logger;
+}
+
+# ----------------------------------------------------
+sub gramene_cdbi_class_to_module_name {
+	my $class = shift or croak 'No DBIC class name';
+
+    $class = ref $class if ref $class;
+	
+	my ($gramene, $cdbi, $module, $table) = split /::/, $class;
+	
+    $module =~ s/([A-Z])/_$1/g;
+    $module =~ s/^_//;
+	return lc $module;
+}
+
+# ----------------------------------------------------
+sub gramene_cdbi_class_to_table_name {
+	my $class = shift or croak 'No DBIC class name';
+
+    $class = ref $class if ref $class;
+	
+	my ($gramene, $cdbi, $module, $table) = split /::/, $class;
+	
+	$table =~ s/([A-Z])/_\l$1/g;
+	$table =~ s/^_//;
+
+	return $table;
+}
+
+# ----------------------------------------------------
+sub iterative_search_values {
+    my $v       = shift || '';
+    my $options = shift || {};
+
+    my @return;
+
+    if ( $v ) {
+        push @return, $v;
+
+        unless ( $v =~ /^\*.+\*$/ ) {
+            push @return, "$v*" unless $v =~ /\*$/;
+            push @return, "*$v*" unless $options->{'no_leading_wildcard'};
+        }
+    }
+    else {
+        @return = ('*');
+    }
+
+    return @return;
 }
 
 # ----------------------------------------------------
@@ -196,6 +190,22 @@ sub match_context {
 }
 
 # ----------------------------------------------------
+sub module_name_to_gdbic_class {
+    my $module = shift or croak 'No module name';
+
+    if ( $module =~ /^(ensembl|diversity|pathway)_/ ) {
+        $module = $1;
+    }
+
+    my $class = join('::', 
+        'Grm', 'DBIC', 
+        join( '', map { ucfirst } split /_/, lc($module)),
+    );
+
+    return $class;
+}
+
+# ----------------------------------------------------
 sub pager {
     if ( scalar(@_) % 2 ) {
         carp("odd number of args to pager");
@@ -256,70 +266,6 @@ sub pager {
     $text .= '&nbsp;&nbsp;</form>';
     $data  = [ $pager->splice( $data ) ] if @{ $data || [] };
     return wantarray ? ( $text, $data ) : $text;
-}
-
-# ----------------------------------------------------
-sub paginate {
-    carp("paginate is deprecated! Use pager instead.");
-
-    my %args        = @_;
-    my $data        = $args{'data'}        || [];
-    my $limit_start = $args{'limit_start'} || 1;
-    my $page_size   = $args{'page_size'}   || 0;
-    my $max_pages   = $args{'max_pages'}   || 1;    
-    my $no_elements = $args{'no_elements'} || @$data;
-
-    my $limit_stop;
-    if ( $no_elements > $page_size ) {
-        $limit_start  = 1 if $limit_start < 1;
-        $limit_start  = $no_elements if $limit_start > $no_elements;
-        $limit_stop   = ( $limit_start + $page_size >= $no_elements )
-            ? $no_elements
-            : $limit_start + $page_size - 1;
-        $data         = [ @$data[ $limit_start - 1 .. $limit_stop - 1 ] ];
-    }
-    elsif ( $no_elements ) {
-        $limit_stop = $no_elements;
-    }
-    else {
-        $limit_stop = 0;
-    }
-
-    my $no_pages = $no_elements
-        ? sprintf( "%.0f", ( $no_elements / $page_size ) + .5 ) : 0;
-    my $step     = ( $no_pages > $max_pages ) 
-        ? sprintf( "%.0f", ($no_pages/$max_pages) + .5 ) : 1;
-    my $cur_page = int( ( $limit_start + 1 ) / $page_size ) + 1;
-    my ( $done, $prev_page, @pages );
-    for ( my $page = 1; $page <= $no_pages; $page += $step ) {
-        if ( 
-            !$done              &&
-            $page != $cur_page  && 
-            $page  > $cur_page  && 
-            $page  > $prev_page
-        ) {
-            push @pages, $cur_page unless $pages[-1] == $cur_page;
-            $done = 1;
-        }
-        $done = $cur_page == $page unless $done;
-        push @pages, $page;
-    }
-
-    if ( @pages ) {
-        push @pages, $cur_page unless $done;
-        push @pages, $no_pages unless $pages[-1] == $no_pages;
-    }
-        
-    return {
-        data        => $data,
-        no_elements => $no_elements,
-        pages       => \@pages,
-        cur_page    => $cur_page,
-        page_size   => $page_size,
-        no_pages    => $no_pages,
-        show_start  => $limit_start,
-        show_stop   => $limit_stop,
-    };
 }
 
 # ----------------------------------------------------
@@ -388,122 +334,6 @@ sub table_name_to_gdbic_class {
     return $class;
 }
 
-# ----------------------------------------------------
-sub module_name_to_gdbic_class {
-    my $module     = shift or croak 'No module name';
-    my $class      = join('::', 
-        'Gramene', 'DBIC', 
-        join( '', map { ucfirst } split /_/, lc($module)),
-    );
-
-    return $class;
-}
-
-# ----------------------------------------------------
-sub gramene_cdbi_class_to_module_name {
-	my $class = shift or croak 'No DBIC class name';
-
-    $class = ref $class if ref $class;
-	
-	my ($gramene, $cdbi, $module, $table) = split /::/, $class;
-	
-    $module =~ s/([A-Z])/_$1/g;
-    $module =~ s/^_//;
-	return lc $module;
-}
-
-# ----------------------------------------------------
-sub gramene_cdbi_class_to_table_name {
-	my $class = shift or croak 'No DBIC class name';
-
-    $class = ref $class if ref $class;
-	
-	my ($gramene, $cdbi, $module, $table) = split /::/, $class;
-	
-	$table =~ s/([A-Z])/_\l$1/g;
-	$table =~ s/^_//;
-
-	return $table;
-}
-
-# ----------------------------------------------------
-our %m2d_cache = ();
-sub module_name_to_database_connection_info {
-    my $module = shift or croak 'No section name';
-    my $info   = $m2d_cache{ $module };
-
-    return $info if defined $info;
-    
-    my $gconfig = Gramene::Config->new or croak 'No config file object';
-    my $config  = {};
-
-    if ( $module =~ /^ensembl_(\w+)$/ ) {
-        my $species  = ucfirst $1;
-        my $ens_conf = $gconfig->get('ensembl');
-        my $reg_file = $ens_conf->{'registry'} or croak 'No registry';
-        my $registry = 'Bio::EnsEMBL::Registry';
-        $registry->load_all( $reg_file ); 
-        my $adaptor  = $registry->get_adaptor( $species, 'core', 'gene' );
-        my $dbc      = $adaptor->db->dbc;
-
-        $config = {
-            dbname  => $dbc->dbname,
-            db_user => $dbc->username,
-            db_pass => $dbc->password,
-            db_host => $dbc->host,
-            db_port => $dbc->port,
-            db_dsn  => sprintf(
-                'dbi:mysql:database=%s;port=%s;host=%s',
-                $dbc->dbname, $dbc->port, $dbc->host,
-            ),
-        };
-    }
-    else {
-        $config = $gconfig->get( $module ) or croak "Bad section '$module'";
-        if ( defined $config->{'db_dsn'} && 
-             $config->{'db_dsn'} =~ /dbi:mysql:database=([^;]+)/ 
-        ) {
-            $config->{'dbname'} = $1;
-        }
-    }
-    
-    return $m2d_cache{ $module } = {
-        dbname => $config->{'dbname'},
-        dsn    => $config->{'db_dsn'}, 
-        user   => $config->{'db_user'}, 
-        pass   => $config->{'db_pass'}, 
-        host   => $config->{'db_host'},
-        port   => $config->{'db_port'},
-    };
-}
-
-# ----------------------------------------------------
-sub module_name_to_database_name {   
-    return module_name_to_database_connection_info(shift)->{'dbname'};
-}
-
-# ----------------------------------------------------
-our %d2m_cache = ();
-sub database_name_to_module_name {
-    my $database  = shift                   or croak 'No section name';
-
-    my $cached = $d2m_cache{$database};
-    
-    return $cached if defined $cached;
-
-    my $gconfig = Gramene::Config->new      or croak 'No config file object';
-    foreach my $module (keys %{ $gconfig->getall } ) {
-        my $dbname = module_name_to_database_name($module);
-        if (defined $dbname && $dbname eq $database) {
-            $d2m_cache{$database} = $module;
-            return $module;
-        }
-    };
-    
-    return;
-    
-}
-
 1;
 
 # ----------------------------------------------------
@@ -514,11 +344,11 @@ __END__
 
 =head1 NAME
 
-Gramene::Utils - generalized utilities
+Grm::Utils - generalized utilities
 
 =head1 SYNOPSIS
 
-  use Gramene::Utils qw( sub );
+  use Grm::Utils qw( sub );
 
 =head1 DESCRIPTION
 
@@ -613,29 +443,6 @@ E.g.:
   $body .= "<center>$pager</center>";
   for my $rec ( @$data ) { ... }
 
-=head2 paginate -- DEPRECATED! USE pager.
-
-Given a set of data, break it up into pages.
-
-Args:
-
-    data        : a reference to an array of rows
-    limit_start : where to start the slice [opt]
-    page_size   : how big to make each page [opt]
-    max_pages   : the maximum number of pages to allow (roughly) [opt]
-    no_elements : how many records are in "data" [opt]
-
-Returns a hashref of:
-
-    data        : the slice of data that comprises the current page
-    no_elements : how many elements were in the original data set
-    pages       : an array of the page numbers to display
-    cur_page    : the page number of the current page
-    page_size   : how many records are on each page
-    no_pages    : the total number of pages returned
-    show_start  : the number of the first record in the current page
-    show_stop   : the number of the last record in the current page
-
 =head2 parse_words
 
   "Foo bar" baz => ('Foo bar', 'baz')
@@ -657,20 +464,11 @@ are required.
   my $class = module_name_to_gdbic_class('germplasm');
   # $class now has "Grm::DBIC::Germplasm"
 
-Turns a module's name into it's Gramene::DBIC class. The module name is required
-
-=head2 web_link
-
-  my $url = web_link($module, $table, $record_id);
-  # $class now has "Grm::DBIC::Markers::MarkerType"
-
-Uses search.conf's view_link section to figure out a reasonable display URL for
-a given module and table. If a record_id is provided, also sticks that into the
-URL for you.
+Turns a module's name into it's Grm::DBIC class. The module name is required
 
 =head1 AUTHOR
 
-Gramene E<lt>gramene@gramene.orgE<gt>
+Gramene Authors E<lt>gramene@gramene.orgE<gt>
 
 =head1 COPYRIGHT
 
