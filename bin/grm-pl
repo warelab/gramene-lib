@@ -143,7 +143,7 @@ close $fh;
 
 chmod oct 775, $path;
 
-my $cmd = sprintf "$editor%s$path", ( $editor =~ /vim?$/ ) ? ' +27 ' : q{ };
+my $cmd = sprintf "$editor%s$path", ( $editor =~ /vim?$/ ) ? ' +24 ' : q{ };
 exec $cmd or die "Couldn't exec '$cmd': $!\n";
 exit 0;
 
