@@ -1,0 +1,22 @@
+It's probably best to just unpack the source into a directory like 
+"/opt/gramene."  You'll want to set your environment's "GrmConfPath" to 
+the location of the "gramene/conf/gramene.yaml" file.  All should be good
+if you do this:
+
+ $ source gramene.env
+
+You could add this to your .bashrc file to have it done automatically:
+
+  GRMRC=/path/to/gramene-lib/gramene.env
+  if [ -e "$GRMRC" ]; then
+    source "$GRMRC"
+  fi
+
+To make sure all the dependencies are installed, do:
+
+ $ perl Build.PL
+ $ ./Build installdeps
+ 
+To run tests:
+
+ $ ./Build test
