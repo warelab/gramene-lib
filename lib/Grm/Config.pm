@@ -67,23 +67,24 @@ sub _build_config {
     #
     # Add in Ensembl as modules, set their db info
     #
-    if ( my $reg_file = $conf->{'ensembl'}{'registry_file'} ) {
-        if ( my $install_dir = $conf->{'ensembl'}{'install_dir'} ) {
-            my %inc = map { $_, 1 } @INC;
-            for my $dir ( qw{
-                conf
-                ensembl-compara/modules
-                ensembl-draw/modules
-                ensembl-external/modules
-                ensembl-variation/modules
-                ensembl/modules
-                modules
-            } ) {
-                my $path = catdir( $install_dir, $dir );
+    my $reg_file    = $conf->{'ensembl'}{'registry_file'} || '';
+    my $install_dir = $conf->{'ensembl'}{'install_dir'}   || '';
 
-                if ( !$inc{ $path } ) {
-                    push @INC, $path;
-                }
+    if ( $reg_file && $install_dir && -e $reg_file && -d $install_dir ) {
+        my %inc = map { $_, 1 } @INC;
+        for my $dir ( qw{
+            conf
+            ensembl-compara/modules
+            ensembl-draw/modules
+            ensembl-external/modules
+            ensembl-variation/modules
+            ensembl/modules
+            modules
+        } ) {
+            my $path = catdir( $install_dir, $dir );
+
+            if ( !$inc{ $path } ) {
+                push @INC, $path;
             }
         }
 
