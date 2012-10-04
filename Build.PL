@@ -14,8 +14,9 @@ my $builder = Module::Build->new(
         'Test::Exports' => 0,
     },
     requires => {
-        'perl' => 5.006,
+        'perl'          => 5.006,
         'Data::Pageset' => 0,
+        'Template'      => 0,
     },
     add_to_cleanup      => [ 'gramene-lib-*' ],
     create_makefile_pl => 'traditional',
