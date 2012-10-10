@@ -1,4 +1,4 @@
-#!/usr/local/env perl
+#!/usr/bin/env perl
 
 =head1 NAME
 
@@ -85,7 +85,7 @@ my @fname    = grep { !/Grm/ } split( /::/, $pkg_name );
 $fname[-1]  .= '.pm';
 my $conf     = Grm::Config->new;
 my $base_dir = $conf->get('base_dir') or die "No base_dir in config\n";
-my $path     = catfile( $base_dir, 'lib', @fname );
+my $path     = catfile( $base_dir, 'lib', 'Grm', @fname );
 my $editor   = $EDITOR || 'vim';
 
 if ( -e $path ) {

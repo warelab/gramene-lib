@@ -144,7 +144,9 @@ sub get {
             }
         }
         else {
-            croak("No config section named '$section_name'");
+            croak(sprintf("No config section named '%s' in '%s'",
+                $section_name, $self->filename
+            ));
         }
     }
     else {

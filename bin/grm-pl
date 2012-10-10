@@ -77,7 +77,6 @@ if ( $help ) {
 
 my $fname   = shift or die 'No file name';
 my $desc    = shift || 'a script';
-my $shebang = $Config{'startperl'};
 my $editor  = $EDITOR || 'vim';
 
 my $path;
@@ -126,7 +125,6 @@ my $output;
 $t->process( 
     \$template, 
     {
-        shebang       => $shebang,
         fname         => $fname,
         desc          => $desc, 
         full_name     => $full_name,
@@ -150,7 +148,7 @@ exit 0;
 __DATA__
 [%- SET pod_prefix  = '='          -%]
 [%- SET end_tag     = '__END__'    -%]
-[% shebang %]
+#!/usr/bin/env perl
 
 use strict;
 use warnings;
