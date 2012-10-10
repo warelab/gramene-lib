@@ -10,12 +10,17 @@ my $builder = Module::Build->new(
     dist_author         => q{Gramene <gramene@gramene.org>},
     dist_version        => '36.0.0',
     build_requires => {
-        'Test::More' => 0,
+        'Test::More'    => 0,
         'Test::Exports' => 0,
+        'Readonly'      => 0,
     },
     requires => {
         'perl'          => 5.006,
         'Data::Pageset' => 0,
+        'DBI'           => 0,
+        'DBD::mysql'    => 0,
+        'Lucy'          => 0,
+        'IO::Prompt'    => 0,
         'Template'      => 0,
     },
     add_to_cleanup      => [ 'gramene-lib-*' ],

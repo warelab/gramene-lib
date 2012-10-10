@@ -175,7 +175,7 @@ sub _build_dbh {
         $dsn, $user, $password, $self->db_options
     );
 
-    return $dbh
+    return $dbh;
 }
 
 # ----------------------------------------------------------------

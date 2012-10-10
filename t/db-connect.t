@@ -18,8 +18,9 @@ my $count = scalar @modules;
 
 ok( $count, "Got $count modules" );
 
-plan tests => $count + 4;
-
 for my $module ( @modules ) {
-   ok( Grm::DB->new( $module ), "$module OK" );
+   ok( my $db = Grm::DB->new( $module ), "$module OK" );
+   ok( my $dbh = $db->dbh, 'Got a db handle' );
 }
+
+done_testing();

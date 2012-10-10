@@ -77,7 +77,6 @@ if ( $help ) {
 
 my $fname   = shift or die 'No file name';
 my $desc    = shift || 'a script';
-my $shebang = $Config{'startperl'};
 my $editor  = $EDITOR || 'vim';
 
 my $path;
@@ -126,7 +125,6 @@ my $output;
 $t->process( 
     \$template, 
     {
-        shebang       => $shebang,
         fname         => $fname,
         desc          => $desc, 
         full_name     => $full_name,
@@ -143,14 +141,14 @@ close $fh;
 
 chmod oct 775, $path;
 
-my $cmd = sprintf "$editor%s$path", ( $editor =~ /vim?$/ ) ? ' +27 ' : q{ };
+my $cmd = sprintf "$editor%s$path", ( $editor =~ /vim?$/ ) ? ' +24 ' : q{ };
 exec $cmd or die "Couldn't exec '$cmd': $!\n";
 exit 0;
 
 __DATA__
 [%- SET pod_prefix  = '='          -%]
 [%- SET end_tag     = '__END__'    -%]
-[% shebang %]
+#!/usr/bin/env perl
 
 use strict;
 use warnings;
