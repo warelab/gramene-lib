@@ -5,6 +5,7 @@ use Moose;
 use Carp 'croak';
 use DBI;
 use Grm::Config;
+use Grm::Utils qw( module_name_to_gdbic_class );
 use MooseX::Aliases;
 
 has db_name    => (
@@ -42,6 +43,12 @@ has dsn => (
     is         => 'rw',
     isa        => 'Str',
     predicate  => 'has_dsn',
+);
+
+has gdbic => (
+    is         => 'ro',
+    isa        => 'Grm::CDBI',
+    lazy_build => 1,
 );
 
 has user => (
@@ -82,11 +89,6 @@ around BUILDARGS => sub {
         return $class->$orig(@_);
     }
 };
-
-# ----------------------------------------------------------------
-sub _build_config {
-    return Grm::Config->new;
-}
 
 # ----------------------------------------------------------------
 sub BUILD {
@@ -145,6 +147,20 @@ sub BUILD {
     }
 }
 
+# ----------------------------------------------------
+sub DEMOLISH {
+    my $self = shift;
+
+    if ( $self->has_dbh ) {
+        $self->dbh->disconnect;
+    }
+}
+
+# ----------------------------------------------------------------
+sub _build_config {
+    return Grm::Config->new;
+}
+
 # ----------------------------------------------------------------
 sub _build_dbh {
     my $self           = shift;
@@ -162,13 +178,17 @@ sub _build_dbh {
     return $dbh
 }
 
-# ----------------------------------------------------
-sub DEMOLISH {
-    my $self = shift;
+# ----------------------------------------------------------------
+sub _build_gcdbi {
+    my $self    = shift;
+    my $db_name = $self->db_name;
+    my $class   = module_name_to_gdbic_class( $db_name );
 
-    if ( $self->has_dbh ) {
-        $self->dbh->disconnect;
-    }
+    require "$class";
+
+    my $gdbic = $class->connect( 
+        $self->dsn, $self->user, $self->password, $self->db_options
+    );
 }
 
 __PACKAGE__->meta->make_immutable;
