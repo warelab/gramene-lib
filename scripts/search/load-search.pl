@@ -1,12 +1,17 @@
-#!/usr/local/env perl
+#!/usr/bin/env perl
 
 use strict;
 use warnings;
 use autodie;
 use File::Basename;
-use File::Spec::Functions qw( catfile );
+use File::Spec::Functions qw( catdir );
+use File::Path;
 use Getopt::Long;
 use Grm::Config;
+use Grm::DB;
+use Grm::Utils qw( commify );
+use HTML::Strip;
+use List::MoreUtils qw( uniq );
 use Lucy::Analysis::PolyAnalyzer;
 use Lucy::Index::Indexer;
 use Lucy::Plan::FullTextType;
@@ -17,6 +22,7 @@ use Readonly;
 Readonly my $ALL         => '[[all]]';
 Readonly my $COMMA_SPACE => q{, };
 Readonly my $EMPTY_STR   => q{};
+Readonly my $SPACE          => q{ };
 
 my $load_all  =  0;
 my $show_list =  0;
@@ -66,38 +72,48 @@ my $path_to_index = $sconf->{'path_to_index'} or die "No path_to_index\n";
 
 if ( $path_to_index !~ m{^/} ) {
     my $base_dir = $gconf->get('base_dir');
-    $path_to_index = catfile( $base_dir, $path_to_index );
+    $path_to_index = catdir( $base_dir, $path_to_index );
 }
 
-#
-# Create Schema.
-#
-my $schema         = Lucy::Plan::Schema->new;
-my $polyanalyzer   = Lucy::Analysis::PolyAnalyzer->new( language => 'en' );
-my $title_type     = Lucy::Plan::FullTextType->new( analyzer => $polyanalyzer );
-my $content_type   = Lucy::Plan::FullTextType->new(
-    analyzer      => $polyanalyzer,
-    highlightable => 1,
-);
-my $url_type      = Lucy::Plan::StringType->new( indexed => 0, );
-my $cat_type      = Lucy::Plan::StringType->new( stored => 0, );
+if ( !-d $path_to_index ) {
+    mkpath $path_to_index;
+}
 
-$schema->spec_field( name => 'title',    type => $title_type );
-$schema->spec_field( name => 'content',  type => $content_type );
-$schema->spec_field( name => 'url',      type => $url_type );
-$schema->spec_field( name => 'category', type => $cat_type );
-
-# Create an Indexer object.
-my $indexer = Lucy::Index::Indexer->new(
-    index    => $path_to_index,
-    schema   => $schema,
-    create   => 1,
-    truncate => 1,
-);
-
+my $num_records = 0;
+MODULE:
 for my $module ( uniq( @do_modules ) ) {
     next MODULE if $module eq 'search';
- 
+
+    my $module_index = catdir( $path_to_index, $module );
+
+    #
+    # Create Schema.
+    #
+    my $lucy_schema    = Lucy::Plan::Schema->new;
+    my $polyanalyzer   = Lucy::Analysis::PolyAnalyzer->new( language => 'en' );
+    my $title_type     = Lucy::Plan::FullTextType->new( 
+        analyzer       => $polyanalyzer 
+    );
+    my $content_type   = Lucy::Plan::FullTextType->new(
+        analyzer       => $polyanalyzer,
+        highlightable  => 1,
+    );
+    my $url_type       = Lucy::Plan::StringType->new( indexed => 0, );
+    my $cat_type       = Lucy::Plan::StringType->new( stored => 0, );
+
+    $lucy_schema->spec_field( name => 'title',    type => $title_type );
+    $lucy_schema->spec_field( name => 'content',  type => $content_type );
+    $lucy_schema->spec_field( name => 'url',      type => $url_type );
+    $lucy_schema->spec_field( name => 'category', type => $cat_type );
+
+    # Create an Indexer object.
+    my $indexer = Lucy::Index::Indexer->new(
+        index    => $module_index,
+        schema   => $lucy_schema,
+        create   => 1,
+        truncate => 1,
+    ) or die "No indexer\n";
+
     my %index_only;
     for my $mod_name ( keys %{ $sconf->{'limit_index'} } ) {
         next if $module !~ /$mod_name/;
@@ -174,14 +190,24 @@ for my $module ( uniq( @do_modules ) ) {
         }
     }
 
+    print "index only = ", Dumper(\%index_only), "\n"; use Data::Dumper;
+    next MODULE;
+
+    my $db     = Grm::DB->new($module);
+    my $dbh    = $db->dbh;
+    my $schema = $db->dbic;
+
     TABLE:
-    for my $table ( $CDBI->represented_tables ) {
+    for my $source_name ( $schema->sources ) {
+        my $result = $schema->resultset( $source_name );
+        my $source = $result->result_source;
+        my $table  = $source->name;
+
         if ( %index_only && !exists $index_only{ $table } ) {
             next TABLE;
         }
 
-        my $class     = table_name_to_gramene_cdbi_class( $module, $table );
-        my @id_fields = $class->columns('Primary');
+        my @id_fields = $source->primary_columns;
 
         if ( scalar @id_fields > 1 ) {
             print STDERR 
@@ -194,76 +220,82 @@ for my $module ( uniq( @do_modules ) ) {
         my $id_field = shift @id_fields;
 
         if ( !$id_field ) {
-            print STDERR "No PK in $class\n";
+            print STDERR "No PK in $source\n";
             next TABLE;
         };
 
         my @columns;
         if ( !%index_only || $index_only{ $table }{'fields'}->[0] eq $ALL ) {
-            my @has_a = keys %{ $class->meta_info('has_a') || {} };
-            my $skip  = join '|', $id_field, @has_a;
-            @columns  = grep { !/($skip)/ } $class->columns('All');
+            @columns = $source->columns;
         }
         else {
+            my %valid = map { $_, 1 } $source->columns;
             @columns  = @{ $index_only{ $table }{'fields'} };
+
+            if ( my @bad = grep { !$valid{ $_ } } @columns ) {
+                die sprintf("Bad columns for %s: %s\n", 
+                    $table, join(', ', @bad)
+                );
+            }
         }
 
         my @other_tables = @{ $index_only{ $table }{'other_tables'} || [] };
 
         if ( scalar @columns == 0 && scalar @other_tables == 0 ) {
-            print STDERR "No columns or other tables for '$class,' skipping.\n";
+            print STDERR 
+                "No columns or other tables for '$source,' skipping.\n";
             next TABLE;
         }
 
         my @index_also;
-        for my $other ( @other_tables ) {
-            my $other_table  = $other->{'table_name'};
-            my @other_fields = @{ $other->{'fields'} || [] };
-            my $other_class    
-                = table_name_to_gramene_cdbi_class( $module, $other_table );
-            my $other_id_field = $other_class->columns('Primary');
+#        for my $other ( @other_tables ) {
+#            my $other_table  = $other->{'table_name'};
+#            my @other_fields = @{ $other->{'fields'} || [] };
+#            my $other_class    
+#                = table_name_to_gramene_cdbi_class( $module, $other_table );
+#            my $other_id_field = $other_class->columns('Primary');
+#
+#            if ( !$other_id_field ) {
+#                print STDERR "No primary key in '$source'!\n";
+#                next OTHER_TABLE;
+#            };
+#
+#            my @other_has_a 
+#                = keys %{ $other_class->meta_info('has_a') || {} };
+#            my $other_skip  
+#                = join '|', $other_id_field, @other_has_a;
+#            my @other_columns;
+#
+#            if ( $other_fields[0] eq $ALL ) {
+#                @other_columns
+#                  = grep { !/($other_skip)/ } $other_class->columns('All');
+#            }
+#            else {
+#                @other_columns = @other_fields;
+#            }
+#
+#            push @index_also, {
+#                table_name => $other_table,
+#                class      => $other_class,
+#                columns    => \@other_columns,
+#            };
+#        }
 
-            if ( !$other_id_field ) {
-                print STDERR "No primary key in '$class'!\n";
-                next OTHER_TABLE;
-            };
-
-            my @other_has_a 
-                = keys %{ $other_class->meta_info('has_a') || {} };
-            my $other_skip  
-                = join '|', $other_id_field, @other_has_a;
-            my @other_columns;
-
-            if ( $other_fields[0] eq $ALL ) {
-                @other_columns
-                  = grep { !/($other_skip)/ } $other_class->columns('All');
-            }
-            else {
-                @other_columns = @other_fields;
-            }
-
-            push @index_also, {
-                table_name => $other_table,
-                class      => $other_class,
-                columns    => \@other_columns,
-            };
-        }
-
-        my $count    
-            = $class->db_Main->selectrow_array("select count(*) from $table");
 
         my @additional_sql;
-        for my $section ( keys %{ $search_conf->{'index_sql'} } ) {
-            if ( $section =~ /([^.]+)[.]([^.]+)/ ) {
-                my ( $m_name, $t_name ) = ( $1, $2 );
-                next if $module !~ /$m_name/;
-                next if $table  ne $t_name;
+#        for my $section ( keys %{ $search_conf->{'index_sql'} } ) {
+#            if ( $section =~ /([^.]+)[.]([^.]+)/ ) {
+#                my ( $m_name, $t_name ) = ( $1, $2 );
+#                next if $module !~ /$m_name/;
+#                next if $table  ne $t_name;
+#
+#                if ( my $sql = $search_conf->{'index_sql'}{ $section } ) {
+#                    @additional_sql = split /;/, $sql;
+#                }
+#            }
+#        }
 
-                if ( my $sql = $search_conf->{'index_sql'}{ $section } ) {
-                    @additional_sql = split /;/, $sql;
-                }
-            }
-        }
+        my $count = $dbh->selectrow_array("select count(*) from $table");
 
         printf "\rProcessing %s record%s in '%s.%s'\n",
             commify($count),
@@ -271,13 +303,11 @@ for my $module ( uniq( @do_modules ) ) {
             $module,
             $table;
 
-        my $module_db = $class->db_Main;
-        my $sth       = $module_db->prepare("select $id_field from $table");
+        my $sth = $dbh->prepare("select $id_field from $table");
         $sth->execute;
 
-        my ( $c, $i ) = ( 1, 1 );
-        my $max = 50;
-        RECORD:
+        my ( $c, $i, $max ) = ( 1, 1, 50 );
+
         while ( my $id = $sth->fetchrow_array ) {
             if ( $i == $max ) {
                 $i = 0;
@@ -288,23 +318,8 @@ for my $module ( uniq( @do_modules ) ) {
             }
             $c++;
 
-            if ( $continue_load ) {
-                my $exists = $search_db->selectrow_array(
-                    q[
-                        select count(*) 
-                        from   module_search 
-                        where  module_name=?
-                        and    table_name=?
-                        and    record_id=?
-                    ],
-                    {},
-                    ( $module, $table, $id )
-                );
-
-                next RECORD if $exists;
-            }
-
-            my $rec = $class->retrieve( $id );
+            my $rec = $result->find( $id ) 
+                or die "Bad PK '$id' for $module $source_name\n";
 
             $num_records++;
             my $text = @columns 
@@ -316,152 +331,146 @@ for my $module ( uniq( @do_modules ) ) {
                 : $EMPTY_STR
             ;
 
-            my @ontologies = extract_ontology( $rec, $class->columns('All') );
+            my @ontologies;# = extract_ontology( $rec, $class->columns('All') );
 
-            OTHER_TABLE:
-            for my $other ( @index_also ) {
-                my $other_table   = $other->{'table_name'};
-                my $other_class   = $other->{'class'};
-                my @other_columns = @{ $other->{'columns'} || [] } or next;
+#            OTHER_TABLE:
+#            for my $other ( @index_also ) {
+#                my $other_table   = $other->{'table_name'};
+#                my $other_class   = $other->{'class'};
+#                my @other_columns = @{ $other->{'columns'} || [] } or next;
+#
+#                for my $other_obj ( $rec->get_related($other_table) ) {
+#                    $text 
+#                        .= join( $SPACE, 
+#                        $EMPTY_STR,
+#                        grep { $_ ne 'NULL' }
+#                        map  { defined $_ ? $_ : () } 
+#                        $other_obj->get(@other_columns)
+#                    );
+#
+##                    push @ontologies, extract_ontology( 
+##                        $other_obj, $other_class->columns('All')
+##                    );
+#                }
+#            }
 
-                for my $other_obj ( $rec->get_related($other_table) ) {
-                    $text 
-                        .= join( $SPACE, 
-                        $EMPTY_STR,
-                        grep { $_ ne 'NULL' }
-                        map  { defined $_ ? $_ : () } 
-                        $other_obj->get(@other_columns)
-                    );
-
-                    push @ontologies, extract_ontology( 
-                        $other_obj, $other_class->columns('All')
-                    );
-                }
-            }
-
-            SQL:
-            for my $sql ( @additional_sql ) {
-                my @args;
-                if ( $sql =~ /\?/ ) {
-                    push @args, $id;
-                }
-                elsif ( $sql =~ /\[(\w+)\]/ ) {
-                    my $fld = $1;
-                    if ( my $val = $rec->$fld() ) {
-                        $sql =~ s/\[.*?\]/?/;
-                        push @args, $val;
-                    }
-                    else {
-                        next SQL;
-                    }
-                }
-
-                my $sth = $module_db->prepare( $sql );
-                $sth->execute( @args );
-
-                while ( my $d = $sth->fetchrow_hashref ) {
-                    my @flds = keys %$d or next;
-
-                    if ( 
-                        my @d = 
-                        uniq( map { defined $d->{$_} ? $d->{$_} : () } @flds ) 
-                    ) {
-                        $text .= join $SPACE, $EMPTY_STR, @d;
-                    }
-
-                     push @ontologies, extract_ontology( $d, @flds );
-                }
-            }
-
-            $text =~ s/^\s+|\s+$//g; # trim
-            $text =~ s/\s+/ /g;      # collapse spaces
-
-            next if !$text;
+#            SQL:
+#            for my $sql ( @additional_sql ) {
+#                my @args;
+#                if ( $sql =~ /\?/ ) {
+#                    push @args, $id;
+#                }
+#                elsif ( $sql =~ /\[(\w+)\]/ ) {
+#                    my $fld = $1;
+#                    if ( my $val = $rec->$fld() ) {
+#                        $sql =~ s/\[.*?\]/?/;
+#                        push @args, $val;
+#                    }
+#                    else {
+#                        next SQL;
+#                    }
+#                }
+#
+#                my $sth = $module_db->prepare( $sql );
+#                $sth->execute( @args );
+#
+#                while ( my $d = $sth->fetchrow_hashref ) {
+#                    my @flds = keys %$d or next;
+#
+#                    if ( 
+#                        my @d = 
+#                        uniq( map { defined $d->{$_} ? $d->{$_} : () } @flds ) 
+#                    ) {
+#                        $text .= join $SPACE, $EMPTY_STR, @d;
+#                    }
+#
+##                     push @ontologies, extract_ontology( $d, @flds );
+#                }
+#            }
 
             my $hs = HTML::Strip->new;
             $text = $hs->parse( $text );
             $hs->eof;
 
-            my $ModSearch
-                = Grm::DBIC::Search::ModuleSearch->find_or_create(
-                    module_name => $module, 
-                    table_name  => $table, 
-                    record_id   => $rec->id
-                )
-            ;
-            $ModSearch->record_text( $text );
-            $ModSearch->update;
+            $text =~ s/^\s+|\s+$//g; # trim
+            $text =~ s/\s+/ /g;      # collapse spaces
+            $text =~ /\A(.+?)^\s+(.*)/ms ; # not sure, stolen
 
-            ONT:
-            for my $ontology_acc ( uniq( @ontologies ) ) {
-                next unless $ontology_acc;
+            next if !$text;
 
-                my $OntologyType;
-                if ( $ontology_acc =~ /^([A-Za-z_]+):/ ) {
-                    my $ontology_type = $1;
+            my $title = '';
+            if ( my %list_columns = %{ $sconf->{'list_columns'} || {} } ) {
+                while ( my ( $list_type, $list_def ) = each %list_columns ) {
+                    my ( $list_module, $list_table ) = split /\./, $list_type;
 
-                    ($OntologyType)
-                        = Gramene::CDBI::GrameneSearch::OntologyType->search(
-                            ontology_type => $ontology_type
-                        ) or print STDERR "Bad ontology type: $ontology_type\n";
+                    my @title_vals;
+                    if ( 
+                        $module =~ /$list_module/ && $table eq $list_table
+                    ) {
+                        for my $list_fld ( split /\s*,\s*/, $list_def ) {
+                            if ( $rec->can( $list_fld ) ) {
+                                if ( my $val = $rec->$list_fld() ) {
+                                    push @title_vals, $val;
+                                }
+                            }
+                        }
+                    }
+
+                    $title = join $SPACE, @title_vals;
                 }
-
-                next ONT if !$OntologyType;
-
-                my $Ontology
-                = Gramene::CDBI::GrameneSearch::Ontology->find_or_create(
-                    ontology_type_id => $OntologyType->id,
-                    ontology_acc     => $ontology_acc,
-                );
-
-                my $SearchToTax =
-                Gramene::CDBI::GrameneSearch::ModuleSearchToOntology->
-                    find_or_create(
-                        module_search_id => $ModSearch->id,
-                        ontology_id      => $Ontology->id,
-                    );
             }
+            else {
+                $title = substr $text, 0, 50;
+            }
+
+
+#            ONT:
+#            for my $ontology_acc ( uniq( @ontologies ) ) {
+#                next unless $ontology_acc;
+#
+#                my $OntologyType;
+#                if ( $ontology_acc =~ /^([A-Za-z_]+):/ ) {
+#                    my $ontology_type = $1;
+#
+#                    ($OntologyType)
+#                        = Gramene::CDBI::GrameneSearch::OntologyType->search(
+#                            ontology_type => $ontology_type
+#                        ) or print STDERR "Bad ontology type: $ontology_type\n";
+#                }
+#
+#                next ONT if !$OntologyType;
+#
+#                my $Ontology
+#                = Gramene::CDBI::GrameneSearch::Ontology->find_or_create(
+#                    ontology_type_id => $OntologyType->id,
+#                    ontology_acc     => $ontology_acc,
+#                );
+#
+#                my $SearchToTax =
+#                Gramene::CDBI::GrameneSearch::ModuleSearchToOntology->
+#                    find_or_create(
+#                        module_search_id => $ModSearch->id,
+#                        ontology_id      => $Ontology->id,
+#                    );
+#            }
+
+            $indexer->add_doc({
+                title    => $title,
+                content  => $text,
+                url      => join( '/', '', $module, $table, $id ),
+                category => $db->db_name,
+            });
+            last if $i > 100;
         }
 
         print "\n";
     }
+
+    print "Committing indexer\n";
+    $indexer->commit;
 }
 
-# Iterate over list of source files.
-for my $filename (@filenames) {
-    print "Indexing $filename\n";
-    my $doc = make_rec($filename);
-    $indexer->add_doc($doc);
-}
-
-# Finalize the index and print a confirmation message.
-$indexer->commit;
 print "Finished.\n";
-
-sub make_rec {
-    my $filename = shift;
-    my $filepath = catfile( $uscon_source, $filename );
-    open( my $fh, '<', $filepath ) or die "Can't open '$filepath': $!";
-    my $text = do { local $/; <$fh> };    # slurp file content
-    $text =~ /\A(.+?)^\s+(.*)/ms 
-        or die "Can't extract title/bodytext from '$filepath'";
-    my $title    = $1;
-    my $bodytext = $2;
-    my $category
-        = $filename =~ /art/      ? 'article'
-        : $filename =~ /amend/    ? 'amendment'
-        : $filename =~ /preamble/ ? 'preamble'
-        :                           die "Can't derive category for $filename"
-    ;
-
-    return {
-        title    => $title,
-        content  => $bodytext,
-        url      => "/us_constitution/$filename",
-        category => $category,
-    };
-}
-
 
 __END__
 

@@ -45,9 +45,9 @@ has dsn => (
     predicate  => 'has_dsn',
 );
 
-has gdbic => (
+has dbic => (
     is         => 'ro',
-    isa        => 'Grm::CDBI',
+    isa        => 'DBIx::Class::Schema',
     lazy_build => 1,
 );
 
@@ -179,16 +179,21 @@ sub _build_dbh {
 }
 
 # ----------------------------------------------------------------
-sub _build_gcdbi {
+sub _build_dbic {
     my $self    = shift;
     my $db_name = $self->db_name;
     my $class   = module_name_to_gdbic_class( $db_name );
+    ( my $pkg   = $class ) =~ s{::}{/}g;
+    $pkg       .= '.pm';
 
-    require "$class";
+    if ( !$INC{ $pkg } ) {
+        require $pkg;
+        $class->import;
+    }
 
-    my $gdbic = $class->connect( 
-        $self->dsn, $self->user, $self->password, $self->db_options
-    );
+    my $dbic = $class->connect( sub { $self->dbh } );
+
+    return $dbic;
 }
 
 __PACKAGE__->meta->make_immutable;

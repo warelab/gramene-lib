@@ -17,11 +17,8 @@ ok( my @modules = $config->get('modules'), 'Got modules' );
 
 my %seen;
 for my $m ( @modules ) {
-#    my $class = module_name_to_gdbic_class( $m );
-#    next if $seen{ $class }++;
-#    require_ok $class;
-    ok( my $schema = Grm::DB->new( $m )->gcdbi );
-    isa_ok( $schema, 'Grm::CDBI' );
+    ok( my $schema = Grm::DB->new( $m )->dbic, $m );
+    isa_ok( $schema, 'DBIx::Class::Schema' );
 }
 
 done_testing();

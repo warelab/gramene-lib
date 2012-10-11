@@ -159,11 +159,7 @@ exit(0);
 
 __DATA__
 [%- SET pod_prefix = '=' -%]
-[%- SET svn_id = 'Id:' -%]
-[%- SET svn_rev = 'Revision:' -%]
 package [% pkg_name %];
-
-# $[% svn_id %] $
 
 [% pod_prefix %]head1 NAME
 

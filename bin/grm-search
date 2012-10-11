@@ -1,0 +1,104 @@
+#!/usr/bin/env perl
+
+$| = 1;
+
+use strict;
+use warnings;
+use autodie;
+use Data::Dumper;
+use JSON;
+use File::Basename;
+use Getopt::Long;
+use Grm::Search;
+use Pod::Usage;
+use Readonly;
+
+Readonly my %VALID_OUTPUT => map { $_, 1 } qw[ perl json ];
+
+my $index_path = '';
+my $format     = 'perl';
+my ( $help, $man_page );
+GetOptions(
+    'i|index:s'  => \$index_path,
+    'f|format:s' => \$format,
+    'help'       => \$help,
+    'man'        => \$man_page,
+) or pod2usage(2);
+
+if ( $help || $man_page ) {
+    pod2usage({
+        -exitval => 0,
+        -verbose => $man_page ? 2 : 1
+    });
+}; 
+
+if ( !$VALID_OUTPUT{ $format } ) {
+    pod2usage(
+        sprintf('Invalid output format "%s", choose from %s',
+            $format, join(', ', map { qq{"$_"} }sort keys %VALID_OUTPUT)
+        )
+    );
+}
+
+my $search = Grm::Search->new( index_path => $index_path );
+for my $arg ( @ARGV ) {
+    print "Searching for '$arg'...";
+    my @res = $search->search( query => $arg );
+    printf "found %s results\n", scalar @res;
+
+    if ( @res ) {
+        if ( $format eq 'json' ) {
+            print encode_json( \@res ), "\n"; 
+        }
+        else {
+            print Dumper( \@res ), "\n"; 
+        }
+    }
+}
+
+print "Done.\n";
+
+__END__
+
+# ----------------------------------------------------
+
+=pod
+
+=head1 NAME
+
+grm-search - execute a Gramene search
+
+=head1 SYNOPSIS
+
+  grm-search [options] query1 query2
+
+Options:
+
+  -f|--format  Output format (perl, json)
+  -i|--index   Alternate path to index
+  --help       Show brief help and exit
+  --man        Show full documentation
+
+=head1 DESCRIPTION
+
+Executes a Gramene search for each term given.
+
+=head1 SEE ALSO
+
+Grm::Search, Lucy.
+
+=head1 AUTHOR
+
+Ken Youens-Clark E<lt>kclark@cshl.eduE<gt>.
+
+=head1 COPYRIGHT
+
+Copyright (c) 2012 Cold Spring Harbor Laboratory
+
+This module is free software; you can redistribute it and/or
+modify it under the terms of the GPL (either version 1, or at
+your option, any later version) or the Artistic License 2.0.
+Refer to LICENSE for the full license text and to DISCLAIMER for
+additional warranty disclaimers.
+
+=cut
