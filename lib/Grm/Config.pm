@@ -1,6 +1,7 @@
 package Grm::Config;
 
 use namespace::autoclean;
+use Class::Load qw( load_class );
 use Carp qw( croak );
 use File::Spec::Functions;
 use Moose::Util::TypeConstraints;
@@ -64,6 +65,25 @@ sub _build_config {
     my $file = $self->filename   or croak('No filename');
     my $conf = LoadFile( $file ) or croak("Error reading config file: '$file'");
 
+    if ( my $also_load = $conf->{'also_load'} ) {
+        chomp $also_load;
+        for my $also ( split( /\s*,\s*/, $also_load ) ) {
+            if ( $also !~ m{^/} ) {
+                $also = catfile( $conf->{'base_dir'}, 'conf', $also );
+            }
+
+            if ( -e $also ) {
+                my $other = LoadFile( $also );
+                for my $key ( keys %$other ) {
+                    $conf->{ $key } = $other->{ $key };
+                }
+            }
+            else {
+                warn "Can't load other config file: $also\n";
+            }
+        }
+    }
+
     #
     # Add in Ensembl as modules, set their db info
     #
@@ -90,17 +110,19 @@ sub _build_config {
 
         my $reg_class = 'Bio::EnsEMBL::Registry';
 
-        eval "require $reg_class";
-
-        if ( $@ ) {
-            warn "Cannot load $reg_class\n";
-        }
-        else {
+        if ( load_class( $reg_class ) ) {
             $reg_class->load_all( $reg_file );
 
+            DB:
             for my $db ( @{ $reg_class->get_all_DBAdaptors() } ) {
+                my $dbc = $db->dbc;
+
+                #
+                # Skip those hosted at EBI and the "multi"
+                #
                 my $species = 'ensembl_' . lc $db->species; 
-                my $dbc     = $db->dbc;
+
+                next DB if $dbc->host =~ /^ensembl/ || $species =~ /multi/;
 
                 $conf->{'database'}{ $species } = {
                     name     => $dbc->dbname,
@@ -112,6 +134,11 @@ sub _build_config {
                 push @{ $conf->{'modules'} }, $species;
             }
         }
+        else {
+            warn "Cannot load $reg_class\n";
+        }
+
+        @{ $conf->{'modules'} } = sort @{ $conf->{'modules'} };
     }
     
     return $conf;

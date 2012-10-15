@@ -102,7 +102,7 @@ for my $db_name ( @dbs ) {
     my $host  = $db->host;
     my $class = '';
 
-    if ( $db_name =~ /^ensembl_/ ) {
+    if ( $db_name =~ /^ensembl_.*_core/ ) {
         next DB if $host eq 'ensembldb.ensembl.org'; 
 
         $db_name = 'ensembl';

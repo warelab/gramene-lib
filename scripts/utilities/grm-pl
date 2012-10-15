@@ -1,0 +1,217 @@
+#!/usr/bin/env perl
+
+=head1 NAME
+
+grm-pl - stub out a new Perl script with Gramene template
+
+=head1 SYNOPSIS
+
+  grm-pl <script-name-or-path> [description]
+
+Options:
+
+  --help     Show brief help and exit
+
+=head1 DESCRIPTION
+
+This script will stub out a new Perl script with POD sections and
+basic optional handling and usage printing, incorporating some of the
+suggestions from the Gramene developer's conventions L<SEE ALSO>.
+Unless the script name is an absolute path (e.g., "/tmp/foo"), the
+created script will be placed into the current working directory.  An
+optional description can be provided to place into the POD.
+
+To specify the author name and e-mail address that appears in the POD, 
+create a file called ".gramenerc" in your home directory with entries 
+like the following:
+
+  author=John Q. Public
+  email=jqp@place.com
+
+=head1 SEE ALSO
+
+http://dev.gramene.org/internaltext/gramene-developer-conventions.pod
+
+=head1 AUTHOR
+
+Ken Youens-Clark E<lt>kclark@cshl.eduE<gt>.
+
+=head1 COPYRIGHT
+
+Copyright (c) 2012 Cold Spring Harbor Laboratory
+
+This library is free software;  you can redistribute it and/or modify 
+it under the same terms as Perl itself.
+
+=cut
+
+# ---------------------------------------------------------
+
+use strict;
+use warnings;
+use Cwd;
+use Config;
+use Env qw( $EDITOR );
+use English qw( -no_match_vars );
+use File::Basename;
+use File::Spec::Functions;
+use Getopt::Long;
+use IO::Prompt;
+use Template;
+use Perl6::Slurp;
+use Readonly;
+
+my $help;
+GetOptions(
+    'help' => \$help,
+);
+
+#
+# Can't use Pod::Usage as it gets confused by the POD in the template.
+#
+if ( $help ) {
+    my $p = basename( $PROGRAM_NAME );
+    print "Usage:\n\t$p <script-name> [description]\n\n";
+    exit 0;
+}
+
+my $fname   = shift or die 'No file name';
+my $desc    = shift || 'a script';
+my $editor  = $EDITOR || 'vim';
+
+my $path;
+if ( file_name_is_absolute( $fname ) ) {
+    $path  = $fname;
+    $fname = basename( $fname );
+}
+else {
+    $path = catfile( cwd(), $fname );
+}
+
+my ( $user_name, $full_name, $email_address );
+{
+    my ( $name, $passwd, $uid, $gid, $quota, $comment, $gcos,
+        $home_dir, $shell ) = getpwuid $EFFECTIVE_USER_ID;
+    $user_name = $name;
+    $full_name = $gcos || $name;
+
+    my $gramenerc = catfile( $home_dir, '.gramenerc' );
+    if ( -e $gramenerc ) {
+        if ( open my $fh, $gramenerc ) {
+            while ( <$fh> ) {
+                if ( /^author\s*=\s*(.*)$/ ) {
+                    $full_name = $1;
+                }
+                elsif ( /^email\s*=\s*(.*)$/ ) {
+                    $email_address = $1;
+                }
+            }
+        }
+    }
+}
+
+if ( -e $path ) {
+    unless ( prompt( -yn, "'$path' exists.\nOK to overwrite? ") ) {
+        print "Exiting.\n"; 
+        exit 0;
+    }
+}
+
+
+my $t        = Template->new;
+my $template = slurp \*DATA;
+my $output; 
+
+$t->process( 
+    \$template, 
+    {
+        fname         => $fname,
+        desc          => $desc, 
+        full_name     => $full_name,
+        user_name     => $user_name,
+        email_address => $email_address || "$user_name\@cshl.edu",
+        year          => (localtime)[5] + 1900,
+    },
+    \$output
+) or die $t->error;
+
+open my $fh, ">$path" or die "Can't write to '$path': $!\n";
+print $fh $output;
+close $fh;
+
+chmod oct 775, $path;
+
+my $cmd = sprintf "$editor%s$path", ( $editor =~ /vim?$/ ) ? ' +24 ' : q{ };
+exec $cmd or die "Couldn't exec '$cmd': $!\n";
+exit 0;
+
+__DATA__
+[%- SET pod_prefix  = '='          -%]
+[%- SET end_tag     = '__END__'    -%]
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use autodie;
+use Getopt::Long;
+use Pod::Usage;
+use Readonly;
+
+my ( $help, $man_page );
+GetOptions(
+    'help' => \$help,
+    'man'  => \$man_page,
+) or pod2usage(2);
+
+if ( $help || $man_page ) {
+    pod2usage({
+        -exitval => 0,
+        -verbose => $man_page ? 2 : 1
+    });
+}; 
+
+
+
+[% end_tag %]
+
+# ----------------------------------------------------
+
+[% pod_prefix %]pod
+
+[% pod_prefix %]head1 NAME
+
+[% fname %][% IF desc; " - $desc"; END %]
+
+[% pod_prefix %]head1 SYNOPSIS
+
+  [% fname %] 
+
+Options:
+
+  --help   Show brief help and exit
+  --man    Show full documentation
+
+[% pod_prefix %]head1 DESCRIPTION
+
+Describe what the script does, what input it expects, what output it
+creates, etc.
+
+[% pod_prefix %]head1 SEE ALSO
+
+perl.
+
+[% pod_prefix %]head1 AUTHOR
+
+[% full_name %] E<lt>[% email_address %]E<gt>.
+
+[% pod_prefix %]head1 COPYRIGHT
+
+Copyright (c) [% year %] Cold Spring Harbor Laboratory
+
+This module is free software; you can redistribute it and/or
+modify it under the terms of the GPL (either version 1, or at
+your option, any later version) or the Artistic License 2.0.
+Refer to LICENSE for the full license text and to DISCLAIMER for
+additional warranty disclaimers.
+
+[% pod_prefix %]cut

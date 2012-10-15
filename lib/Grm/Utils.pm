@@ -5,6 +5,7 @@ use CGI;
 use Carp qw( carp croak );
 use Data::Dumper;
 use Data::Pageset;
+use Grm::DB;
 use Grm::Config;
 use List::Util qw( max );
 use List::MoreUtils qw( uniq );
@@ -21,6 +22,7 @@ use vars qw( @EXPORT @EXPORT_OK );
 use base 'Exporter';
 
 my @subs = qw[ 
+    camel_case
     commify
     get_logger
     gramene_cdbi_class_to_module_name
@@ -31,10 +33,17 @@ my @subs = qw[
     pager
     parse_words
     table_name_to_gdbic_class
+    url_to_obj
 ];
 
 @EXPORT_OK = @subs;
 @EXPORT    = @subs;
+
+# ----------------------------------------------------
+sub camel_case {
+    my $str = shift;
+    return join( '', map { ucfirst } split /_/, lc($str));
+}
 
 # ----------------------------------------------------
 sub commify {
@@ -323,15 +332,22 @@ sub table_name_to_gdbic_class {
         croak 'table_name_to_gcdbi_class needs module and table name';
     }
 
-    my $module     = shift or croak 'No module name';
-    my $table_name = shift or croak 'No table name';
-    my $class      = join('::', 
-        'Grm', 'DBIC', 
-        join( '', map { ucfirst } split /_/, lc($module)),
-        join( '', map { ucfirst } split /_/, lc($table_name))
-    );
+    my $module      = shift or croak 'No module name';
+    my $table_name  = shift or croak 'No table name';
+    my $result_set  = join( '::', 'Grm', 'DBIC', camel_case($module) );
+    my $source_name = camel_case( $table_name );
 
-    return $class;
+    return ( $result_set, $source_name );
+}
+
+# ----------------------------------------------------
+sub url_to_obj {
+    my $url = shift or return;
+    my ( $module, $table, $id ) = split( /\//, $url );
+    my $dbic = Grm::DB->new( $module )->dbic;
+    my $rs   = $dbic->resultset( camel_case( $table ) );
+
+    return $rs->find( $id ); 
 }
 
 1;
@@ -356,6 +372,12 @@ This module contains general-purpose routines, all of which are
 exported by default.
 
 =head1 EXPORTED SUBROUTINES
+
+=head2 camel_case
+
+  my $cc = camel_case('foo_bar');
+
+  # $cc is "FooBar"
 
 =head2 commify
 
@@ -453,8 +475,10 @@ quoted phrases within a string to count as a "word," e.g.:
 
 =head2 table_name_to_gdbic_class
 
-  my $class = table_name_to_gcdbi_class( 'Markers', 'marker_type' );
-  # $class now has "Grm::DBIC::Markers::MarkerType"
+  my ( $result_set, $source_name ) 
+        = table_name_to_gcdbi_class( 'Markers', 'marker_type' );
+  # $result_set is "Grm::DBIC::Markers"
+  # $source_name is "MarkerType"
 
 Turns a module's table name into it's Grm::DBIC class.  Both arguments
 are required.
@@ -465,6 +489,11 @@ are required.
   # $class now has "Grm::DBIC::Germplasm"
 
 Turns a module's name into it's Grm::DBIC class. The module name is required
+
+=head2 url_to_obj
+
+  my $obj = url_to_obj( 'maps/feature/11032' );
+  # $obj is now the Grm::Maps::Feature object for id 11032
 
 =head1 AUTHOR
 

@@ -51,6 +51,8 @@ use Lucy::Highlight::Highlighter;
 use Lucy::Search::QueryParser;
 use Lucy::Search::TermQuery;
 use Lucy::Search::ANDQuery;
+use LucyX::Search::WildcardQuery;
+use Time::HiRes qw( gettimeofday tv_interval );
 
 has index_path => (
     is         => 'rw',
@@ -83,36 +85,59 @@ sub BUILD {
 # ----------------------------------------------------
 sub search {
     my $self       = shift;
+    my $start_time = [ gettimeofday() ];
     my %args       = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
     my $q          = $args{'query'}    or return;
     my $offset     = $args{'offset'}   ||  0;
     my $category   = $args{'category'} || '';
-    my $page_size  = $self->page_size;
+    my $limit      = $args{'limit'}    ||  0;
+    my $page_size  = $args{'nopage'} 
+                   ? undef 
+                   : $args{'page_size'} || $self->page_size;
     my $index_path = $self->index_path;
 
     my $hit_count = 0;
     my @dirs      = 
-    File::Find::Rule->directory()->maxdepth(1)->mindepth(1)->in($index_path);
+      File::Find::Rule->directory()->maxdepth(1)->mindepth(1)->in($index_path);
 
-    my @return;
+    my @hits;
     DIR:
     for my $dir ( @dirs ) {
-        # Create an IndexSearcher and a QueryParser.
-        my $searcher = Lucy::Search::IndexSearcher->new( 
-            index => $dir,
-        );
+        my $searcher;
+        eval {
+            $searcher = Lucy::Search::IndexSearcher->new( index => $dir );
+        };
+
+        if ( my $err = $@ ) {
+            warn ">>> $dir <<<\n$err\n";
+            next DIR;
+        }
 
         my $qparser = Lucy::Search::QueryParser->new( 
             schema => $searcher->get_schema,
+            fields => ['content'],
         );
 
         # Build up a Query.
-        my $query = $qparser->parse($q);
+$DB::single=1;
+
+        my $query;
+        if ( $q =~ /\*/ ) {
+            $query = LucyX::Search::WildcardQuery->new(
+                field  => 'content',
+                term   => $q,
+            );
+        }
+        else {
+            $query = $qparser->parse($q);
+        }
+
         if ($category) {
             my $category_query = Lucy::Search::TermQuery->new(
                 field => 'category', 
                 term  => $category,
             );
+
             $query = Lucy::Search::ANDQuery->new(
                 children => [ $query, $category_query ]
             );
@@ -138,19 +163,22 @@ sub search {
 
         # Create result list.
         while ( my $hit = $hits->next ) {
-            push @return, { 
+            push @hits, { 
                 title        => $hit->{'title'},
                 content      => $hit->{'content'},
                 url          => $hit->{'url'},
-                score        => $hit->{'score'},
+                score        => $hit->get_score,
                 pretty_score => sprintf( "%0.3f", $hit->get_score ),
                 excerpt      => $highlighter->create_excerpt($hit),
             };
         }
-#        $return{'paging_links'} = _generate_paging_info( $q, $hit_count, $offset, $page_size );
     }
 
-    @return;
+    return { 
+        num_hits => scalar @hits,
+        data     => \@hits, 
+        time     => tv_interval( $start_time, [ gettimeofday() ] ),
+    };
 }
 
 # Create html fragment with links for paging through results n-at-a-time.

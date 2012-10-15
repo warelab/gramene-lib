@@ -3,7 +3,8 @@
 use strict;
 use warnings;
 use autodie;
-use File::Basename;
+use File::Basename qw( basename );
+use File::Find::Rule;
 use File::Spec::Functions qw( catdir );
 use File::Path;
 use Getopt::Long;
@@ -11,6 +12,7 @@ use Grm::Config;
 use Grm::DB;
 use Grm::Utils qw( commify );
 use HTML::Strip;
+use IO::Prompt qw( prompt );
 use List::MoreUtils qw( uniq );
 use Lucy::Analysis::PolyAnalyzer;
 use Lucy::Index::Indexer;
@@ -18,20 +20,30 @@ use Lucy::Plan::FullTextType;
 use Lucy::Plan::Schema;
 use Pod::Usage;
 use Readonly;
+use Time::HiRes qw( gettimeofday tv_interval );
+use Time::Interval qw( parseInterval );
 
 Readonly my $ALL         => '[[all]]';
 Readonly my $COMMA_SPACE => q{, };
 Readonly my $EMPTY_STR   => q{};
 Readonly my $SPACE          => q{ };
 
-my $load_all  =  0;
-my $show_list =  0;
-my $modules   = '';
+my $force         =  0;
+my $load_all      =  0;
+my $load_like     = '';
+my $load_not_like = '';
+my $skip_done     =  0;
+my $show_list     =  0;
+my $modules       = '';
 my ( $help, $man_page );
 GetOptions(
     'a|all'      => \$load_all,
     'l|list'     => \$show_list,
+    'f|force'    => \$force,
+    'like:s'     => \$load_like,
+    'not-like:s' => \$load_not_like,
     'm|module:s' => \$modules,
+    'skip-done'  => \$skip_done,
     'help'       => \$help,
     'man'        => \$man_page,
 ) or pod2usage(2);
@@ -43,8 +55,20 @@ if ( $help || $man_page ) {
     });
 }; 
 
-my $gconf   = Grm::Config->new;
-my @modules = $gconf->get('modules');
+my $gconf      = Grm::Config->new;
+my @modules    = $gconf->get('modules');
+my $sconf      = $gconf->get('search');
+my $index_path = $sconf->{'index_path'} or die "No index_path\n";
+
+if ( $index_path !~ m{^/} ) {
+    my $base_dir = $gconf->get('base_dir');
+    $index_path  = catdir( $base_dir, $index_path );
+}
+
+if ( !-d $index_path ) {
+    mkpath $index_path;
+}
+
 
 if ( $show_list ) {
     print join "\n",
@@ -55,28 +79,56 @@ if ( $show_list ) {
     exit 0;
 }
 
+if ( $load_like && $load_not_like ) {
+    pod2usage("Don't use both --like and --not-like");
+}
+
 my @do_modules;
 if ( $modules ) {
     @do_modules = split /\s*,\s*/, $modules;
 }
+elsif ( $load_like ) {
+    for my $like ( split( /\s*,\s*/, $load_like ) ) {
+        push @do_modules, grep { /$like/ } @modules;
+    }
+}
+elsif ( $load_not_like ) {
+    for my $not_like ( split( /\s*,\s*/, $load_not_like ) ) {
+        push @do_modules, grep { !/$not_like/ } @modules;
+    }
+}
 elsif ( $load_all ) {
     @do_modules = @modules;
+}
+
+if ( $skip_done ) {
+    my %done = map { basename($_), 1 } 
+      File::Find::Rule->directory()->nonempty->maxdepth(1)->mindepth(1)
+        ->in($index_path);
+
+    @do_modules = grep { !$done{ $_ } } @do_modules;
+
+    if ( !@do_modules ) {
+        print "Looks like everything was done.\n";
+        exit 0;
+    }
 }
 
 if ( !@do_modules ) {
     pod2usage('Please indicate the modules or choose --all');
 }
 
-my $sconf         = $gconf->get('search');
-my $path_to_index = $sconf->{'path_to_index'} or die "No path_to_index\n";
+unless ( $force ) {
+    my $ok = prompt -yn, 
+        sprintf("OK to load the following?\n%s\n[yn] ", 
+            join("\n", map { " - $_" } @do_modules)
+        )
+    ;
 
-if ( $path_to_index !~ m{^/} ) {
-    my $base_dir = $gconf->get('base_dir');
-    $path_to_index = catdir( $base_dir, $path_to_index );
-}
-
-if ( !-d $path_to_index ) {
-    mkpath $path_to_index;
+    if ( !$ok ) {
+        print "Not OK, exiting.\n";
+        exit 0;
+    }
 }
 
 my $num_records = 0;
@@ -84,7 +136,7 @@ MODULE:
 for my $module ( uniq( @do_modules ) ) {
     next MODULE if $module eq 'search';
 
-    my $module_index = catdir( $path_to_index, $module );
+    my $module_index = catdir( $index_path, $module );
 
     #
     # Create Schema.
@@ -190,8 +242,9 @@ for my $module ( uniq( @do_modules ) ) {
         }
     }
 
-    print "index only = ", Dumper(\%index_only), "\n"; use Data::Dumper;
-    next MODULE;
+use Data::Dumper;
+#    print "index only = ", Dumper(\%index_only), "\n"; 
+#    next MODULE;
 
     my $db     = Grm::DB->new($module);
     my $dbh    = $db->dbh;
@@ -199,6 +252,7 @@ for my $module ( uniq( @do_modules ) ) {
 
     TABLE:
     for my $source_name ( $schema->sources ) {
+        my $start_time   = [gettimeofday()];
         my $result = $schema->resultset( $source_name );
         my $source = $result->result_source;
         my $table  = $source->name;
@@ -248,52 +302,38 @@ for my $module ( uniq( @do_modules ) ) {
         }
 
         my @index_also;
-#        for my $other ( @other_tables ) {
-#            my $other_table  = $other->{'table_name'};
-#            my @other_fields = @{ $other->{'fields'} || [] };
-#            my $other_class    
-#                = table_name_to_gramene_cdbi_class( $module, $other_table );
-#            my $other_id_field = $other_class->columns('Primary');
-#
-#            if ( !$other_id_field ) {
-#                print STDERR "No primary key in '$source'!\n";
-#                next OTHER_TABLE;
-#            };
-#
-#            my @other_has_a 
-#                = keys %{ $other_class->meta_info('has_a') || {} };
-#            my $other_skip  
-#                = join '|', $other_id_field, @other_has_a;
-#            my @other_columns;
-#
-#            if ( $other_fields[0] eq $ALL ) {
-#                @other_columns
-#                  = grep { !/($other_skip)/ } $other_class->columns('All');
-#            }
-#            else {
-#                @other_columns = @other_fields;
-#            }
-#
-#            push @index_also, {
-#                table_name => $other_table,
-#                class      => $other_class,
-#                columns    => \@other_columns,
-#            };
-#        }
+        for my $other ( @other_tables ) {
+            my $other_table  = $other->{'table_name'};
 
+            my @other_columns;
+            if ( $other->{'fields'}[0] eq $ALL ) {
+                my $other_source_name = 
+                    join( '', map { ucfirst } split /_/, lc($other_table));
+                my $other_rs = $schema->resultset( $other_source_name );
+                @other_columns = $other_rs->result_source->columns;
+            }
+            else {
+                @other_columns = @{ $other->{'fields'} || [] };
+            }
+
+            push @index_also, {
+                table_name => $other_table,
+                columns    => \@other_columns,
+            };
+        }
 
         my @additional_sql;
-#        for my $section ( keys %{ $search_conf->{'index_sql'} } ) {
-#            if ( $section =~ /([^.]+)[.]([^.]+)/ ) {
-#                my ( $m_name, $t_name ) = ( $1, $2 );
-#                next if $module !~ /$m_name/;
-#                next if $table  ne $t_name;
-#
-#                if ( my $sql = $search_conf->{'index_sql'}{ $section } ) {
-#                    @additional_sql = split /;/, $sql;
-#                }
-#            }
-#        }
+        for my $section ( keys %{ $sconf->{'index_sql'} } ) {
+            if ( $section =~ /([^.]+)[.]([^.]+)/ ) {
+                my ( $m_name, $t_name ) = ( $1, $2 );
+                next if $module !~ /$m_name/;
+                next if $table  ne $t_name;
+
+                if ( my $sql = $sconf->{'index_sql'}{ $section } ) {
+                    @additional_sql = split /;/, $sql;
+                }
+            }
+        }
 
         my $count = $dbh->selectrow_array("select count(*) from $table");
 
@@ -333,26 +373,25 @@ for my $module ( uniq( @do_modules ) ) {
 
             my @ontologies;# = extract_ontology( $rec, $class->columns('All') );
 
-#            OTHER_TABLE:
-#            for my $other ( @index_also ) {
-#                my $other_table   = $other->{'table_name'};
-#                my $other_class   = $other->{'class'};
-#                my @other_columns = @{ $other->{'columns'} || [] } or next;
-#
-#                for my $other_obj ( $rec->get_related($other_table) ) {
-#                    $text 
-#                        .= join( $SPACE, 
-#                        $EMPTY_STR,
-#                        grep { $_ ne 'NULL' }
-#                        map  { defined $_ ? $_ : () } 
-#                        $other_obj->get(@other_columns)
+            OTHER_TABLE:
+            for my $other ( @index_also ) {
+                my $other_table   = $other->{'table_name'};
+                my @other_columns = @{ $other->{'columns'} || [] } or next;
+
+                for my $other_obj ( $rec->search_related($other_table)->all ) {
+                    $text .= join( $SPACE, 
+                        $EMPTY_STR,
+                        grep { $_ ne 'NULL' }
+                        map  { defined $_ ? $_ : () }
+                        map  { $other_obj->$_() }
+                        @other_columns
+                    );
+
+#                    push @ontologies, extract_ontology( 
+#                        $other_obj, $other_class->columns('All')
 #                    );
-#
-##                    push @ontologies, extract_ontology( 
-##                        $other_obj, $other_class->columns('All')
-##                    );
-#                }
-#            }
+                }
+            }
 
 #            SQL:
 #            for my $sql ( @additional_sql ) {
@@ -419,10 +458,8 @@ for my $module ( uniq( @do_modules ) ) {
                     $title = join $SPACE, @title_vals;
                 }
             }
-            else {
-                $title = substr $text, 0, 50;
-            }
 
+            $title ||= substr $text, 0, 50;
 
 #            ONT:
 #            for my $ontology_acc ( uniq( @ontologies ) ) {
@@ -455,22 +492,34 @@ for my $module ( uniq( @do_modules ) ) {
 #            }
 
             $indexer->add_doc({
+                category => $module,
                 title    => $title,
                 content  => $text,
-                url      => join( '/', '', $module, $table, $id ),
-                category => $db->db_name,
+                url      => join( '/', $module, $table, $id ),
             });
             last if $i > 100;
         }
 
-        print "\n";
+        my $seconds = tv_interval( $start_time, [gettimeofday()] );
+
+        printf "\nFinished %s in %s\n\n", 
+            $table, 
+            $seconds > 60 
+                ? parseInterval( 
+                    seconds => int($seconds),
+                    Small   => 1,
+                ) 
+                : "$seconds seconds"
+        ;
     }
 
     print "Committing indexer\n";
+
     $indexer->commit;
+
 }
 
-print "Finished.\n";
+print "All done.\n";
 
 __END__
 
@@ -488,12 +537,16 @@ load-search.pl - load Apache::Lucy search index for Gramene
 
 Options:
 
-  -a|--all    Process all modules
-  -l|--list   Show a list of modules
-  -m|--module Comma-separated list of modules to index
+  -a|--all     Process all modules
+  -f|--force   Don't prompt for confirmation
+  -l|--list    Show a list of modules
+  --like       Comma-separated list of regexes to select modules
+  --not-like   Comma-separated list of regexes to deselect modules
+  -m|--module  Comma-separated list of modules to index
+  --skip-done  Skip previously indexed modules (useful w/other selectors)
 
-  --help   Show brief help and exit
-  --man    Show full documentation
+  --help       Show brief help and exit
+  --man        Show full documentation
 
 =head1 DESCRIPTION
 

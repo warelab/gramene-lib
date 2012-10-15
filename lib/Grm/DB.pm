@@ -3,6 +3,7 @@ package Grm::DB;
 use namespace::autoclean;
 use Moose;
 use Carp 'croak';
+use Class::Load qw( load_class );
 use DBI;
 use Grm::Config;
 use Grm::Utils qw( module_name_to_gdbic_class );
@@ -183,17 +184,13 @@ sub _build_dbic {
     my $self    = shift;
     my $db_name = $self->db_name;
     my $class   = module_name_to_gdbic_class( $db_name );
-    ( my $pkg   = $class ) =~ s{::}{/}g;
-    $pkg       .= '.pm';
 
-    if ( !$INC{ $pkg } ) {
-        require $pkg;
-        $class->import;
+    if ( load_class( $class ) ) {
+        return $class->connect( sub { $self->dbh } );
     }
-
-    my $dbic = $class->connect( sub { $self->dbh } );
-
-    return $dbic;
+    else {
+        croak "Can't load '$class'\n";
+    }
 }
 
 __PACKAGE__->meta->make_immutable;

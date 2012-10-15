@@ -1,0 +1,171 @@
+#!/usr/bin/env perl
+
+$| = 1;
+
+use strict;
+use warnings;
+use autodie;
+use feature qw( say );
+use Data::Dumper;
+use JSON;
+use File::Basename;
+use Getopt::Long;
+use Grm::Search;
+use Grm::Utils qw( camel_case );
+use Pod::Usage;
+use Readonly;
+use Text::TabularDisplay;
+
+Readonly my %VALID_OUTPUT => map { $_, 1 } qw[ perl json summary table ];
+
+my $category   = '';
+my $index_path = '';
+my $format     = 'table';
+my $limit      =  0;
+my $query_file = '';
+my $verbose    =  0;
+my ( $help, $man_page );
+GetOptions(
+    'c|category:s' => \$category,
+    'i|index:s'    => \$index_path,
+    'f|format:s'   => \$format,
+    'file:s'       => \$query_file,
+    'l|limit:i'    => \$limit,
+    'v|verbose'    => \$verbose,
+    'help'         => \$help,
+    'man'          => \$man_page,
+) or pod2usage(2);
+
+if ( $help || $man_page ) {
+    pod2usage({
+        -exitval => 0,
+        -verbose => $man_page ? 2 : 1
+    });
+}; 
+
+if ( !$VALID_OUTPUT{ $format } ) {
+    pod2usage(
+        sprintf('Invalid output format "%s", choose from %s',
+            $format, join(', ', map { qq{"$_"} }sort keys %VALID_OUTPUT)
+        )
+    );
+}
+
+my @terms;
+if ( $query_file ) {
+    open my $fh, '<', $query_file;
+    @terms = map { chomp; $_ } <$fh>;
+    close $fh;
+}
+else {
+    @terms = @ARGV;
+}
+
+if ( !@terms ) {
+    pod2usage('No search terms');
+}
+
+my $print = sub { 
+    if ( $format ne 'summary' || $verbose ) {
+        print STDERR @_;
+    }
+};
+
+my @tab_flds = qw[ url content ];
+my $tab      = Text::TabularDisplay->new( @tab_flds );
+my $search   = Grm::Search->new( index_path => $index_path );
+my @summary;
+my $i;
+TERM:
+for my $term ( @terms ) {
+    my %args = $limit ? ( page_size => $limit ) : ( nopage => 1 );
+
+    my $res      = $search->search( 
+        query    => $term, 
+        category => $category,
+        %args
+    );
+
+    my $num = $res->{'num_hits'};
+
+    $print->(sprintf("%6s: Found %s for '%s'\n", ++$i, $num, $term));
+
+    if ( $format eq 'summary' ) {
+        push @summary, [ $term, $num, $res->{'time'} ];
+        next TERM;
+    }
+
+    if ( $num > 0 ) {
+        if ( $format eq 'table' ) {
+            for my $rec ( @{ $res->{'data'} } ) {
+                $tab->add( map { $rec->{ $_ } } @tab_flds );
+            }
+        }
+        elsif ( $format eq 'json' ) {
+            print encode_json( $res->{'data'} ), "\n"; 
+        }
+        else {
+            print Dumper( $res->{'data'} ), "\n"; 
+        }
+    }
+}
+
+if ( $format eq 'summary' ) {
+    @summary = sort { $a->[1] <=> $b->[1] } @summary;
+    unshift @summary, [ qw( query found time ) ];
+    print join "\n", ( map { join( "\t", @$_ ) } @summary ), '';
+}
+elsif ( $format eq 'table' ) {
+    say $tab->render;
+}
+
+$print->("Done.\n");
+
+__END__
+
+# ----------------------------------------------------
+
+=pod
+
+=head1 NAME
+
+grm-search - execute a Gramene search
+
+=head1 SYNOPSIS
+
+  grm-search [options] query1 query2
+
+Options:
+
+  -c|--category  The search category
+  -f|--format    Output format (perl, json)
+  --file         A file containing query terms
+  -i|--index     Alternate path to index
+  -l|--limit     Only return this many
+  -v|--verbose   Print progress to STDERR if using --file)
+  --help         Show brief help and exit
+  --man          Show full documentation
+
+=head1 DESCRIPTION
+
+Executes a Gramene search for each term given.
+
+=head1 SEE ALSO
+
+Grm::Search, Lucy.
+
+=head1 AUTHOR
+
+Ken Youens-Clark E<lt>kclark@cshl.eduE<gt>.
+
+=head1 COPYRIGHT
+
+Copyright (c) 2012 Cold Spring Harbor Laboratory
+
+This module is free software; you can redistribute it and/or
+modify it under the terms of the GPL (either version 1, or at
+your option, any later version) or the Artistic License 2.0.
+Refer to LICENSE for the full license text and to DISCLAIMER for
+additional warranty disclaimers.
+
+=cut

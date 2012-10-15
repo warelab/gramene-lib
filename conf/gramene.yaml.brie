@@ -1,4 +1,6 @@
 ---
+also_load: search.yaml
+
 base_dir: /home/kclark/gramene-lib
 
 version: 36
@@ -15,7 +17,7 @@ modules:
   - diversity_rice
   - diversity_sorghum
   - diversity_wheat
-  - germplasm
+#  - germplasm
   - gramene_amigo_ontology
   - help
   - literature
@@ -126,58 +128,8 @@ database:
     user: gramene_web 
     pass: gram3n3 
 
-  germplasm:
-    name: germplasm36
-    user: gramene_web
-    pass: gram3n3
+#  germplasm:
+#    name: germplasm36
+#    user: gramene_web
+#    pass: gram3n3
 
-search:
-  page_size: 10
-
-  index_path: search-index
-
-  limit_index:
-
-    diversity_*: div_passport+div_synonym,div_taxonomy,div_stock;cdv_marker[name]+div_experiment,div_taxonomy;div_experiment+div_taxonomy,div_scoring_tech_type[scoring_tech_group]
-
-    ensembl_*: gene[biotype:description:stable_id]+transcript[stable_id];seq_region[name]
-
-    maps: marker_type;map_set+species,map_type,germplasm;germplasm+species;library+species
-
-    ontology: term[term_name:term_accession]+term_definition[definition],term_type[term_type],term_synonym[synonym_name:synonym_acc]
-
-  list_columns:
-
-    diversity_*.cdv_marker: name
-
-    diversity_*.div_passport: accename,accenumb,div_synonyms.synonym,cdv_source_id.source
-
-    diversity_*.div_experiment: name,design,originator,comments
-
-    ensembl_*.dna_align_feature: hit_name,analysis.logic_name
-
-    ensembl_*.interpro: id_field,interpro_ac[sprintf('Interpro accession &quot;%s&quot; in domain &quot;%s&quot;')]
-
-    ensembl_*.marker: type,display_marker_synonym.name
-
-    ensembl_*.seq_region: name
-
-    ensembl_*.gene: biotype,display_xref.display_label,stable_id,description[sprintf('%s gene &quot;%s&quot; [%s]: %s')]
-
-    literature.reference: authors.contributor.contributor_name,title,source.source_name,year,volume,start_page,end_page[sprintf('%s, &quot;%s&quot;, <u>%s</u>, %s, vol. %s, pp. %s-%s')]
-
-    germplasm.germplasm: species.name,germplasm_acc
-
-    maps.map_set: species.species,map_type.map_type,map_set_name
-
-    maps.feature: species.species,feature_type.feature_type,display_synonym.feature_name
-
-    maps.marker_type: marker_type,description
-
-    maps.germplasm: species.species,germplasm_name,description
-
-    maps.library: species.species,library_name,center_name,center_project
-
-    ontology.term: term_type.term_type,term_name,term_accession
-
-    pathway_*.pathway_gramene_search: gene_name,enzyme_name,reaction_id,reaction_name,ec,pathway_id,pathway_name
