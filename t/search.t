@@ -20,6 +20,11 @@ use_ok('Grm::Search');
         catdir( $Bin, 'data/search-index' ), 'BUILD uses base_dir' 
     );
 
+    isa_ok( $search->schema, 'Lucy::Plan::Schema', 'schema OK' );
+
+    my $in = $search->indexer;
+    isa_ok( $search->indexer('foo'), 'Lucy::Index::Indexer', 'indexer OK' );
+
     ok( my @res = $search->search( query => 'waxy' ), 
         'execute search for "waxy"' 
     );

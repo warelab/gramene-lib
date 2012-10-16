@@ -28,7 +28,7 @@ __PACKAGE__->table("term");
   is_auto_increment: 1
   is_nullable: 0
 
-=head2 term_name
+=head2 name
 
   data_type: 'varchar'
   default_value: (empty string)
@@ -66,7 +66,7 @@ __PACKAGE__->table("term");
 __PACKAGE__->add_columns(
   "term_id",
   { data_type => "integer", is_auto_increment => 1, is_nullable => 0 },
-  "term_name",
+  "name",
   { data_type => "varchar", default_value => "", is_nullable => 0, size => 255 },
   "term_type_id",
   {
@@ -83,7 +83,7 @@ __PACKAGE__->add_columns(
   { data_type => "tinyint", default_value => 0, is_nullable => 0 },
 );
 __PACKAGE__->set_primary_key("term_id");
-__PACKAGE__->add_unique_constraint("term_type", ["term_type_id", "term_accession"]);
+__PACKAGE__->add_unique_constraint("term_type_id", ["term_type_id", "term_accession"]);
 
 =head1 RELATIONS
 
@@ -268,8 +268,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-09-21 19:12:15
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:fkj9Ug3ltafBm8IajrqmAQ
+# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-16 11:49:50
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:K3qoolIEaPXA/tfleAUGjA
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

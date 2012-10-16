@@ -1,0 +1,111 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use autodie;
+use Getopt::Long;
+use Grm::Config;
+use Grm::DB;
+use IO::Prompt qw( prompt );
+use MySQL::Config qw( parse_defaults );
+use Pod::Usage;
+
+my $list = 0;
+my ( $help, $man_page );
+GetOptions(
+    'l|list'  => \$list,
+    'h|help'  => \$help,
+    'man'     => \$man_page,
+) or pod2usage(2);
+
+if ( $help || $man_page ) {
+    pod2usage({
+        -exitval => 0,
+        -verbose => $man_page ? 2 : 1
+    });
+}; 
+
+my $config       = Grm::Config->new;
+my @modules      = $config->get('modules');
+my %valid_module = map { $_, 1 } @modules;
+
+if ( $list ) {
+    print join( "\n", 'Modules:', ( map { "  $_" } sort @modules ), '' );
+    exit 0;
+}
+
+my $module = shift or pod2usage('No module name, use -l or --list to list');
+
+if ( !$valid_module{ $module } ) {
+    my @possibilities = grep { /$module/ } keys %valid_module;
+
+    if ( scalar @possibilities == 1 ) {
+        $module = shift @possibilities;
+    }
+    elsif ( scalar @possibilities > 1 ) {
+        $module = prompt( -menu => [ sort @possibilities ], 'Which one?' );
+    }
+    else {
+        die "Can't find a module like '$module'\n";
+    }
+
+    if ( !$valid_module{ $module } ) {
+        die "No valid module selected.\n";
+    }
+}
+
+# stringify in case it's a IO::Prompt::ReturnVal
+my $db      = Grm::DB->new("$module"); 
+my %my_cfg  = parse_defaults 'my', ['client'];
+my $user    = $my_cfg{'user'}     || $db->user;
+my $pass    = $my_cfg{'password'} || $db->password;
+my $host    = $db->host;
+my $db_name = $db->real_name;
+my $cmd     = "mysql -h $host -u${user} -p'${pass}' $db_name";
+
+print "$cmd\n";
+
+exec $cmd;
+
+__END__
+
+# ----------------------------------------------------
+
+=pod
+
+=head1 NAME
+
+grm-db - connect to a MySQL db using Gramene config info
+
+=head1 SYNOPSIS
+
+  grm-db rice
+
+Options:
+
+  -l|--list     List valid modules
+  --help        Show brief help and exit
+  --man         Show full documentation
+
+=head1 DESCRIPTION
+
+Takes a module name as an argument (or presents a list of valid
+modules to select from), looks up the db config info from
+"gramene.conf" and exec's "mysql" with the appropriate arguments.
+
+=head1 SEE ALSO
+
+Grm::Config, Grm::DB, mysql.
+
+=head1 AUTHOR
+
+Ken Youens-Clark E<lt>kclark@cshl.eduE<gt>.
+
+=head1 COPYRIGHT
+
+Copyright (c) 2012 Cold Spring Harbor Laboratory
+
+This library is free software;  you can redistribute it and/or modify 
+it under the same terms as Perl itself.
+
+=cut

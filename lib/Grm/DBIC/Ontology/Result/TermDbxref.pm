@@ -71,7 +71,7 @@ __PACKAGE__->add_columns(
   { data_type => "integer", default_value => 0, is_nullable => 0 },
 );
 __PACKAGE__->set_primary_key("term_dbxref_id");
-__PACKAGE__->add_unique_constraint("term_id_2", ["term_id", "dbxref_id", "is_for_definition"]);
+__PACKAGE__->add_unique_constraint("term_id", ["term_id", "dbxref_id", "is_for_definition"]);
 
 =head1 RELATIONS
 
@@ -106,8 +106,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-09-21 19:12:15
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:4oM28Dyaxepmebl0zbSJ3A
+# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-15 14:23:52
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:0V3McNRY7wuT6sEitqu7LA
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

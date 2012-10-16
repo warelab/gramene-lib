@@ -39,6 +39,7 @@ use warnings;
 use namespace::autoclean;
 
 use Moose;
+use Carp;
 use CGI;
 use List::Util qw( max min );
 use POSIX qw( ceil );
@@ -62,6 +63,18 @@ has page_size  => (
     is         => 'rw',
 );
 
+has schema     => (
+    is         => 'rw',
+    isa        => 'Lucy::Plan::Schema', 
+    lazy_build => 1,
+);
+
+has indexer    => (
+    is         => 'rw',
+#    isa        => 'Lucy::Index::Indexer',
+    lazy_build => 1,
+);
+
 # ----------------------------------------------------
 sub BUILD {
     my $self  = shift;
@@ -80,6 +93,51 @@ sub BUILD {
     $self->index_path( $index_path );
 
     $self->page_size( $args->{'page_size'} || $sconf->{'page_size'} || 10 );
+}
+
+# ----------------------------------------------------
+sub _build_schema {
+    my $self         = shift;
+    my $schema       = Lucy::Plan::Schema->new;
+    my $polyanalyzer = Lucy::Analysis::PolyAnalyzer->new( language => 'en' );
+
+    $schema->spec_field( 
+        name => 'category', 
+        type => Lucy::Plan::StringType->new,
+    );
+
+    $schema->spec_field( 
+        name => 'content',  
+        type => Lucy::Plan::FullTextType->new(
+            analyzer      => $polyanalyzer,
+            highlightable => 1,
+        ),
+    );
+
+    $schema->spec_field( 
+        name => 'url',      
+        type => Lucy::Plan::StringType->new( indexed => 0, ),
+    );
+
+    return $schema;
+}
+
+# ----------------------------------------------------
+sub _build_indexer {
+    my $self   = shift;
+$DB::single = 1;
+    my $module = shift || '';# or croak 'No module name';
+    my $path   = catdir $self->index_path, $module;
+
+    # Create an Indexer object.
+    my $indexer = Lucy::Index::Indexer->new(
+        schema   => $self->schema,
+        index    => $path,
+        create   => 1,
+        truncate => 1,
+    ) or croak "No indexer\n";
+
+    return $indexer;
 }
 
 # ----------------------------------------------------
@@ -119,8 +177,6 @@ sub search {
         );
 
         # Build up a Query.
-$DB::single=1;
-
         my $query;
         if ( $q =~ /\*/ ) {
             $query = LucyX::Search::WildcardQuery->new(

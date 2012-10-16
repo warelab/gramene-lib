@@ -1,0 +1,7 @@
+-- term relationship type
+1	is_a	is a
+2	part_of	part of
+3	develops_from	develops from
+4	negatively_regulates
+5	positively_regulates
+6	regulates

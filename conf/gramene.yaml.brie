@@ -12,13 +12,13 @@ ensembl:
   foreign_key_file: /usr/local/ensembl-live/ensembl/sql/foreign_keys.sql
 
 modules:
+  - amigo
   - diversity_arabidopsis
   - diversity_maize
   - diversity_rice
   - diversity_sorghum
   - diversity_wheat
 #  - germplasm
-  - gramene_amigo_ontology
   - help
   - literature
   - maps
@@ -44,11 +44,12 @@ database:
 
   maps:
     name: maps36
-  
+
+  amigo:
+    name: amigo36
+
   ontology: 
-    name: ontology35b
-    user: gramene_web
-    pass: gram3n3
+    name: ontology36
 
   pathway_poplar:
     name: pathway_poplar35
@@ -113,11 +114,6 @@ database:
   diversity_sorghum:
     name: diversity_sorghum35
     user: diversity_rw
-
-  gramene_amigo_ontology:
-    name: amigo35
-    user: gramene_web
-    pass: gram3n3
 
   literature:
     name: literature36

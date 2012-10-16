@@ -12,6 +12,8 @@ use List::MoreUtils qw( uniq );
 use Log::Dispatch::File;
 use Readonly;
 use Template::Constants qw( :chomp );
+use Time::HiRes qw( gettimeofday tv_interval );
+use Time::Interval qw( parseInterval );
 
 Readonly my $EMPTY_STR => q{};
 
@@ -28,11 +30,11 @@ my @subs = qw[
     gramene_cdbi_class_to_module_name
     gramene_cdbi_class_to_table_name
     iterative_search_values
-    match_context
     module_name_to_gdbic_class
     pager
     parse_words
     table_name_to_gdbic_class
+    timer_calc
     url_to_obj
 ];
 
@@ -133,69 +135,6 @@ sub iterative_search_values {
     }
 
     return @return;
-}
-
-# ----------------------------------------------------
-sub match_context {
-    my ( $find, $s ) = @_;
-
-    my $end_token               = chr( 6 );
-    my $max_chars_match_context = 40;
-    my $start_token             = chr( 7 );
-
-    # Remove punctuation used for MySQL boolean/fulltext searches, spaces
-    my @find 
-        = map { s/^["(\s+-]+|[")\s]+$//g; quotemeta($_) } 
-        split /\s+/, $find;
-
-    my $t = $s;
-    for my $f ( @find ) {
-        $s =~ s/($f)/${start_token}${1}${end_token}/gi;
-    }
-
-    #
-    # For very long strings (e.g., literature abstracts), this limits
-    # to just the first seven hits;  if there are that many or more,
-    # this much context should help the user understand that this is 
-    # a good match.
-    #
-    my $pos         = -1;
-    my $match_num   = 0;
-    my $max_matches = 7;
-    my $last_match  = 0;
-    while ( ( $pos = index( $s, $end_token, $pos )) > -1 ) {
-        $match_num++;
-        $last_match = $pos;
-        if ( $match_num == 7 ) {
-            my $stop = index( $s, $end_token, $pos + 1 ) || $pos + 1;
-            $s = substr( $s, 0, $stop + 25 );
-        }
-        else {
-            $pos++;
-        }
-    }
-
-    # 
-    # Even if there weren't too many matches, the string may still
-    # be too long, so truncate it after the last match.
-    # 
-    if ( $match_num < $max_matches && length($s) - $last_match > 50 ) {
-        $s = substr( $s, 0, $last_match + 25 );
-    }
-
-    $s =~ s/^[^$start_token]+((?:\S+\s+){2}\S*$start_token)/...$1/xms;
-    $s =~ s/
-        ($end_token\S*)
-        ((?:\s+\S+){3})
-        .{$max_chars_match_context,}?
-        ((?:\S+\s+){3})
-        (\S*$start_token)
-        /$1$2...<br\/>$3$4/gxms;
-
-    $s =~ s/$start_token/<b><span class="matching">/g;
-    $s =~ s/$end_token/<\/span><\/b>/g;
-
-    return $s;
 }
 
 # ----------------------------------------------------
@@ -338,6 +277,23 @@ sub table_name_to_gdbic_class {
     my $source_name = camel_case( $table_name );
 
     return ( $result_set, $source_name );
+}
+
+# ----------------------------------------------------
+sub timer_calc {
+    my $start = shift || [ gettimeofday() ];
+
+    return sub {
+        my $end     = shift || [ gettimeofday() ];
+        my $seconds = tv_interval( $start, $end );
+        return $seconds > 60
+            ? parseInterval(
+                seconds => int($seconds),
+                Small   => 1,
+            )
+            : sprintf("%s second%s", $seconds, $seconds == 1 ? '' : 's')
+        ;
+    };
 }
 
 # ----------------------------------------------------
@@ -489,6 +445,16 @@ are required.
   # $class now has "Grm::DBIC::Germplasm"
 
 Turns a module's name into it's Grm::DBIC class. The module name is required
+
+=head timer_calc
+
+  my $timer = timer_calc();                   # use "now" for start
+  my $timer = timer_calc( [gettimeofday()] ); # set the start time
+  my $time  = $timer->();                     # uses "now" for end
+  my $time  = $timer->( $end );               # pass in an end time
+
+Returns a closure to calculate the interveing time between start and
+execution.
 
 =head2 url_to_obj
 

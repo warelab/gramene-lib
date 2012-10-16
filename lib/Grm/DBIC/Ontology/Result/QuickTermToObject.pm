@@ -146,7 +146,7 @@ __PACKAGE__->add_columns(
 );
 __PACKAGE__->set_primary_key("quick_term_to_object_id");
 __PACKAGE__->add_unique_constraint(
-  "term_id_2",
+  "term_id",
   [
     "term_id",
     "object_database",
@@ -173,8 +173,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-09-21 19:12:15
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:/LUgeSnJqByYZc5FknFb6g
+# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-15 14:23:52
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:Kti8AV32ELuslL+44/0GQg
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

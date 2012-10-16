@@ -21,4 +21,7 @@ for my $m ( @modules ) {
     isa_ok( $schema, 'DBIx::Class::Schema' );
 }
 
+ok( my $schema = Grm::DB->new( $modules[0] )->schema, "'schema' alias" );
+isa_ok( $schema, 'DBIx::Class::Schema' );
+
 done_testing();

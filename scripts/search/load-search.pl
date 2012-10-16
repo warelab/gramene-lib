@@ -109,7 +109,11 @@ if ( $skip_done ) {
     @do_modules = grep { !$done{ $_ } } @do_modules;
 
     if ( !@do_modules ) {
-        print "Looks like everything was done.\n";
+        print join("\n",
+            'Looks all modules are up-to-date.',
+            'Either remove directories you want reprocessed ',
+            "or don't use --skip-done.",
+        );
         exit 0;
     }
 }
@@ -252,10 +256,10 @@ use Data::Dumper;
 
     TABLE:
     for my $source_name ( $schema->sources ) {
-        my $start_time   = [gettimeofday()];
-        my $result = $schema->resultset( $source_name );
-        my $source = $result->result_source;
-        my $table  = $source->name;
+        my $start_time = [ gettimeofday() ];
+        my $result     = $schema->resultset( $source_name );
+        my $source     = $result->result_source;
+        my $table      = $source->name;
 
         if ( %index_only && !exists $index_only{ $table } ) {
             next TABLE;

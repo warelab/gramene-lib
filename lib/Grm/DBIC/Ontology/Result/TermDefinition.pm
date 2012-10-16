@@ -35,22 +35,23 @@ __PACKAGE__->table("term_definition");
   is_foreign_key: 1
   is_nullable: 0
 
+=head2 dbxref_id
+
+  data_type: 'integer'
+  is_foreign_key: 1
+  is_nullable: 1
+
 =head2 definition
 
   data_type: 'text'
   is_nullable: 0
 
-=head2 dbxref_id
-
-  data_type: 'integer'
-  is_nullable: 1
-
-=head2 term_def_comment
+=head2 term_comment
 
   data_type: 'text'
   is_nullable: 1
 
-=head2 term_def_reference
+=head2 reference
 
   data_type: 'varchar'
   is_nullable: 1
@@ -68,17 +69,17 @@ __PACKAGE__->add_columns(
     is_foreign_key => 1,
     is_nullable    => 0,
   },
+  "dbxref_id",
+  { data_type => "integer", is_foreign_key => 1, is_nullable => 1 },
   "definition",
   { data_type => "text", is_nullable => 0 },
-  "dbxref_id",
-  { data_type => "integer", is_nullable => 1 },
-  "term_def_comment",
+  "term_comment",
   { data_type => "text", is_nullable => 1 },
-  "term_def_reference",
+  "reference",
   { data_type => "varchar", is_nullable => 1, size => 255 },
 );
 __PACKAGE__->set_primary_key("term_definition_id");
-__PACKAGE__->add_unique_constraint("term_id_2", ["term_id"]);
+__PACKAGE__->add_unique_constraint("term_id", ["term_id"]);
 
 =head1 RELATIONS
 
@@ -97,9 +98,29 @@ __PACKAGE__->belongs_to(
   { is_deferrable => 1, on_delete => "CASCADE", on_update => "CASCADE" },
 );
 
+=head2 dbxref
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-09-21 19:12:15
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:kc6q2V+mMy+9oHzNfKRjJw
+Type: belongs_to
+
+Related object: L<Grm::DBIC::Ontology::Result::Dbxref>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "dbxref",
+  "Grm::DBIC::Ontology::Result::Dbxref",
+  { dbxref_id => "dbxref_id" },
+  {
+    is_deferrable => 1,
+    join_type     => "LEFT",
+    on_delete     => "CASCADE",
+    on_update     => "CASCADE",
+  },
+);
+
+
+# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-15 18:27:44
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:bqBw2aOgbVgYMe39HC7EFg
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

@@ -50,6 +50,7 @@ has dbic => (
     is         => 'ro',
     isa        => 'DBIx::Class::Schema',
     lazy_build => 1,
+    alias      => [ 'schema' ],
 );
 
 has user => (
@@ -183,7 +184,7 @@ sub _build_dbh {
 sub _build_dbic {
     my $self    = shift;
     my $db_name = $self->db_name;
-    my $class   = module_name_to_gdbic_class( $db_name );
+    my $class   = Grm::Utils::module_name_to_gdbic_class( $db_name );
 
     if ( load_class( $class ) ) {
         return $class->connect( sub { $self->dbh } );

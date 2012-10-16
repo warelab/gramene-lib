@@ -35,17 +35,11 @@ __PACKAGE__->table("term_synonym");
   is_foreign_key: 1
   is_nullable: 0
 
-=head2 synonym_name
+=head2 term_synonym
 
   data_type: 'varchar'
   default_value: (empty string)
   is_nullable: 0
-  size: 255
-
-=head2 synonym_acc
-
-  data_type: 'varchar'
-  is_nullable: 1
   size: 255
 
 =cut
@@ -60,13 +54,11 @@ __PACKAGE__->add_columns(
     is_foreign_key => 1,
     is_nullable    => 0,
   },
-  "synonym_name",
+  "term_synonym",
   { data_type => "varchar", default_value => "", is_nullable => 0, size => 255 },
-  "synonym_acc",
-  { data_type => "varchar", is_nullable => 1, size => 255 },
 );
 __PACKAGE__->set_primary_key("term_synonym_id");
-__PACKAGE__->add_unique_constraint("term_id_2", ["term_id", "synonym_name"]);
+__PACKAGE__->add_unique_constraint("term_id", ["term_id", "term_synonym"]);
 
 =head1 RELATIONS
 
@@ -86,8 +78,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-09-21 19:12:15
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:IEvOlpnabIwKUzjkWhkIpw
+# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-15 18:27:44
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:Wq5vCodasAGcjCy0WcIMCg
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

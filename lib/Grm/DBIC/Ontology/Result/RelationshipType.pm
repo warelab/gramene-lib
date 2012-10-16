@@ -35,21 +35,12 @@ __PACKAGE__->table("relationship_type");
   is_nullable: 0
   size: 255
 
-=head2 type_desc
-
-  data_type: 'varchar'
-  default_value: (empty string)
-  is_nullable: 0
-  size: 255
-
 =cut
 
 __PACKAGE__->add_columns(
   "relationship_type_id",
   { data_type => "integer", is_auto_increment => 1, is_nullable => 0 },
   "type_name",
-  { data_type => "varchar", default_value => "", is_nullable => 0, size => 255 },
-  "type_desc",
   { data_type => "varchar", default_value => "", is_nullable => 0, size => 255 },
 );
 __PACKAGE__->set_primary_key("relationship_type_id");
@@ -72,8 +63,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-09-21 19:12:15
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:7xULAxsTs4Kb3Jr+UuCNDQ
+# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-15 18:27:44
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:owhPqVQI5CQcWbgidNTuZw
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

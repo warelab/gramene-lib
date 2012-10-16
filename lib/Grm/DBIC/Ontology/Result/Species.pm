@@ -74,26 +74,9 @@ __PACKAGE__->add_columns(
 );
 __PACKAGE__->set_primary_key("species_id");
 
-=head1 RELATIONS
 
-=head2 gene_products
-
-Type: has_many
-
-Related object: L<Grm::DBIC::Ontology::Result::GeneProduct>
-
-=cut
-
-__PACKAGE__->has_many(
-  "gene_products",
-  "Grm::DBIC::Ontology::Result::GeneProduct",
-  { "foreign.species_id" => "self.species_id" },
-  { cascade_copy => 0, cascade_delete => 0 },
-);
-
-
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-09-21 19:12:15
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:AuhMAUPP3Ux/RAMHOWmshw
+# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-15 14:23:52
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:51PqK51OjxLvvfR9WKf5kQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

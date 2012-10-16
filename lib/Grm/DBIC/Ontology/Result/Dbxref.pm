@@ -88,21 +88,6 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
-=head2 gene_products
-
-Type: has_many
-
-Related object: L<Grm::DBIC::Ontology::Result::GeneProduct>
-
-=cut
-
-__PACKAGE__->has_many(
-  "gene_products",
-  "Grm::DBIC::Ontology::Result::GeneProduct",
-  { "foreign.organism_dbxref_id" => "self.dbxref_id" },
-  { cascade_copy => 0, cascade_delete => 0 },
-);
-
 =head2 term_dbxrefs
 
 Type: has_many
@@ -118,9 +103,24 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
+=head2 term_definitions
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-09-21 19:12:15
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:5T/ucPOuu8dPxbuvPcC29A
+Type: has_many
+
+Related object: L<Grm::DBIC::Ontology::Result::TermDefinition>
+
+=cut
+
+__PACKAGE__->has_many(
+  "term_definitions",
+  "Grm::DBIC::Ontology::Result::TermDefinition",
+  { "foreign.dbxref_id" => "self.dbxref_id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
+
+# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-15 18:27:44
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:4YUIOcTJNQDcbOd5CiV6sA
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

@@ -6,7 +6,7 @@ use FindBin qw($Bin);
 use File::Spec::Functions;
 use Test::Exception;
 use Test::Exports;
-use Test::More tests => 13;
+use Test::More tests => 17;
 
 my @subs = qw[
     camel_case
@@ -15,11 +15,11 @@ my @subs = qw[
     gramene_cdbi_class_to_module_name
     gramene_cdbi_class_to_table_name
     iterative_search_values
-    match_context
     module_name_to_gdbic_class
     pager
     parse_words
     table_name_to_gdbic_class
+    timer_calc
     url_to_obj
 ];
 
@@ -99,4 +99,40 @@ is(
     join( ' ', table_name_to_gdbic_class('foo_bar', 'baz_quux') ),
     'Grm::DBIC::FooBar BazQuux',
     'table_name_to_gdbic_class ok'
+);
+
+#
+# timer_calc
+#
+
+my $t0 = timer_calc( [1350330619, 481395] );
+my $r0 = $t0->( [1350330619, 481395] );
+is( 
+    $r0,
+    '0 seconds',
+    "timer_calc: $r0"
+);
+
+my $t1 = timer_calc( [1350330619, 481395] );
+my $r1 = $t1->( [1350330620, 481395] );
+is( 
+    $r1,
+    '1 second',
+    "timer_calc: $r1"
+);
+
+my $t2 = timer_calc( [1350330619, 481395] );
+my $r2 = $t2->( [1350330621, 481395] );
+is( 
+    $r2,
+    '2 seconds',
+    "timer_calc: $r2"
+);
+
+my $t3 = timer_calc( [1350330619, 481395] );
+my $r3 = $t3->( [1350390621, 481395] );
+is( 
+    $r3,
+    '16h 40m 2s',
+    "timer_calc: $r3"
 );

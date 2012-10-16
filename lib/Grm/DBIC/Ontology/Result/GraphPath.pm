@@ -42,21 +42,11 @@ __PACKAGE__->table("graph_path");
   is_foreign_key: 1
   is_nullable: 0
 
-=head2 relationship_type_id
-
-  data_type: 'integer'
-  is_nullable: 1
-
 =head2 distance
 
   data_type: 'integer'
   default_value: 0
   is_nullable: 0
-
-=head2 relation_distance
-
-  data_type: 'integer'
-  is_nullable: 1
 
 =cut
 
@@ -77,12 +67,8 @@ __PACKAGE__->add_columns(
     is_foreign_key => 1,
     is_nullable    => 0,
   },
-  "relationship_type_id",
-  { data_type => "integer", is_nullable => 1 },
   "distance",
   { data_type => "integer", default_value => 0, is_nullable => 0 },
-  "relation_distance",
-  { data_type => "integer", is_nullable => 1 },
 );
 __PACKAGE__->set_primary_key("graph_path_id");
 
@@ -134,8 +120,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-09-21 19:12:15
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:LM8s4stTQliJzYyUkl3cfw
+# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-15 14:23:52
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:zUGkoem0D5yOqvlpp/Pk6A
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
