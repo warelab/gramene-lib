@@ -7,6 +7,7 @@ use Data::Dumper;
 use Data::Pageset;
 use Grm::DB;
 use Grm::Config;
+use Grm::Ontology;
 use List::Util qw( max );
 use List::MoreUtils qw( uniq );
 use Log::Dispatch::File;
@@ -26,6 +27,7 @@ use base 'Exporter';
 my @subs = qw[ 
     camel_case
     commify
+    extract_ontology
     get_logger
     gramene_cdbi_class_to_module_name
     gramene_cdbi_class_to_table_name
@@ -52,6 +54,38 @@ sub commify {
     my $number = shift;
     1 while $number =~ s/^(-?\d+)(\d{3})/$1,$2/;
     return $number;
+}
+
+# ----------------------------------------------------
+sub extract_ontology {
+
+=pod
+
+=head2 extract_ontology
+
+  my %tax = extract_ontology('flowering time qtl rice GO:0003677');
+
+Finds words that look like ontology accessions (like "GO:0003677" 
+above), searches for them, and returns a list of 
+Grm::DBIC::Ontology::Term objects.
+
+=cut
+
+    my $string   = shift or return;
+    my $odb      = Grm::Ontology->new;
+    my $dbic     = $odb->db->dbic;
+    my $term_rs  = $dbic->resultset('Term');
+    my $ont_pref = join '|', $odb->ontology_accession_prefixes;
+    my ( @Terms, %seen );
+
+    while ( $string =~ /(($ont_pref):\d+)/ig ) {
+       my $acc = $1; 
+        if ( !$seen{ $acc }++ ) {
+            push @Terms, $term_rs->search({ term_accession => $acc });
+        }
+    }
+
+    return uniq( @Terms );
 }
 
 # ----------------------------------------------------
@@ -446,7 +480,7 @@ are required.
 
 Turns a module's name into it's Grm::DBIC class. The module name is required
 
-=head timer_calc
+=head2 timer_calc
 
   my $timer = timer_calc();                   # use "now" for start
   my $timer = timer_calc( [gettimeofday()] ); # set the start time

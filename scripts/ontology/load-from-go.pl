@@ -171,7 +171,7 @@ my $rt_ids = $amigo_dbh->selectcol_arrayref(
 );
 
 my $rt_count = scalar @$rt_ids;
-printf "Processing %s in 'relationship_type'\n", commify($rt_count);
+printf "Processing %s records in 'relationship_type'\n", commify($rt_count);
 
 my $i      = 0;
 my $rel_rs = $schema->resultset('RelationshipType');
@@ -201,6 +201,14 @@ my $term_to_term = $amigo_dbh->selectall_arrayref(
     'select * from term2term', { Columns => {} }
 );
 
+my $rel_type_ids = $amigo_dbh->selectcol_arrayref(
+    'select distinct relationship_type_id from term2term'
+);
+
+my %amigo_rel_type_id = map { @$_ } @{$amigo_dbh->selectall_arrayref(
+    'select id, acc from term where id in (' . join(', ', @$rel_type_ids) . ')'
+)};
+
 my $term_to_term_count = scalar @$term_to_term;
 printf "Processing %s records in 'term2term'\n", commify($term_to_term_count);
 
@@ -213,16 +221,13 @@ for my $t2t ( @$term_to_term ) {
         commify($i),
     );
 
-    my $rel_type = $amigo_dbh->selectrow_array(
-        'select acc from term where id=?', {}, $t2t->{'relationship_type_id'}
-    );
+    my $rel_type = $amigo_rel_type_id{ $t2t->{'relationship_type_id'} };
 
-    my $rt_id = $relationship_type_id{ $rel_type } or die 'No RT';
-    my $res   = $rel_rs->find_or_create(
-        relationship_type_id => $rt_id,
+    $t2t_rs->find_or_create({
+        relationship_type_id => $relationship_type_id{ $rel_type },
         term1_id             => $t2t->{'term1_id'},
         term2_id             => $t2t->{'term2_id'},
-    );
+    });
 }
 
 print "\n";
@@ -273,8 +278,7 @@ for my $table ( @tables ) {
     print "\n";
 }
 
-printf "Done, processed %s terms in %s.\n", 
-    $term_count, $timer->();
+printf "Done, processed %s terms in %s.\n", commify($term_count), $timer->();
 
 __END__
 

@@ -11,12 +11,18 @@ use JSON;
 use File::Basename;
 use Getopt::Long;
 use Grm::Search;
-use Grm::Utils qw( camel_case );
+use Grm::Utils qw( camel_case commify timer_calc );
 use Pod::Usage;
 use Readonly;
 use Text::TabularDisplay;
+use Text::Autoformat qw( autoformat );
+use List::Util qw( max );
 
 Readonly my %VALID_OUTPUT => map { $_, 1 } qw[ perl json summary table ];
+Readonly my $SEPARATOR    => "************ Record %s ************\n";
+Readonly my $WIDTH        => 78;
+Readonly my @FIELDS       => 
+    qw[ category url title excerpt taxonomy ontology score ];
 
 my $category   = '';
 my $index_path = '';
@@ -71,24 +77,39 @@ my $print = sub {
     }
 };
 
+my $timer    = timer_calc();
 my @tab_flds = qw[ url content ];
 my $tab      = Text::TabularDisplay->new( @tab_flds );
 my $search   = Grm::Search->new( index_path => $index_path );
 my @summary;
-my $i;
+my ( $query_num, $total_hits ) = ( 0, 0 );
 TERM:
 for my $term ( @terms ) {
-    my %args = $limit ? ( page_size => $limit ) : ( nopage => 1 );
+#    my %args = $limit ? ( page_size => $limit ) : ( nopage => 1 );
 
     my $res      = $search->search( 
         query    => $term, 
         category => $category,
-        %args
+#        %args
     );
 
     my $num = $res->{'num_hits'};
+    $total_hits += $num;
 
-    $print->(sprintf("%6s: Found %s for '%s'\n", ++$i, $num, $term));
+    $print->(
+        sprintf(
+            qq[%6s: Found %s hit%s for "%s" in %s\n], 
+            ++$query_num, 
+            commify($num), 
+            $num == 1 ? '' : 's',
+            $term, 
+            $res->{'time'}
+        )
+    );
+
+    if ( $num < 1 ) {
+        next TERM;
+    }   
 
     if ( $format eq 'summary' ) {
         push @summary, [ $term, $num, $res->{'time'} ];
@@ -97,8 +118,23 @@ for my $term ( @terms ) {
 
     if ( $num > 0 ) {
         if ( $format eq 'table' ) {
+            my $max     = max( map { length } @FIELDS );
+            my $rec_num = 0;
+
             for my $rec ( @{ $res->{'data'} } ) {
-                $tab->add( map { $rec->{ $_ } } @tab_flds );
+                printf $SEPARATOR, ++$rec_num;
+
+                for my $f ( @FIELDS ) {
+                    my $v = defined $rec->{ $f } ? $rec->{ $f } : q{};
+                    if ( length $v > $WIDTH ) {
+                        ( $v = autoformat( $v, { left => $max + 3 } ) ) 
+                            =~ s/^\s+|\s+$//g;
+                    }
+
+                    printf "%${max}s: %s\n",
+                        $f, $v,
+                    ;
+                }
             }
         }
         elsif ( $format eq 'json' ) {
@@ -115,11 +151,17 @@ if ( $format eq 'summary' ) {
     unshift @summary, [ qw( query found time ) ];
     print join "\n", ( map { join( "\t", @$_ ) } @summary ), '';
 }
-elsif ( $format eq 'table' ) {
-    say $tab->render;
-}
 
-$print->("Done.\n");
+$print->(
+    sprintf(
+        "Done. Executed %s quer%s, found %s hit%s in %s.\n",
+        commify($query_num), 
+        $query_num == 1 ? 'y' : 'ies',
+        commify($total_hits),
+        $total_hits == 1 ? '' : 's',
+        $timer->(),
+    )
+);
 
 __END__
 

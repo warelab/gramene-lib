@@ -2,33 +2,49 @@ package Grm::Search;
 
 =head1 NAME
 
-Grm::Search - a Gramene module
+Grm::Search - search-related code for Gramene
 
 =head1 SYNOPSIS
 
   use Grm::Search;
 
+  my $sdb = Grm::Search->new(
+      config     => ..., 
+      base_dir   => ...,
+      index_path => ...,
+      page_size  => ...,
+  );
+
 =head1 DESCRIPTION
 
-Description of module goes here.
+All the stuff for Gramene's Lucy-based searching.
 
-=head1 SEE ALSO
+=head1 METHODS
 
-perl.
+=head2 config
 
-=head1 AUTHOR
+Returns or sets the Grm::Config object
 
-Ken Youens-Clark E<lt>kclark@cshl.eduE<gt>.
+=head2 base_dir
 
-=head1 COPYRIGHT
+Returns or sets the root of the Gramene installation
 
-Copyright (c) 2012 Cold Spring Harbor Laboratory
+=head2 index_path
 
-This module is free software; you can redistribute it and/or
-modify it under the terms of the GPL (either version 1, or at
-your option, any later version) or the Artistic License 2.0.
-Refer to LICENSE for the full license text and to DISCLAIMER for
-additional warranty disclaimers.
+Returns or sets the relative (from base_dir) or absolute path to 
+search index
+
+=head2 page_size
+
+Returns or sets the integer value for the size of the pages of results.
+
+=head2 schema
+
+Returns the Lucy schema object.
+
+=head2 indexer
+
+Should return the Lucy indexer object.
 
 =cut
 
@@ -46,7 +62,10 @@ use POSIX qw( ceil );
 use Encode qw( decode );
 use File::Find::Rule;
 use File::Spec::Functions qw( catdir );
+use File::Path;
 use Grm::Config;
+use Grm::Utils qw( timer_calc commify extract_ontology );
+use List::MoreUtils qw( uniq );
 use Lucy::Search::IndexSearcher;
 use Lucy::Highlight::Highlighter;
 use Lucy::Search::QueryParser;
@@ -54,6 +73,17 @@ use Lucy::Search::TermQuery;
 use Lucy::Search::ANDQuery;
 use LucyX::Search::WildcardQuery;
 use Time::HiRes qw( gettimeofday tv_interval );
+use Readonly;
+
+Readonly my $ALL         => '[[all]]';
+Readonly my $COMMA_SPACE => q{, };
+Readonly my $EMPTY_STR   => q{};
+Readonly my $SPACE       => q{ };
+
+has config     => (
+    is         => 'rw',
+    isa        => 'Grm::Config',
+);
 
 has index_path => (
     is         => 'rw',
@@ -77,47 +107,46 @@ has indexer    => (
 
 # ----------------------------------------------------
 sub BUILD {
-    my $self  = shift;
-    my $args  = shift || {};
-    my $conf  = Grm::Config->new;
-    my $sconf = $conf->get('search');
+    my $self       = shift;
+    my $args       = shift || {};
+    my $conf       = $args->{'config'} || Grm::Config->new;
+    my $sconf      = $conf->get('search');
+    my $index_path = $args->{'config'} || $sconf->{'index_path'};
+    my $base_dir   = $args->{'base_dir'} || $conf->get('base_dir');
 
-    my $index_path = $sconf->{'index_path'};
     if ( $index_path !~ m{^/} ) {
-        $index_path = catdir( 
-            $args->{'base_dir'} || $conf->get('base_dir'), 
-            $index_path 
-        );
+        $index_path = catdir( $base_dir, $index_path );
     }    
 
+    if ( !-d $index_path ) {
+        mkpath $index_path;
+    }
+
     $self->index_path( $index_path );
+
+    $self->config( $conf );
 
     $self->page_size( $args->{'page_size'} || $sconf->{'page_size'} || 10 );
 }
 
 # ----------------------------------------------------
 sub _build_schema {
-    my $self         = shift;
-    my $schema       = Lucy::Plan::Schema->new;
-    my $polyanalyzer = Lucy::Analysis::PolyAnalyzer->new( language => 'en' );
-
-    $schema->spec_field( 
-        name => 'category', 
-        type => Lucy::Plan::StringType->new,
+    my $self          = shift;
+    my $schema        = Lucy::Plan::Schema->new;
+    my $polyanalyzer  = Lucy::Analysis::PolyAnalyzer->new( language => 'en' );
+    my $non_indexed   = Lucy::Plan::StringType->new( indexed => 0 );
+    my $fulltext      = Lucy::Plan::FullTextType->new(
+        analyzer      => $polyanalyzer,
+        highlightable => 1,
+        sortable      => 1,
     );
 
-    $schema->spec_field( 
-        name => 'content',  
-        type => Lucy::Plan::FullTextType->new(
-            analyzer      => $polyanalyzer,
-            highlightable => 1,
-        ),
-    );
-
-    $schema->spec_field( 
-        name => 'url',      
-        type => Lucy::Plan::StringType->new( indexed => 0, ),
-    );
+    $schema->spec_field( name => 'url',      type => $non_indexed );
+    $schema->spec_field( name => 'title',    type => $non_indexed );
+    $schema->spec_field( name => 'category', type => $fulltext    );
+    $schema->spec_field( name => 'taxonomy', type => $fulltext    );
+    $schema->spec_field( name => 'ontology', type => $fulltext    );
+    $schema->spec_field( name => 'content',  type => $fulltext    );
 
     return $schema;
 }
@@ -125,7 +154,6 @@ sub _build_schema {
 # ----------------------------------------------------
 sub _build_indexer {
     my $self   = shift;
-$DB::single = 1;
     my $module = shift || '';# or croak 'No module name';
     my $path   = catdir $self->index_path, $module;
 
@@ -141,10 +169,351 @@ $DB::single = 1;
 }
 
 # ----------------------------------------------------
+sub index {
+
+=pod
+
+=head2 index
+
+  my $results = $sdb->index( $module );
+
+Indexes a module, returns the number of records indexed and the time.
+
+=cut
+
+    my $self    = shift;
+    my %args    = ref $_[0] eq 'HASH' 
+                  ? %{ $_[0] } : scalar @_ == 1 ? ( module => $_[0] )
+                  : @_;
+    my @modules = ref $args{'module'} eq 'ARRAY' 
+                  ? @{ $args{'module'} }
+                  : split( /\s*,\s*/, $args{'module'} );
+    my $verbose = defined $args{'verbose'} ? $args{'verbose'} : 1;
+    my $sconf   = $self->config->get('search');
+    my %stats;
+
+    my ( $num_tables, $num_records ) = ( 0, 0 );
+    for my $module ( @modules ) {
+        my $module_index     = catdir( $self->index_path, $module );
+        my %tables_to_index  = $self->tables_to_index( $module );
+        my %sql_to_index     = $self->sql_to_index( $module );
+        my $extract_ontology = $module ne 'ontology';
+        my $lucy_schema      = $self->schema;
+
+        # Create an Indexer object.
+        my $indexer = Lucy::Index::Indexer->new(
+            index    => $module_index,
+            schema   => $lucy_schema,
+            create   => 1,
+            truncate => 1,
+        ) or die "No indexer\n";
+
+        my $odb      = Grm::Ontology->new;
+        my $db       = Grm::DB->new( $module );
+        my $dbh      = $db->dbh;
+        my $schema   = $db->dbic;
+
+        ( my $category = lc ref $schema ) =~ s/Grm::DBIC:://i;
+
+        my @docs;
+        TABLE:
+        for my $source_name ( $schema->sources ) {
+            my $timer   = timer_calc();
+            my $result  = $schema->resultset( $source_name );
+            my $source  = $result->result_source;
+            my $table   = $source->name;
+
+            if ( %tables_to_index && !exists $tables_to_index{ $table } ) {
+                next TABLE;
+            }
+
+            my @id_fields = $source->primary_columns;
+
+            if ( scalar @id_fields > 1 ) {
+                print STDERR 
+                    "WARNING: Skipping table '$table'; more than 1 primary key (",
+                    join($COMMA_SPACE, @id_fields),
+                    ")\n";
+                next TABLE;
+            }
+
+            my $id_field = shift @id_fields;
+
+            if ( !$id_field ) {
+                print STDERR "No PK in ${module}.${table}, skipping.\n";
+                next TABLE;
+            };
+
+            my @columns;
+            if ( 
+                !%tables_to_index 
+                || $tables_to_index{ $table }{'fields'}->[0] eq $ALL 
+            ) {
+                @columns = $source->columns;
+            }
+            else {
+                my %valid = map { $_, 1 } $source->columns;
+                @columns  = @{ $tables_to_index{ $table }{'fields'} };
+
+                if ( my @bad = grep { !$valid{ $_ } } @columns ) {
+                    die sprintf("Bad columns for %s: %s\n", 
+                        $table, join(', ', @bad)
+                    );
+                }
+            }
+
+            my @other_tables 
+                = @{ $tables_to_index{ $table }{'other_tables'} || [] };
+
+            if ( scalar @columns == 0 && scalar @other_tables == 0 ) {
+                print STDERR 
+                    "No columns or other tables for '$source_name,' skipping.\n";
+                next TABLE;
+            }
+
+            my @index_also;
+            for my $other ( @other_tables ) {
+                my $other_table  = $other->{'table_name'};
+
+                my @other_columns;
+                if ( $other->{'fields'}[0] eq $ALL ) {
+                    my $other_rs   = $schema->resultset( camel_case($other_table) );
+                    @other_columns = $other_rs->result_source->columns;
+                }
+                else {
+                    @other_columns = @{ $other->{'fields'} || [] };
+                }
+
+                push @index_also, {
+                    table_name => $other_table,
+                    columns    => \@other_columns,
+                };
+            }
+
+            my @additional_sql = @{ $sql_to_index{ $table } || [] };
+            my $count = $dbh->selectrow_array("select count(*) from $table") 
+                or next;
+
+            if ( $verbose ) {
+                printf "\rProcessing %s record%s in '%s.%s'\n",
+                    commify($count),
+                    $count == 1 ? '' : 's',
+                    $module,
+                    $table;
+            }
+
+            my $sth = $dbh->prepare("select $id_field from $table");
+            $sth->execute;
+
+            $num_tables++;
+
+            my $num_records = 0;
+
+            while ( my $id = $sth->fetchrow_array ) {
+                $num_records++;
+
+                if ( $verbose ) {
+                    printf "%-70s\r", sprintf( "%3s%%: %s", 
+                        int(100 * ( $num_records / $count )),
+                        commify($num_records), 
+                    );
+                }
+
+                my $rec = $result->find( $id ) 
+                    or die "Bad PK '$id' for $module $source_name\n";
+
+                my $text = @columns 
+                    ? join $SPACE, 
+                        grep { $_ ne 'NULL' }
+                        map  { defined $_ ? $_ : () } 
+                        map  { $rec->$_() } 
+                        @columns
+                    : $EMPTY_STR
+                ;
+
+                my @ontologies;
+
+                OTHER_TABLE:
+                for my $other ( @index_also ) {
+                    my $other_table   = $other->{'table_name'};
+                    my @other_columns = @{ $other->{'columns'} || [] } or next;
+
+                    for my $other_obj ( 
+                        $rec->search_related( $other_table )->all
+                    ) {
+                        $text .= join( $SPACE, 
+                            $EMPTY_STR,
+                            grep { $_ ne 'NULL' }
+                            map  { defined $_ ? $_ : () }
+                            map  { $other_obj->$_() }
+                            @other_columns
+                        );
+                    }
+                }
+
+                SQL:
+                for my $sql ( @additional_sql ) {
+                    my @args;
+                    if ( $sql =~ /\?/ ) {
+                        push @args, $id;
+                    }
+                    elsif ( $sql =~ /\[(\w+)\]/ ) {
+                        my $fld = $1;
+                        if ( my $val = $rec->$fld() ) {
+                            $sql =~ s/\[.*?\]/?/;
+                            push @args, $val;
+                        }
+                        else {
+                            next SQL;
+                        }
+                    }
+
+                    my $sth = $dbh->prepare( $sql );
+                    $sth->execute( @args );
+
+                    while ( my $d = $sth->fetchrow_hashref ) {
+                        my @flds = keys %$d or next;
+
+                        if ( my $s = 
+                            join( $SPACE, 
+                                uniq( map { defined $_ ? $_ : () } values %$d ) 
+                            ) 
+                        ) {
+                            $text .= $SPACE . $s;
+                        }
+
+                        if ( my $tax_id = $d->{'ncbi_taxonomy_id'} ) {
+                            push @ontologies, $odb->search_xref( $tax_id );
+                        }
+                    }
+                }
+
+                my $hs = HTML::Strip->new;
+                $text = $hs->parse( $text );
+                $hs->eof;
+
+                $text = lc $text;
+                $text =~ s/^\s+|\s+$//g;       # trim
+                $text =~ s/, / /g;             # kill commas
+    #            $text =~ s/\s+/ /g;            # collapse spaces
+                $text =~ /\A(.+?)^\s+(.*)/ms ; # not sure, stolen
+
+                $text = join( $SPACE, uniq( split( /\s+/, $text ) ) );
+
+                next if !$text;
+
+                my $title = '';
+                if ( my %list_columns = %{ $sconf->{'list_columns'} || {} } ) {
+                    while ( my ( $list_type, $list_def ) = each %list_columns ) {
+                        my ( $list_module, $list_table ) = split /\./, $list_type;
+
+                        my @title_vals;
+                        if ( 
+                            $module =~ /$list_module/ && $table eq $list_table
+                        ) {
+                            for my $list_fld ( split /\s*,\s*/, $list_def ) {
+                                if ( $rec->can( $list_fld ) ) {
+                                    if ( my $val = $rec->$list_fld() ) {
+                                        push @title_vals, $val;
+                                    }
+                                }
+                            }
+                        }
+
+                        $title = join $SPACE, @title_vals;
+                    }
+                }
+
+                $title ||= substr $text, 0, 50;
+
+                push @ontologies, extract_ontology( $text );
+                my @ontology_accs = map { $_->term_accession } uniq( @ontologies );
+
+                my $doc = {
+                    url      => join( '/', $module, $table, $id ),
+                    title    => $title,
+                    category => $category,
+                    content  => $text,
+                    taxonomy => join( $SPACE, grep {  /^GR_tax/ } @ontology_accs ),
+                    ontology => join( $SPACE, grep { !/^GR_tax/ } @ontology_accs ),
+                };
+
+                $indexer->add_doc( $doc );
+            }
+
+            if ( $verbose ) {
+                printf "%-70s\n\n", sprintf(
+                    'Loaded %s record%s in %s',
+                    commify($num_records),
+                    $num_records == 1 ? '': 's',
+                    $timer->(),
+                );
+            }
+        }
+
+        print "Committing indexer\n" if $verbose;
+
+        $indexer->commit;
+    }
+
+    return { num_tables => $num_tables, num_records => $num_records };
+}
+
+# ----------------------------------------------------
 sub search {
+
+=pod
+
+=head2 search
+
+  my $results = $sdb->search('waxy');
+
+  my $results = $sdb->search( 
+      query     => 'waxy', # required
+      offset    => 100,
+      category  => 'genomes',
+      limit     => 50,
+      nopage    => 1,
+      page_size => 50,
+  );
+
+Performs a search.  Only "query" is required, and if only one argument 
+is present, it is assumed to be "query."  
+
+Options include:
+
+=over 4
+
+=item offset
+
+[Integer] How far into the result set to go
+
+=item category
+
+[String] Gramene search category
+
+=item limit
+
+[Integer] Number of results
+
+=item nopage
+
+[Boolean] Don't bother paging the results, just return everything
+
+=item page_size
+
+[Integer] Size of the pages
+
+=back
+
+=cut
+
     my $self       = shift;
-    my $start_time = [ gettimeofday() ];
-    my %args       = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
+    my $timer      = timer_calc();
+    my %args       = ref $_[0] eq 'HASH' 
+                       ? %{ $_[0] } 
+                       : scalar @_ == 1 
+                         ? ( query => $_[0] ) : @_;
     my $q          = $args{'query'}    or return;
     my $offset     = $args{'offset'}   ||  0;
     my $category   = $args{'category'} || '';
@@ -220,12 +589,16 @@ sub search {
         # Create result list.
         while ( my $hit = $hits->next ) {
             push @hits, { 
-                title        => $hit->{'title'},
-                content      => $hit->{'content'},
                 url          => $hit->{'url'},
+                title        => $hit->{'title'},
+                category     => $hit->{'category'},
+                content      => $hit->{'content'},
+                taxonomy     => $hit->{'taxonomy'},
+                ontology     => $hit->{'ontology'},
                 score        => $hit->get_score,
                 pretty_score => sprintf( "%0.3f", $hit->get_score ),
                 excerpt      => $highlighter->create_excerpt($hit),
+#                %{ $hit->dump },
             };
         }
     }
@@ -233,7 +606,7 @@ sub search {
     return { 
         num_hits => scalar @hits,
         data     => \@hits, 
-        time     => tv_interval( $start_time, [ gettimeofday() ] ),
+        time     => $timer->(),
     };
 }
 
@@ -313,4 +686,166 @@ sub generate_paging_info {
     return $paging_info;
 }
 
+# ----------------------------------------------------
+sub sql_to_index {
+
+=pod
+
+=head2 sql_to_index
+
+  my %sql_by_table = $sdb->sql_to_index( $module );
+
+  for my $table ( keys %sql_by_table ) {
+      for my $sql ( @{ $sql_by_table{ $table } } ) {
+        ...
+      }
+  }
+
+Returns a hash(ref) of SQL statements to index for a given module.
+Keys of the hash will be table names.
+
+=cut
+
+    my $self         = shift;
+    my $module       = shift or return;
+    my $sconf        = $self->config->get('search');
+    my %sql_to_index = %{ $sconf->{'sql_to_index'} || {} } or return;
+
+    my %sql_by_table;
+    for my $section ( keys %sql_to_index ) {
+        my ( $mod_name, $table_name ) = split /\./, $section;
+
+        next if $module !~ /$mod_name/;
+
+        my $text = $sql_to_index{ $section };
+
+        push @{ $sql_by_table{ $table_name } }, 
+            map { s/^\s+|\s+$//g; $_ || () }
+            split /;/, $text;
+    }
+
+    return wantarray ? %sql_by_table : \%sql_by_table;
+}
+
+# ----------------------------------------------------
+sub tables_to_index {
+
+=pod
+
+=head2 tables_to_index
+
+  my %tables = $sdb->tables_to_index( $module );
+
+Returns a hash(ref) of the tables to index for a given module.
+
+=cut
+
+
+    my $self            = shift;
+    my $module          = shift or return;
+    my $sconf           = $self->config->get('search');
+    my %tables_to_index = %{ $sconf->{'tables_to_index'} || {} } or return;
+    
+    my %return;
+    for my $mod_name ( keys %tables_to_index ) {
+        next if $module !~ /$mod_name/;
+
+        my $tables = $tables_to_index{ $mod_name };
+
+        for my $table ( split /;/, $tables ) {
+            if ( $table =~ /
+                (\w+)  # table name
+                (      # capture a
+                \[     # left square
+                (.*?)  # list (optionally null) of fields
+                \]     # right square
+                )?     # optional
+                (?:    # non-capturing
+                \+     # literal plus sign
+                (.+)   # list of other tables
+                )?     # end optional non-capturing
+                /xms
+            ) {
+                my $index_table       = $1 || $EMPTY_STR;
+                my $index_field_group = $2 || $EMPTY_STR;
+                my $index_fields      = $3 || $EMPTY_STR;
+                my $other_tables      = $4 || $EMPTY_STR;
+
+                my @index_fields;
+                if ( $index_field_group eq $EMPTY_STR ) {
+                    @index_fields = ( $ALL );
+                }
+                else {
+                    @index_fields = ( split /:/, $index_fields );
+                }
+
+                $return{ $index_table } = {
+                    fields => \@index_fields
+                };
+
+                for my $table ( split /,/, $other_tables ) {
+                    if ( $table =~ /
+                        (\w+) # table name
+                        (     # start capture
+                        \[    # left square
+                        (.*?) # list (optionally null) of fields
+                        \]    # right square
+                        )?    # optional
+                        /xms
+                    ) {
+                        my $other_table_name        = $1 || $EMPTY_STR;
+                        my $other_table_field_group = $2 || $EMPTY_STR;
+                        my $other_table_fields      = $3 || $EMPTY_STR;
+
+                        my @other_index_fields;
+                        if ( $other_table_fields eq $EMPTY_STR ) {
+                            @other_index_fields = ( $ALL );
+                        }
+                        else {
+                            @other_index_fields 
+                                = ( split /:/, $other_table_fields );
+                        }
+
+                        push @{ 
+                            $return{ $index_table }{'other_tables'}
+                        }, 
+                        { 
+                            table_name => $other_table_name, 
+                            fields     => \@other_index_fields,
+                        }
+                    }
+                }
+            }
+            else {
+                $return{ $table } = { fields => $ALL };
+            }
+        }
+    }
+
+    return wantarray ? %return : \%return;;
+}
+
 1;
+
+__END__
+
+=pod
+
+=head1 SEE ALSO
+
+Apache::Lucy.
+
+=head1 AUTHOR
+
+Ken Youens-Clark E<lt>kclark@cshl.eduE<gt>.
+
+=head1 COPYRIGHT
+
+Copyright (c) 2012 Cold Spring Harbor Laboratory
+
+This module is free software; you can redistribute it and/or
+modify it under the terms of the GPL (either version 1, or at
+your option, any later version) or the Artistic License 2.0.
+Refer to LICENSE for the full license text and to DISCLAIMER for
+additional warranty disclaimers.
+

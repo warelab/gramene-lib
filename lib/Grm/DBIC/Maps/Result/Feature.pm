@@ -232,6 +232,21 @@ __PACKAGE__->might_have(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
+=head2 feature_details_fpc
+
+Type: might_have
+
+Related object: L<Grm::DBIC::Maps::Result::FeatureDetailsFpc>
+
+=cut
+
+__PACKAGE__->might_have(
+  "feature_details_fpc",
+  "Grm::DBIC::Maps::Result::FeatureDetailsFpc",
+  { "foreign.feature_id" => "self.feature_id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
 =head2 feature_details_gene
 
 Type: might_have
@@ -473,8 +488,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-09-19 17:21:53
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:K50gLFS3awBJPhA6WcVLYg
+# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-22 12:56:46
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:yVTA/QI2eSYXf6lc/vmpQQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

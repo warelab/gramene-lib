@@ -11,6 +11,7 @@ use Test::More tests => 17;
 my @subs = qw[
     camel_case
     commify
+    extract_ontology
     get_logger
     gramene_cdbi_class_to_module_name
     gramene_cdbi_class_to_table_name

@@ -3,11 +3,13 @@ search:
 
   index_path: search-index
 
-  limit_index:
+  tables_to_index:
 
     diversity_*: div_passport+div_synonym,div_taxonomy,div_stock;cdv_marker[name]+div_experiment,div_taxonomy;div_experiment+div_taxonomy,div_scoring_tech_type[scoring_tech_group]
 
-    ensembl_*: gene[biotype:description:stable_id]+transcript[stable_id];seq_region[name]
+    compara: member[stable_id:description]
+
+    ensembl_*: gene[biotype:description:stable_id]+transcripts[stable_id];seq_region[name]
 
     maps: feature[description]+feature_type[feature_type],species[species:common_name:gramene_taxonomy_id],feature_synonyms[feature_name];feature_type;map_set+species,map_type;library+species
 
@@ -49,3 +51,95 @@ search:
 
     pathway_*.pathway_gramene_search: gene_name,enzyme_name,reaction_id,reaction_name,ec,pathway_id,pathway_name
 
+  sql_to_index:
+    gene.gene_gene: |
+      select o.term_accession
+      from   gene_ontology_association o
+      where  o.object_id=?
+      and    o.object_table='gene'
+
+    literature.reference: |
+      select x.xref_value a
+      from   xref x, xref_type xt
+      where  x.record_id=?
+      and    x.xref_type_id=xt.xref_type_id
+      and    xt.xref_type='gramene.ontology'
+
+    ensembl_*.gene: |
+      select x.dbprimary_acc, x.display_label, x.description, 
+             e.db_name, e.db_display_name
+      from   xref x, object_xref ox, gene g, external_db e
+      where  x.xref_id=ox.xref_id
+      and    x.external_db_id=e.external_db_id
+      and    ox.ensembl_id=g.gene_id
+      and    g.gene_id=?
+      and    ox.ensembl_object_type='Gene';
+
+      select x.dbprimary_acc, x.display_label, x.description, 
+             e.db_name, e.db_display_name
+      from   xref x, object_xref ox, transcript t, gene g, external_db e
+      where  x.xref_id=ox.xref_id
+      and    x.external_db_id=e.external_db_id
+      and    ox.ensembl_id=t.transcript_id
+      and    t.gene_id=g.gene_id
+      and    g.gene_id=?
+      and    ox.ensembl_object_type='Transcript';
+
+      select x.dbprimary_acc, x.display_label, x.description, 
+             e.db_name, e.db_display_name
+      from   xref x, object_xref ox, translation p, transcript t, 
+             gene g, external_db e
+      where  x.xref_id=ox.xref_id
+      and    x.external_db_id=e.external_db_id
+      and    ox.ensembl_id=p.translation_id
+      and    p.transcript_id=t.transcript_id
+      and    t.gene_id=g.gene_id
+      and    g.gene_id=?
+      and    ox.ensembl_object_type='Translation';
+
+      select  distinct x.dbprimary_acc
+      from    xref x, interpro i, protein_feature pf, translation p, 
+              transcript t, gene g
+      where   g.gene_id=?
+      and     g.gene_id=t.gene_id
+      and     t.transcript_id=p.transcript_id
+      and     p.translation_id=pf.translation_id
+      and     pf.hit_name=i.id
+      and     i.interpro_ac=x.dbprimary_acc;
+
+      select meta_value as ncbi_taxonomy_id
+      from   meta 
+      where  meta_key='species.taxonomy_id';
+
+    pathway_arabidopsis.pathway_gramene_search: |
+      select 'GR_tax:014503' as ontology_acc;
+
+    pathway_rice.pathway_gramene_search: |
+      select 'GR_tax:013684' as ontology_acc;
+
+    pathway_capsicum_anuum.pathway_gramene_search: |
+      select 'GR_tax:018116' as ontology_acc;
+
+    pathway_coffea_canephora.pathway_gramene_search: |
+      select 'GR_tax:052003' as ontology_acc;
+
+    pathway_medicago_truncatula.pathway_gramene_search: |
+      select 'GR_tax:018106' as ontology_acc;
+
+    pathway_solanum_lycopersicum.pathway_gramene_search: |
+      select 'GR_tax:018113' as ontology_acc;
+
+    pathway_solanum_tuberosum.pathway_gramene_search: |
+      select 'GR_tax:018114' as ontology_acc;
+
+    pathway_sorghum_bicolor.pathway_gramene_search: |
+      select 'GR_tax:014159' as ontology_acc;
+
+    pathway_maize.pathway_gramene_search: |
+      select 'GR_tax:014450' as ontology_acc;
+
+    pathway_brachypodium.pathway_gramene_search: |
+      select 'GR_tax:012596' as ontology_acc;
+
+    pathway_poplar.pathway_gramene_search: |
+      select 'GR_tax:018122' as ontology_acc;

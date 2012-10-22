@@ -3,6 +3,7 @@ package Grm::Config;
 use namespace::autoclean;
 use Class::Load qw( load_class );
 use Carp qw( croak );
+use File::Basename qw( dirname );
 use File::Spec::Functions;
 use Moose::Util::TypeConstraints;
 use Moose;
@@ -66,10 +67,13 @@ sub _build_config {
     my $conf = LoadFile( $file ) or croak("Error reading config file: '$file'");
 
     if ( my $also_load = $conf->{'also_load'} ) {
+        my $cur_dir = dirname( $file );
+
         chomp $also_load;
+
         for my $also ( split( /\s*,\s*/, $also_load ) ) {
             if ( $also !~ m{^/} ) {
-                $also = catfile( $conf->{'base_dir'}, 'conf', $also );
+                $also = catfile( $cur_dir, $also );
             }
 
             if ( -e $also ) {
@@ -117,11 +121,18 @@ sub _build_config {
             for my $db ( @{ $reg_class->get_all_DBAdaptors() } ) {
                 my $dbc = $db->dbc;
 
+                my $species = lc $db->species; 
+
+                if ( $species =~ /compara/ ) {
+                    $species = 'compara';
+                }
+                else {
+                    $species = 'ensembl_' . lc $db->species; 
+                }
+
                 #
                 # Skip those hosted at EBI and the "multi"
                 #
-                my $species = 'ensembl_' . lc $db->species; 
-
                 next DB if $dbc->host =~ /^ensembl/ || $species =~ /multi/;
 
                 $conf->{'database'}{ $species } = {

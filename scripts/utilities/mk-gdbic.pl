@@ -73,9 +73,12 @@ if ( my @bad = grep { !$is_valid{ $_ } } @dbs ) {
 }
 
 unless ( $force ) {
-    my $ok    = prompt -yn, sprintf('OK to export "%s" to "%s"? [yn] ',
-        join(', ', @dbs), $out_dir
-    );
+    my $ok = prompt -yn, 
+        sprintf("OK to export to '%s' the following?\n%s\n [yn] ",
+            $out_dir,
+            join( "\n", map { " - $_" } @dbs ), 
+        )
+    ;
 
     if ( !$ok ) {
         say 'Bye.';
@@ -102,7 +105,7 @@ for my $db_name ( @dbs ) {
     my $host  = $db->host;
     my $class = '';
 
-    if ( $db_name =~ /^ensembl_.*_core/ ) {
+    if ( $db_name =~ /^ensembl_/ && $db->real_name =~ /core/ ) {
         next DB if $host eq 'ensembldb.ensembl.org'; 
 
         $db_name = 'ensembl';
@@ -116,34 +119,53 @@ for my $db_name ( @dbs ) {
         $dsn = "dbi:mysql:host=$host;database=$tmp_db_name";
         my $build_db = DBI->connect( $dsn, $user, $pass, { RaiseError => 1 } );
 
-        my $ens_conf = $config->get('ensembl') or die "No Ensembl config\n";;
-        my $sql      = '';
+        my $ensembl_sql = catfile( 
+            $config->get('base_dir'), 'schemas', 'ensembl', 'ensembl-innodb.sql'
+        );
 
-        for my $file ( qw[ sql_file ] ) { #foreign_key_file 
-            my $path = $ens_conf->{ $file } or next;
-            $sql .= slurp( $path );
+        my $sql = '';
+        if ( -e $ensembl_sql ) {
+            $sql = slurp( $ensembl_sql );
+        }
+        else {
+            my $ens_conf = $config->get('ensembl') 
+                           or die "No Ensembl config\n";;
+
+            my $tmp = '';
+            for my $file ( qw[ sql_file ] ) { # foreign_key_file 
+                my $path = $ens_conf->{ $file } or next;
+
+                if ( -e $path ) {
+                    $tmp .= slurp( $path );
+                }
+            }
+
+            if ( !$tmp ) {
+                die "Did not get any SQL from Ensembl config\n";
+            }
+
+            $tmp =~ s/MyISAM/InnoDB/gi;
+            $tmp =~ s!/\*([^*]|\*[^/])*\*/!!g;
+            $tmp =~ s/collate=\w+//gi;
+            $tmp =~ s/"/'/gi;
+            $tmp =~ s/(small)?int(eger)(\d+) unsigned/integer unsigned/gi;
+
+            my $sqlt = SQL::Translator->new;
+
+            my $sql  = $sqlt->translate(
+                from           => 'MySQL',
+                to             => 'MySQL',
+                data           => \$tmp,
+                add_drop_table => 1,
+                directed       => 1,
+            );
         }
 
         if ( !$sql ) {
-            die "Did not get any SQL from Ensembl config\n";
+            die "Can't find any SQL to create Ensembl schema.\n";
         }
 
-        $sql =~ s/MyISAM/InnoDB/gi;
-        $sql =~ s!/\*([^*]|\*[^/])*\*/!!g;
-        $sql =~ s/collate=\w+//gi;
-        $sql =~ s/"/'/gi;
-        $sql =~ s/(small)?int(eger)(\d+) unsigned/integer unsigned/gi;
-
-        my $sqlt = SQL::Translator->new;
-
-        my $new  = $sqlt->translate(
-            from => 'MySQL',
-            to   => 'MySQL',
-            data => \$sql,
-            add_drop_table => 1,
-        );
-
-        for my $cmd ( split( /;/, $new ) ) {
+        for my $cmd ( split( /;/, $sql ) ) {
             next if !$cmd || $cmd =~ /^\s*$/;
             $build_db->do( $cmd );
         }

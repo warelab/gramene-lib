@@ -1,0 +1,98 @@
+search:
+  page_size: 10
+
+  index_path: data/search-index
+
+  tables_to_index:
+
+    diversity_*: div_passport+div_synonym,div_taxonomy,div_stock;cdv_marker[name]+div_experiment,div_taxonomy;div_experiment+div_taxonomy,div_scoring_tech_type[scoring_tech_group]
+
+    ensembl_*: gene[biotype:description:stable_id]+transcript[stable_id];seq_region[name]
+
+    maps: marker_type;map_set+species,map_type,germplasm;germplasm+species;library+species
+
+    ontology: term[term_name:term_accession]+term_definition[definition],term_type[term_type],term_synonym[synonym_name:synonym_acc]
+
+  list_columns:
+
+    diversity_*.cdv_marker: name
+
+    diversity_*.div_passport: accename,accenumb,div_synonyms.synonym,cdv_source_id.source
+
+    diversity_*.div_experiment: name,design,originator,comments
+
+    ensembl_*.dna_align_feature: hit_name,analysis.logic_name
+
+    ensembl_*.interpro: id_field,interpro_ac[sprintf('Interpro accession &quot;%s&quot; in domain &quot;%s&quot;')]
+
+    ensembl_*.marker: type,display_marker_synonym.name
+
+    ensembl_*.seq_region: name
+
+    ensembl_*.gene: biotype,display_xref.display_label,stable_id,description[sprintf('%s gene &quot;%s&quot; [%s]: %s')]
+
+    literature.reference: authors.contributor.contributor_name,title,source.source_name,year,volume,start_page,end_page[sprintf('%s, &quot;%s&quot;, <u>%s</u>, %s, vol. %s, pp. %s-%s')]
+
+    germplasm.germplasm: species.name,germplasm_acc
+
+    maps.map_set: species.species,map_type.map_type,map_set_name
+
+    maps.feature: species.species,feature_type.feature_type,display_synonym.feature_name
+
+    maps.marker_type: marker_type,description
+
+    maps.germplasm: species.species,germplasm_name,description
+
+    maps.library: species.species,library_name,center_name,center_project
+
+    ontology.term: term_type.term_type,term_name,term_accession
+
+    pathway_*.pathway_gramene_search: gene_name,enzyme_name,reaction_id,reaction_name,ec,pathway_id,pathway_name
+
+
+  sql_to_index: 
+    ensembl_*.gene: |
+      select x.dbprimary_acc, x.display_label, x.description, 
+             e.db_name, e.db_display_name
+      from   xref x, object_xref ox, gene g, external_db e
+      where  x.xref_id=ox.xref_id
+      and    x.external_db_id=e.external_db_id
+      and    ox.ensembl_id=g.gene_id
+      and    g.gene_id=?
+      and    ox.ensembl_object_type='Gene';
+
+      select x.dbprimary_acc, x.display_label, x.description, 
+             e.db_name, e.db_display_name
+      from   xref x, object_xref ox, transcript t, gene g, external_db e
+      where  x.xref_id=ox.xref_id
+      and    x.external_db_id=e.external_db_id
+      and    ox.ensembl_id=t.transcript_id
+      and    t.gene_id=g.gene_id
+      and    g.gene_id=?
+      and    ox.ensembl_object_type='Transcript';
+
+      select x.dbprimary_acc, x.display_label, x.description, 
+             e.db_name, e.db_display_name
+      from   xref x, object_xref ox, translation p, transcript t, 
+             gene g, external_db e
+      where  x.xref_id=ox.xref_id
+      and    x.external_db_id=e.external_db_id
+      and    ox.ensembl_id=p.translation_id
+      and    p.transcript_id=t.transcript_id
+      and    t.gene_id=g.gene_id
+      and    g.gene_id=?
+      and    ox.ensembl_object_type='Translation';
+
+      select  distinct x.dbprimary_acc
+      from    xref x, interpro i, protein_feature pf, translation p, 
+              transcript t, gene g
+      where   g.gene_id=?
+      and     g.gene_id=t.gene_id
+      and     t.transcript_id=p.transcript_id
+      and     p.translation_id=pf.translation_id
+      and     pf.hit_name=i.id
+      and     i.interpro_ac=x.dbprimary_acc;
+
+      select meta_value as ncbi_taxonomy_id
+      from   meta 
+      where  meta_key='species.taxonomy_id';
