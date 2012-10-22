@@ -177,7 +177,8 @@ sub index {
 
   my $results = $sdb->index( $module );
 
-Indexes a module, returns the number of records indexed and the time.
+Indexes a module, returns a hashref describing the number of 
+tables and records indexed.
 
 =cut
 
@@ -231,9 +232,11 @@ Indexes a module, returns the number of records indexed and the time.
 
             if ( scalar @id_fields > 1 ) {
                 print STDERR 
-                    "WARNING: Skipping table '$table'; more than 1 primary key (",
-                    join($COMMA_SPACE, @id_fields),
-                    ")\n";
+                    "WARNING: Skipping table '$table'; ",
+                    "more than 1 primary key (",
+                    join( $COMMA_SPACE, @id_fields ),
+                    ")\n",
+                ;
                 next TABLE;
             }
 
@@ -267,7 +270,7 @@ Indexes a module, returns the number of records indexed and the time.
 
             if ( scalar @columns == 0 && scalar @other_tables == 0 ) {
                 print STDERR 
-                    "No columns or other tables for '$source_name,' skipping.\n";
+                  "No columns or other tables for '$source_name,' skipping.\n";
                 next TABLE;
             }
 
@@ -277,7 +280,9 @@ Indexes a module, returns the number of records indexed and the time.
 
                 my @other_columns;
                 if ( $other->{'fields'}[0] eq $ALL ) {
-                    my $other_rs   = $schema->resultset( camel_case($other_table) );
+                    my $other_rs   = $schema->resultset( 
+                        camel_case($other_table) 
+                    );
                     @other_columns = $other_rs->result_source->columns;
                 }
                 else {
@@ -395,17 +400,16 @@ Indexes a module, returns the number of records indexed and the time.
                 $text = lc $text;
                 $text =~ s/^\s+|\s+$//g;       # trim
                 $text =~ s/, / /g;             # kill commas
-    #            $text =~ s/\s+/ /g;            # collapse spaces
                 $text =~ /\A(.+?)^\s+(.*)/ms ; # not sure, stolen
-
                 $text = join( $SPACE, uniq( split( /\s+/, $text ) ) );
 
                 next if !$text;
 
                 my $title = '';
                 if ( my %list_columns = %{ $sconf->{'list_columns'} || {} } ) {
-                    while ( my ( $list_type, $list_def ) = each %list_columns ) {
-                        my ( $list_module, $list_table ) = split /\./, $list_type;
+                    while ( my ($list_type, $list_def) = each %list_columns ) {
+                        my ($list_module, $list_table) 
+                            = split /\./, $list_type;
 
                         my @title_vals;
                         if ( 
@@ -427,15 +431,18 @@ Indexes a module, returns the number of records indexed and the time.
                 $title ||= substr $text, 0, 50;
 
                 push @ontologies, extract_ontology( $text );
-                my @ontology_accs = map { $_->term_accession } uniq( @ontologies );
+                my @ontology_accs 
+                    = map { $_->term_accession } uniq( @ontologies );
 
                 my $doc = {
                     url      => join( '/', $module, $table, $id ),
                     title    => $title,
                     category => $category,
                     content  => $text,
-                    taxonomy => join( $SPACE, grep {  /^GR_tax/ } @ontology_accs ),
-                    ontology => join( $SPACE, grep { !/^GR_tax/ } @ontology_accs ),
+                    taxonomy => 
+                        join( $SPACE, grep {  /^GR_tax/ } @ontology_accs ),
+                    ontology => 
+                        join( $SPACE, grep { !/^GR_tax/ } @ontology_accs ),
                 };
 
                 $indexer->add_doc( $doc );
