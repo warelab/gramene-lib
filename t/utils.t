@@ -6,7 +6,7 @@ use FindBin qw($Bin);
 use File::Spec::Functions;
 use Test::Exception;
 use Test::Exports;
-use Test::More tests => 17;
+use Test::More tests => 18;
 
 my @subs = qw[
     camel_case
@@ -136,4 +136,14 @@ is(
     $r3,
     '16h 40m 2s',
     "timer_calc: $r3"
+);
+
+#
+# iterative_search_values
+#
+my @vals = iterative_search_values('foo');
+is_deeply(
+    \@vals,
+    [ 'foo', 'foo*', '*foo*' ],
+    'iterative_search_values ok'
 );

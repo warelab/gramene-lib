@@ -26,7 +26,7 @@ use Readonly;
 use Time::HiRes qw( gettimeofday tv_interval );
 use Time::Interval qw( parseInterval );
 
-
+my $indexer       = 'lucy';
 my $force         =  0;
 my $load_all      =  0;
 my $load_like     = '';
@@ -36,15 +36,16 @@ my $show_list     =  0;
 my $modules       = '';
 my ( $help, $man_page );
 GetOptions(
-    'a|all'      => \$load_all,
-    'l|list'     => \$show_list,
-    'f|force'    => \$force,
-    'like:s'     => \$load_like,
-    'not-like:s' => \$load_not_like,
-    'm|module:s' => \$modules,
-    'skip-done'  => \$skip_done,
-    'help'       => \$help,
-    'man'        => \$man_page,
+    'a|all'       => \$load_all,
+    'i|indexer:s' => \$indexer,
+    'l|list'      => \$show_list,
+    'f|force'     => \$force,
+    'like:s'      => \$load_like,
+    'not-like:s'  => \$load_not_like,
+    'm|module:s'  => \$modules,
+    'skip-done'   => \$skip_done,
+    'help'        => \$help,
+    'man'         => \$man_page,
 ) or pod2usage(2);
 
 if ( $help || $man_page ) {
@@ -109,6 +110,14 @@ if ( $skip_done ) {
     }
 }
 
+my %valid = map { $_, 1 } @modules;
+if ( my @bad = grep { !$valid{ $_ } } @do_modules ) {
+    printf "Bad modules:\n%s\nUse --list or --like?\n",
+        join( "\n", map { " - $_" } @bad ),
+    ;
+    exit 0;
+}
+
 if ( !@do_modules ) {
     pod2usage('Please indicate the modules or choose --all');
 }
@@ -134,6 +143,7 @@ for my $module ( uniq( @do_modules ) ) {
     next MODULE if $module eq 'search';
 
     my $results = $search_db->index( 
+        db_type => $indexer,
         module  => $module,
         verbose => 1,
     );

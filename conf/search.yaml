@@ -9,7 +9,7 @@ search:
 
     compara: member[stable_id:description]
 
-    ensembl_*: gene[biotype:description:stable_id]+transcripts[stable_id];seq_region[name]
+    ensembl_*: gene[biotype:description:stable_id]+transcripts[stable_id],seq_region[name]
 
     maps: feature[description]+feature_type[feature_type],species[species:common_name:gramene_taxonomy_id],feature_synonyms[feature_name];feature_type;map_set+species,map_type;library+species
 

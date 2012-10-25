@@ -11,7 +11,7 @@ use JSON;
 use File::Basename;
 use Getopt::Long;
 use Grm::Search;
-use Grm::Utils qw( camel_case commify timer_calc );
+use Grm::Utils qw( camel_case commify iterative_search_values timer_calc );
 use Pod::Usage;
 use Readonly;
 use Text::TabularDisplay;
@@ -81,19 +81,26 @@ my $timer    = timer_calc();
 my @tab_flds = qw[ url content ];
 my $tab      = Text::TabularDisplay->new( @tab_flds );
 my $search   = Grm::Search->new( index_path => $index_path );
-my @summary;
+my ( @summary , %seen );
 my ( $query_num, $total_hits ) = ( 0, 0 );
 TERM:
 for my $term ( @terms ) {
-#    my %args = $limit ? ( page_size => $limit ) : ( nopage => 1 );
+    next if $seen{ $term }++;
 
-    my $res      = $search->search( 
-        query    => $term, 
-        category => $category,
-#        %args
-    );
+
+    my $res;
+    for my $t ( iterative_search_values( $term ) ) {
+        printf "%-70s\r", "Trying '$t'...";
+        $res         =  $search->search( 
+            query    => $t, 
+            category => $category,
+        );
+
+        last if $res->{'num_hits'} > 0;
+    }
 
     my $num = $res->{'num_hits'};
+
     $total_hits += $num;
 
     $print->(

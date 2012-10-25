@@ -1,0 +1,138 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use autodie;
+use Data::Dump qw( dump );
+use JSON qw( encode_json );;
+use Getopt::Long;
+use Grm::Config;
+use Pod::Usage;
+use Readonly;
+
+Readonly my %VALID_FORMAT => map { $_, 1 } qw[ perl json ];
+
+my $format    = 'perl';
+my $show_list = 0;
+my $sections  = '';
+my ( $help, $man_page );
+GetOptions(
+    'f|format:s'  => \$format,
+    'l|list'      => \$show_list,
+    's|section:s' => \$sections,
+    'help'        => \$help,
+    'man'         => \$man_page,
+) or pod2usage(2);
+
+if ( $help || $man_page ) {
+    pod2usage({
+        -exitval => 0,
+        -verbose => $man_page ? 2 : 1
+    });
+}; 
+
+if ( !$VALID_FORMAT{ $format } ) {
+    pod2usage("Invalid format ($format)");
+}
+
+my $config = Grm::Config->new;
+
+if ( $show_list ) {
+    my $all = $config->get();
+    print join "\n",
+        'Sections:',
+        ( map { " - $_" } grep { !/^also_load$/ } sort keys %$all ),
+        '',
+    ;
+    exit 0;
+}
+
+my $dumper = $format eq 'perl' 
+    ? sub { dump( @_ ) } 
+    : sub { encode_json( \@_ ) }
+;
+
+if ( my @sections = split /\s*,\s*/, $sections ) {
+    for my $s ( @sections ) {
+        my ( $name, $sub ) = split /:/, $s;
+        my $data = $config->get( $name );
+        if ( $sub ) {
+            if ( ref $data ne 'HASH' ) {
+                print "No subsections for '$name'\n";
+                exit 0;
+            }
+
+            if ( !defined $data->{ $sub } ) {
+                my @maybe = grep { /$sub/ } keys %$data;
+                if ( scalar @maybe == 1 ) {
+                    $sub = shift @maybe;
+                }
+            }
+            
+            if ( defined $data->{ $sub } ) {
+                my $tmp = $data->{ $sub };
+                $data = $tmp;
+            }
+            else {
+                print join "\n",
+                    "Bad subsection ($sub) for section '$name', choose from:",
+                    ( map { " - $_" } sort keys %$data ),
+                    '',
+                ;
+                exit 0;
+            }
+        } 
+
+        printf "Section '%s':\n%s\n", $s, $dumper->($data);
+    }
+}
+else {
+    print $dumper->($config->get()), "\n";
+}
+
+__END__
+
+# ----------------------------------------------------
+
+=pod
+
+=head1 NAME
+
+grm-config - prints Gramene config information
+
+=head1 SYNOPSIS
+
+  grm-config 
+
+Options:
+
+  -f|--format        Output format ("perl" or "json")
+  -l|--list          Show a list of section names
+  -s|--section       Comma-separated list of section names
+
+  --help             Show brief help and exit
+  --man              Show full documentation
+
+=head1 DESCRIPTION
+
+Prints Gramene config info.
+
+=head1 SEE ALSO
+
+Grm::Config.
+
+=head1 AUTHOR
+
+Ken Youens-Clark E<lt>kclark@cshl.eduE<gt>.
+
+=head1 COPYRIGHT
+
+Copyright (c) 2012 Cold Spring Harbor Laboratory
+
+This module is free software; you can redistribute it and/or
+modify it under the terms of the GPL (either version 1, or at
+your option, any later version) or the Artistic License 2.0.
+Refer to LICENSE for the full license text and to DISCLAIMER for
+additional warranty disclaimers.
+
+=cut

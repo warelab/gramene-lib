@@ -65,6 +65,7 @@ use File::Spec::Functions qw( catdir );
 use File::Path;
 use Grm::Config;
 use Grm::Utils qw( timer_calc commify extract_ontology );
+use Grm::Search::Indexer::MySQL;
 use List::MoreUtils qw( uniq );
 use Lucy::Search::IndexSearcher;
 use Lucy::Highlight::Highlighter;
@@ -176,9 +177,12 @@ sub index {
 =head2 index
 
   my $results = $sdb->index( $module );
+  print join "\n", 
+     (map { "$_ : $results->{ $_ } } qw[ num_records num_tables time ]), ''
+  ;
 
 Indexes a module, returns a hashref describing the number of 
-tables and records indexed.
+tables and records indexed and the elapsed time.
 
 =cut
 
@@ -190,24 +194,35 @@ tables and records indexed.
                   ? @{ $args{'module'} }
                   : split( /\s*,\s*/, $args{'module'} );
     my $verbose = defined $args{'verbose'} ? $args{'verbose'} : 1;
+    my $db_type = $args{'db_type'} || 'lucy';
     my $sconf   = $self->config->get('search');
     my %stats;
 
+    my $total_timer = timer_calc();
     my ( $num_tables, $num_records ) = ( 0, 0 );
     for my $module ( @modules ) {
-        my $module_index     = catdir( $self->index_path, $module );
         my %tables_to_index  = $self->tables_to_index( $module );
         my %sql_to_index     = $self->sql_to_index( $module );
         my $extract_ontology = $module ne 'ontology';
-        my $lucy_schema      = $self->schema;
 
-        # Create an Indexer object.
-        my $indexer = Lucy::Index::Indexer->new(
-            index    => $module_index,
-            schema   => $lucy_schema,
-            create   => 1,
-            truncate => 1,
-        ) or die "No indexer\n";
+        my $indexer;
+        if ( $db_type eq 'lucy' ) {
+            my $lucy_schema      = $self->schema;
+            my $module_index     = catdir( $self->index_path, $module );
+
+            # Create an Indexer object.
+            $indexer = Lucy::Index::Indexer->new(
+                index    => $module_index,
+                schema   => $lucy_schema,
+                create   => 1,
+                truncate => 1,
+            ) or die "No indexer\n";
+        }
+        else {
+            $indexer = Grm::Search::Indexer::MySQL->new(
+                module => $module
+            );
+        }
 
         my $odb      = Grm::Ontology->new;
         my $db       = Grm::DB->new( $module );
@@ -307,14 +322,13 @@ tables and records indexed.
                     $table;
             }
 
-            my $sth = $dbh->prepare("select $id_field from $table");
-            $sth->execute;
+            my $ids = $dbh->selectcol_arrayref("select $id_field from $table");
 
             $num_tables++;
 
             my $num_records = 0;
 
-            while ( my $id = $sth->fetchrow_array ) {
+            for my $id ( @$ids ) {
                 $num_records++;
 
                 if ( $verbose ) {
@@ -458,12 +472,14 @@ tables and records indexed.
             }
         }
 
-        print "Committing indexer\n" if $verbose;
-
         $indexer->commit;
     }
 
-    return { num_tables => $num_tables, num_records => $num_records };
+    return { 
+        num_tables  => $num_tables, 
+        num_records => $num_records,
+        time        => $total_timer->(),
+    };
 }
 
 # ----------------------------------------------------
@@ -593,19 +609,15 @@ Options include:
             field    => 'content'
         );
 
+        my @flds = qw[ url title category content taxonomy ontology ];
+
         # Create result list.
         while ( my $hit = $hits->next ) {
             push @hits, { 
-                url          => $hit->{'url'},
-                title        => $hit->{'title'},
-                category     => $hit->{'category'},
-                content      => $hit->{'content'},
-                taxonomy     => $hit->{'taxonomy'},
-                ontology     => $hit->{'ontology'},
                 score        => $hit->get_score,
                 pretty_score => sprintf( "%0.3f", $hit->get_score ),
                 excerpt      => $highlighter->create_excerpt($hit),
-#                %{ $hit->dump },
+                ( map { $_ => $hit->{ $_ } } @flds )
             };
         }
     }
