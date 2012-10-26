@@ -380,3 +380,11 @@ CREATE TABLE feature_details_fpc (
   PRIMARY KEY (feature_id),
   FOREIGN KEY (feature_id) REFERENCES feature (feature_id)
 ) ENGINE=InnoDB;
+
+DROP TABLE IF EXISTS feature_details_gene_prediction;
+CREATE TABLE feature_details_gene_prediction (
+  feature_id int unsigned NOT NULL DEFAULT '0',
+  chromosome char(10) DEFAULT NULL,
+  PRIMARY KEY (feature_id),
+  FOREIGN KEY (feature_id) REFERENCES feature (feature_id)
+) ENGINE=InnoDB;

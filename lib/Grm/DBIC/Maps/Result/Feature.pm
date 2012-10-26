@@ -262,6 +262,21 @@ __PACKAGE__->might_have(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
+=head2 feature_details_gene_prediction
+
+Type: might_have
+
+Related object: L<Grm::DBIC::Maps::Result::FeatureDetailsGenePrediction>
+
+=cut
+
+__PACKAGE__->might_have(
+  "feature_details_gene_prediction",
+  "Grm::DBIC::Maps::Result::FeatureDetailsGenePrediction",
+  { "foreign.feature_id" => "self.feature_id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
 =head2 feature_details_genomic_dna
 
 Type: might_have
@@ -488,8 +503,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-22 12:56:46
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:yVTA/QI2eSYXf6lc/vmpQQ
+# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-26 12:42:58
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:n4OyzDFuXv8+/ojzDNK1uQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
