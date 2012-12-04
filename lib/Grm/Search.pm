@@ -483,6 +483,109 @@ tables and records indexed and the elapsed time.
 }
 
 # ----------------------------------------------------
+sub search_mysql {
+
+=pod
+
+=head2 search_mysql
+
+  my $results = $sdb->search_mysql('waxy');
+
+  my $results = $sdb->search( 
+      query     => 'waxy', # required
+      offset    => 100,
+      category  => 'genomes',
+      limit     => 50,
+      nopage    => 1,
+      page_size => 50,
+  );
+
+Performs a search.  Only "query" is required, and if only one argument 
+is present, it is assumed to be "query."  
+
+Options include:
+
+=over 4
+
+=item offset
+
+[Integer] How far into the result set to go
+
+=item category
+
+[String] Gramene search category
+
+=item limit
+
+[Integer] Number of results
+
+=item nopage
+
+[Boolean] Don't bother paging the results, just return everything
+
+=item page_size
+
+[Integer] Size of the pages
+
+=back
+
+=cut
+
+    my $self       = shift;
+    my $timer      = timer_calc();
+    my %args       = ref $_[0] eq 'HASH' 
+                       ? %{ $_[0] } 
+                       : scalar @_ == 1 
+                         ? ( query => $_[0] ) : @_;
+    my $q          = $args{'query'}    or return;
+    my $offset     = $args{'offset'}   ||  0;
+    my $category   = $args{'category'} || '';
+    my $limit      = $args{'limit'}    ||  0;
+    my $page_size  = $args{'nopage'} 
+                   ? undef 
+                   : $args{'page_size'} || $self->page_size;
+
+    my $config     = $self->config->get('search');
+    my @dbs        = @{ $config->{'search_dbs'} };
+    my $hit_count  = 0;
+
+    my @hits;
+    DB:
+    for my $db_name ( @dbs ) {
+        my $dbh = DBI->connect(
+            "dbi:mysql:host=cabot;database=$db_name",
+            'kclark', 'g0p3rl!', { RaiseError => 1 }
+        );
+
+        my $sql = sprintf(
+            qq[
+                select url, title, category, taxonomy, ontology, content,
+                       content as excerpt,
+                       match(content) against (%s) as score
+                from   search
+                where
+                match(content) against (%s in boolean mode)
+                order by score desc
+            ],
+            $dbh->quote($q),
+            $dbh->quote('%' . $q . '%'),
+        );
+        
+        my $hits    = $dbh->selectall_arrayref( $sql, { Columns => {} } );
+        my $num     = scalar @$hits or next DB;
+        $hit_count += $num;
+
+        push @hits, @$hits;
+    }
+
+    return { 
+        num_hits => scalar @hits,
+        data     => \@hits, 
+        time     => $timer->(),
+    };
+}
+
+# ----------------------------------------------------
 sub search {
 
 =pod

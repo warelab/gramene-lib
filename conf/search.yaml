@@ -143,3 +143,36 @@ search:
 
     pathway_poplar.pathway_gramene_search: |
       select 'GR_tax:018122' as ontology_acc;
+
+  search_dbs:
+    - grm_search_ensembl_arabidopsis_lyrata         
+    - grm_search_ensembl_arabidopsis_thaliana       
+    - grm_search_ensembl_brachypodium_distachyon    
+    - grm_search_ensembl_brassica_rapa              
+    - grm_search_ensembl_chlamydomonas_reinhardtii  
+    - grm_search_ensembl_cyanidioschyzon_merolae    
+    - grm_search_ensembl_glycine_max                
+    - grm_search_ensembl_oryza_barthii              
+    - grm_search_ensembl_oryza_brachyantha          
+    - grm_search_ensembl_oryza_glaberrima           
+    - grm_search_ensembl_oryza_glumaepatula         
+    - grm_search_ensembl_oryza_meridionalis         
+    - grm_search_ensembl_oryza_minutabb             
+    - grm_search_ensembl_oryza_minutacc             
+    - grm_search_ensembl_oryza_nivara               
+    - grm_search_ensembl_oryza_officinalis          
+    - grm_search_ensembl_oryza_punctata             
+    - grm_search_ensembl_oryza_rufipogon3s          
+    - grm_search_ensembl_oryza_rufipogon_fpc        
+    - grm_search_ensembl_oryza_sativa_indica        
+    - grm_search_ensembl_oryza_sativa_japonica      
+    - grm_search_ensembl_physcomitrella_patens      
+    - grm_search_ensembl_populus_trichocarpa        
+    - grm_search_ensembl_selaginella_moellendorffii 
+    - grm_search_ensembl_setaria_italica            
+    - grm_search_ensembl_solanum_lycopersicum       
+    - grm_search_ensembl_sorghum_bicolor            
+    - grm_search_ensembl_vitis_vinifera             
+    - grm_search_ensembl_zea_mays                   
+    - grm_search_pathway_arabidopsis                
+

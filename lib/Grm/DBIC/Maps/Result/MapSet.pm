@@ -126,6 +126,21 @@ __PACKAGE__->add_unique_constraint("map_set_acc", ["map_set_acc"]);
 
 =head1 RELATIONS
 
+=head2 germplasms_to_map_set
+
+Type: has_many
+
+Related object: L<Grm::DBIC::Maps::Result::GermplasmToMapSet>
+
+=cut
+
+__PACKAGE__->has_many(
+  "germplasms_to_map_set",
+  "Grm::DBIC::Maps::Result::GermplasmToMapSet",
+  { "foreign.map_set_id" => "self.map_set_id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
 =head2 maps
 
 Type: has_many
@@ -172,8 +187,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-09-19 17:21:53
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:Fm+3JJgWBYoEe8qymg+bjw
+# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-11-14 16:11:19
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:GYvH+STv6FaGMnkI81TZag
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

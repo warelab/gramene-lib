@@ -45,6 +45,13 @@ __PACKAGE__->table("feature");
   is_foreign_key: 1
   is_nullable: 0
 
+=head2 germplasm_id
+
+  data_type: 'integer'
+  default_value: 1
+  extra: {unsigned => 1}
+  is_nullable: 0
+
 =head2 display_synonym_id
 
   data_type: 'integer'
@@ -90,6 +97,13 @@ __PACKAGE__->add_columns(
     is_foreign_key => 1,
     is_nullable => 0,
   },
+  "germplasm_id",
+  {
+    data_type => "integer",
+    default_value => 1,
+    extra => { unsigned => 1 },
+    is_nullable => 0,
+  },
   "display_synonym_id",
   {
     data_type => "integer",
@@ -106,26 +120,6 @@ __PACKAGE__->set_primary_key("feature_id");
 __PACKAGE__->add_unique_constraint("feature_acc", ["feature_acc"]);
 
 =head1 RELATIONS
-
-=head2 display_synonym
-
-Type: belongs_to
-
-Related object: L<Grm::DBIC::Maps::Result::FeatureSynonym>
-
-=cut
-
-__PACKAGE__->belongs_to(
-  "display_synonym",
-  "Grm::DBIC::Maps::Result::FeatureSynonym",
-  { feature_synonym_id => "display_synonym_id" },
-  {
-    is_deferrable => 1,
-    join_type     => "LEFT",
-    on_delete     => "CASCADE",
-    on_update     => "CASCADE",
-  },
-);
 
 =head2 feature_type
 
@@ -155,6 +149,26 @@ __PACKAGE__->belongs_to(
   "Grm::DBIC::Maps::Result::Species",
   { species_id => "species_id" },
   { is_deferrable => 1, on_delete => "CASCADE", on_update => "CASCADE" },
+);
+
+=head2 display_synonym
+
+Type: belongs_to
+
+Related object: L<Grm::DBIC::Maps::Result::FeatureSynonym>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "display_synonym",
+  "Grm::DBIC::Maps::Result::FeatureSynonym",
+  { feature_synonym_id => "display_synonym_id" },
+  {
+    is_deferrable => 1,
+    join_type     => "LEFT",
+    on_delete     => "CASCADE",
+    on_update     => "CASCADE",
+  },
 );
 
 =head2 feature_details_aflp
@@ -503,8 +517,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-26 12:42:58
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:n4OyzDFuXv8+/ojzDNK1uQ
+# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-11-14 13:42:31
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:mgn8Kmr7ri1P7+i12kWbuw
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

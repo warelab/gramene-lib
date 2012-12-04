@@ -17,6 +17,12 @@ DROP TABLE IF EXISTS map;
 DROP TABLE IF EXISTS map_set;
 DROP TABLE IF EXISTS map_type;
 DROP TABLE IF EXISTS species;
+DROP TABLE IF EXISTS feature_relation_type;
+DROP TABLE IF EXISTS feature_relation;
+DROP TABLE IF EXISTS feature_to_ontology_term;
+DROP TABLE IF EXISTS ontology_term;
+DROP TABLE IF EXISTS ontology_term_type;
+DROP TABLE IF EXISTS germplasm;
 
 CREATE TABLE species (
   species_id int unsigned NOT NULL AUTO_INCREMENT,
@@ -31,6 +37,21 @@ CREATE TABLE species (
   KEY (species),
   KEY (gramene_taxonomy_id),
   KEY (ncbi_taxonomy_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE germplasm (
+  germplasm_id int unsigned NOT NULL AUTO_INCREMENT,
+  germplasm_acc varchar(30) DEFAULT NULL,
+  germplasm_name varchar(255) NOT NULL,
+  species_id int unsigned NOT NULL DEFAULT '1',
+  description text,
+  PRIMARY KEY (germplasm_id),
+  UNIQUE (species_id, germplasm_name),
+  UNIQUE (germplasm_acc),
+  KEY (species_id),
+  KEY (germplasm_name),
+  KEY (germplasm_acc),
+  FOREIGN KEY (species_id) REFERENCES species (species_id)
 ) ENGINE=InnoDB;
 
 CREATE TABLE map_type (
@@ -168,7 +189,6 @@ CREATE TABLE feature_to_ontology_term (
   FOREIGN KEY (ontology_term_id) REFERENCES ontology_term (ontology_term_id)
 ) ENGINE=InnoDB;
 
-
 CREATE TABLE mapping (
   mapping_id int unsigned NOT NULL AUTO_INCREMENT,
   map_id int unsigned NOT NULL DEFAULT '0',
@@ -208,4 +228,39 @@ CREATE TABLE xref (
   KEY (record_id),
   KEY (table_name,record_id,xref_type_id),
   FOREIGN KEY (xref_type_id) REFERENCES xref_type (xref_type_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE feature_relation_type (
+  feature_relation_type_id int unsigned NOT NULL AUTO_INCREMENT,
+  type varchar(50) NOT NULL DEFAULT '',
+  PRIMARY KEY (feature_relation_type_id),
+  UNIQUE (type)
+);
+
+CREATE TABLE feature_relation (
+  feature_relation_id int unsigned NOT NULL AUTO_INCREMENT,
+  feature_relation_type_id int unsigned DEFAULT '0',
+  from_feature_id int unsigned DEFAULT '0',
+  to_feature_id int unsigned DEFAULT '0',
+  PRIMARY KEY (feature_relation_id),
+  KEY (feature_relation_id),
+  KEY (from_feature_id),
+  KEY (to_feature_id),
+  FOREIGN KEY (feature_relation_id) 
+    REFERENCES feature_relation (feature_relation_id),
+  FOREIGN KEY (from_feature_id) REFERENCES feature (feature_id),
+  FOREIGN KEY (to_feature_id) REFERENCES feature (feature_id)
+);
+
+CREATE TABLE germplasm_to_map_set (
+  germplasm_to_map_set_id int unsigned NOT NULL AUTO_INCREMENT,
+  germplasm_id int unsigned NOT NULL DEFAULT '0',
+  map_set_id int unsigned NOT NULL DEFAULT '0',
+  relationship enum('Unknown','Donor Parent','Female Parent','Male Parent','Parental Germplasm','Recurrent Parent') DEFAULT NULL,
+  PRIMARY KEY (germplasm_to_map_set_id),
+  UNIQUE (germplasm_id,map_set_id,relationship),
+  KEY (germplasm_id),
+  KEY (map_set_id),
+  FOREIGN KEY (germplasm_id) REFERENCES germplasm (germplasm_id),
+  FOREIGN KEY (map_set_id) REFERENCES map_set (map_set_id)
 ) ENGINE=InnoDB;
