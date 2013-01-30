@@ -19,26 +19,27 @@ Description of module goes here.
 # ----------------------------------------------------
 
 use strict;
+use Moose;
 use Carp qw( croak );
 use Grm::DB;
+use Grm::Config;
 use List::MoreUtils qw( uniq );
-use Moose;
 use Readonly;
 
-Readonly my %TERM_TYPE_ALIAS => (
-    GRO    => 'Growth Stage',
-    TO     => 'Trait',
-    EO     => 'Environment',
-    GR_TAX => 'Taxonomy',
-    GAZ    => 'GAZ',
-    GO     => [
-        'Biological Process', 'Cellular Component', 'Molecular Function'
-    ],
-    PO     => [
-        'Plant Structure', 'Plant Growth and Development Stage',
-        'plant_anatomy', 'plant_ontology'
-    ],
-);
+#Readonly my %TERM_TYPE_ALIAS => (
+#    GRO    => 'Growth Stage',
+#    TO     => 'Trait',
+#    EO     => 'Environment',
+#    GR_TAX => 'Taxonomy',
+#    GAZ    => 'GAZ',
+#    GO     => [
+#        'Biological Process', 'Cellular Component', 'Molecular Function'
+#    ],
+#    PO     => [
+#        'Plant Structure', 'Plant Growth and Development Stage',
+#        'plant_anatomy', 'plant_ontology'
+#    ],
+#);
 
 has config => (
     is         => 'rw',
@@ -59,11 +60,11 @@ has module_name => (
 );
 
 has ontology_accession_prefixes => (
-    traits      => ['Array'],
     is          => 'ro',
+    traits      => ['Array'],
     isa         => 'ArrayRef[Str]',
-    default     => sub { [ sort keys %TERM_TYPE_ALIAS ] },
     auto_deref  => 1,
+    reader      => '_get_ontology_accession_prefixes',
 );
 
 # ----------------------------------------------------
@@ -88,6 +89,23 @@ sub _build_db {
     my $self = shift;
     my $db   = Grm::DB->new( $self->module_name );
     return $db;
+}
+
+# ----------------------------------------------------
+sub _get_ontology_accession_prefixes {
+
+=pod _get_ontology_accession_prefixes
+
+Accessor for 'ontology_accession_prefixes'
+
+=cut
+
+    my $self   = shift;
+    my $conf   = $self->config;
+    my $oconf  = $conf->get('ontology');
+    my $labels = $oconf->{'label'};
+
+    return ref $labels eq 'HASH' ? sort keys %$labels : ();
 }
 
 # ----------------------------------------------------

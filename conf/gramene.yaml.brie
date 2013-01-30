@@ -3,7 +3,7 @@ also_load: search.yaml
 
 base_dir: /home/kclark/gramene-lib
 
-version: 36
+version: 37
 
 ensembl:
   install_dir: /usr/local/ensembl-live
@@ -23,6 +23,13 @@ modules:
   - literature
   - maps
   - ontology
+  - ontology_eo
+  - ontology_gaz
+  - ontology_go
+  - ontology_gro
+  - ontology_po
+  - ontology_tax
+  - ontology_to
   - pathway_arabidopsis
   - pathway_brachypodium
   - pathway_capsicum_anuum
@@ -43,89 +50,113 @@ database:
     password : ()ryz@
 
   maps:
-    name: maps36
+    name: maps37
 
-  amigo:
-    name: amigo36
+  ontology_eo:
+    name: ontology_eo37
 
-  ontology: 
-    name: ontology36
+  ontology_gaz:
+    name: ontology_gaz37
+
+  ontology_go:
+    name: ontology_go37
+
+  ontology_gro:
+    name: ontology_gro37
+
+  ontology_po:
+    name: ontology_po37
+
+  ontology_tax:
+    name: ontology_tax37
+
+  ontology_to:
+    name: ontology_to37
 
   pathway_poplar:
-    name: pathway_poplar35
+    name: pathway_poplar37
     user: pathway_rw
 
   pathway_rice:
-    name: pathway_rice35
+    name: pathway_rice37
     user: pathway_rw
 
   pathway_arabidopsis:
-    name: pathway_arabidopsis35
+    name: pathway_arabidopsis37
     user: pathway_rw
 
   pathway_brachypodium:
-    name: pathway_brachypodium35;host=cabot;mysql_emulated_prepare=1
+    name: pathway_brachypodium37;host=cabot;mysql_emulated_prepare=1
     user: pathway_rw
 
   pathway_capsicum_anuum:
-    name: pathway_capsicum_anuum35
+    name: pathway_capsicum_anuum37
     user: pathway_rw
 
   pathway_coffea_canephora:
-    name: pathway_coffea_canephora35
+    name: pathway_coffea_canephora37
     user: pathway_rw
 
   pathway_maize:
-    name: pathway_maize35
+    name: pathway_maize37
     user: pathway_rw
 
   pathway_medicago_truncatula:
-    name: pathway_medicago_truncatula35
+    name: pathway_medicago_truncatula37
     user: pathway_rw
 
   pathway_solanum_lycopersicum:
-    name: pathway_solanum_lycopersicum35
+    name: pathway_solanum_lycopersicum37
     user: pathway_rw
 
   pathway_solanum_tuberosum:
-    name: pathway_solanum_tuberosum35
+    name: pathway_solanum_tuberosum37
     user: pathway_rw
 
   pathway_sorghum_bicolor:
-    name: pathway_sorghum_bicolor35
+    name: pathway_sorghum_bicolor37
     user: pathway_rw
 
   diversity_rice:
-    name: diversity_rice35
+    name: diversity_rice37
     user: diversity_rw
 
   diversity_arabidopsis:
-    name: diversity_arabidopsis35
+    name: diversity_arabidopsis37
     user: diversity_rw
 
   diversity_wheat:
-    name: diversity_wheat35
+    name: diversity_wheat37
     user: diversity_rw
 
   diversity_maize:
-    name: diversity_maize35
+    name: diversity_maize37
     user: diversity_rw
 
   diversity_sorghum:
-    name: diversity_sorghum35
+    name: diversity_sorghum37
     user: diversity_rw
 
   literature:
-    name: literature36
+    name: literature37
     user: literature_rw
 
   help:
-    name: gramene_help35
+    name: gramene_help37
     user: gramene_web 
     pass: gram3n3 
 
 #  germplasm:
-#    name: germplasm36
+#    name: germplasm37
 #    user: gramene_web
 #    pass: gram3n3
 
+ontology:
+  label:
+    eo: Environment
+    gaz: GAZ
+    go: Gene 
+    gro: Growth Stage
+    gr_tax: Taxonomy
+    po: Plant 
+    to: Trait
