@@ -16,6 +16,8 @@ use Template::Constants qw( :chomp );
 use Time::HiRes qw( gettimeofday tv_interval );
 use Time::Interval qw( parseInterval );
 
+no warnings 'redefine';
+
 Readonly my $EMPTY_STR => q{};
 
 require Exporter;

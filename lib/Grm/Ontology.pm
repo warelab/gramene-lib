@@ -19,27 +19,29 @@ Description of module goes here.
 # ----------------------------------------------------
 
 use strict;
-use Moose;
 use Carp qw( croak );
-use Grm::DB;
 use Grm::Config;
+use Grm::DB;
 use List::MoreUtils qw( uniq );
+use Moose;
 use Readonly;
 
-#Readonly my %TERM_TYPE_ALIAS => (
-#    GRO    => 'Growth Stage',
-#    TO     => 'Trait',
-#    EO     => 'Environment',
-#    GR_TAX => 'Taxonomy',
-#    GAZ    => 'GAZ',
-#    GO     => [
-#        'Biological Process', 'Cellular Component', 'Molecular Function'
-#    ],
-#    PO     => [
-#        'Plant Structure', 'Plant Growth and Development Stage',
-#        'plant_anatomy', 'plant_ontology'
-#    ],
-#);
+no warnings 'redefine';
+
+Readonly my %TERM_TYPE_ALIAS => (
+    GRO    => 'Growth Stage',
+    TO     => 'Trait',
+    EO     => 'Environment',
+    GR_TAX => 'Taxonomy',
+    GAZ    => 'GAZ',
+    GO     => [
+        'Biological Process', 'Cellular Component', 'Molecular Function'
+    ],
+    PO     => [
+        'Plant Structure', 'Plant Growth and Development Stage',
+        'plant_anatomy', 'plant_ontology'
+    ],
+);
 
 has config => (
     is         => 'rw',
@@ -61,10 +63,9 @@ has module_name => (
 
 has ontology_accession_prefixes => (
     is          => 'ro',
-    traits      => ['Array'],
+#    traits      => ['Array'],
     isa         => 'ArrayRef[Str]',
     auto_deref  => 1,
-    reader      => '_get_ontology_accession_prefixes',
 );
 
 # ----------------------------------------------------
@@ -92,14 +93,7 @@ sub _build_db {
 }
 
 # ----------------------------------------------------
-sub _get_ontology_accession_prefixes {
-
-=pod _get_ontology_accession_prefixes
-
-Accessor for 'ontology_accession_prefixes'
-
-=cut
-
+sub _build_ontology_accession_prefixes {
     my $self   = shift;
     my $conf   = $self->config;
     my $oconf  = $conf->get('ontology');
