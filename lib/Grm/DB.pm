@@ -166,6 +166,7 @@ sub _build_config {
 
 # ----------------------------------------------------------------
 sub _build_dbh {
+$DB::single = 1;
     my $self           = shift;
     my $db_name        = $self->db_name;
     my $dsn            = $self->dsn;
@@ -174,11 +175,17 @@ sub _build_dbh {
     my $password       = $self->password;
     my $real_name      = $self->real_name;
     my $connect_method = $ENV{'MOD_PERL'} ? 'connect' : 'connect_cached';
-    my $dbh            = DBI->$connect_method(
-        $dsn, $user, $password, $self->db_options
-    );
+    my $dbh;
+    eval {
+        $dbh = DBI->$connect_method($dsn, $user, $password, $self->db_options);
+    };
 
-    return $dbh;
+    if ( my $err = $@ ) {
+        die "Error: $err";
+    }
+    else {
+        return $dbh;
+    }
 }
 
 # ----------------------------------------------------------------
