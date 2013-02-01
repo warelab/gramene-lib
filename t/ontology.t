@@ -11,17 +11,17 @@ use Test::More;# tests => 16;
 
 use_ok('Grm::Ontology');
 
-ok( my $odb = Grm::Ontology->new );
+ok( my $odb = Grm::Ontology->new, 'New ontology query' );
 
 isa_ok( $odb, 'Grm::Ontology' );
 
 is( $odb->module_name, 'ontology', 'module name is "ontology"' );
 
-ok( my @prefixes = $odb->ontology_accession_prefixes, 'got prefixes' );
+ok( my @types = $odb->types, 'got prefixes' );
 
-is( scalar @prefixes, 7, 'found 7 prefixes' );
+is( scalar @types, 7, 'found 7 types' );
 
-ok( my $db = $odb->db, 'got db obj' );
+ok( my $db = $odb->db('eo'), 'got db obj' );
 
 isa_ok( $db, 'Grm::DB' );
 

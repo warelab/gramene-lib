@@ -12,7 +12,13 @@ ensembl:
   foreign_key_file: /usr/local/ensembl-live/ensembl/sql/foreign_keys.sql
 
 modules:
-  - amigo
+  - amigo_eo
+  - amigo_gaz
+  - amigo_go
+  - amigo_gro
+  - amigo_po
+  - amigo_tax
+  - amigo_to
   - diversity_arabidopsis
   - diversity_maize
   - diversity_rice
@@ -22,7 +28,7 @@ modules:
   - help
   - literature
   - maps
-  - ontology
+#  - ontology
   - ontology_eo
   - ontology_gaz
   - ontology_go
@@ -51,6 +57,27 @@ database:
 
   maps:
     name: maps37
+
+  amigo_eo:
+    name: amigo_eo37
+
+  amigo_gaz:
+    name: amigo_gaz37
+
+  amigo_go:
+    name: amigo_go37
+
+  amigo_gro:
+    name: amigo_gro37
+
+  amigo_po:
+    name: amigo_po37
+
+  amigo_tax:
+    name: amigo_tax37
+
+  amigo_to:
+    name: amigo_to37
 
   ontology_eo:
     name: ontology_eo37
@@ -157,6 +184,6 @@ ontology:
     gaz: GAZ
     go: Gene 
     gro: Growth Stage
-    gr_tax: Taxonomy
+    tax: Taxonomy
     po: Plant 
     to: Trait

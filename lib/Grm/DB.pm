@@ -12,13 +12,14 @@ use MooseX::Aliases;
 has db_name    => (
     is         => 'rw',
     isa        => 'Str',
-    required   => 1,
     alias      => [ qw( db name ) ],
+    lazy_build => 1,
 );
 
-has real_name    => (
+has real_name  => (
     is         => 'rw',
     isa        => 'Str',
+    lazy_build => 1,
 );
 
 has db_options => (
@@ -43,32 +44,32 @@ has dbh => (
 has dsn => (
     is         => 'rw',
     isa        => 'Str',
-    predicate  => 'has_dsn',
+    lazy_build => 1,
 );
 
 has dbic => (
     is         => 'ro',
     isa        => 'DBIx::Class::Schema',
-    lazy_build => 1,
     alias      => [ 'schema' ],
+    lazy_build => 1,
 );
 
 has user => (
     is         => 'rw',
     isa        => 'Str',
-    predicate  => 'has_user',
+    lazy_build => 1,
 );
 
 has password   => (
     is         => 'rw',
     isa        => 'Str',
-    predicate  => 'has_password',
+    lazy_build => 1,
 );
 
 has host       => (
     is         => 'rw',
     isa        => 'Str',
-    predicate  => 'has_host',
+    lazy_build => 1,
 );
 
 has config     => (
@@ -153,8 +154,8 @@ sub BUILD {
 sub DEMOLISH {
     my $self = shift;
 
-    if ( $self->has_dbh ) {
-        $self->dbh->disconnect;
+    if ( my $dbh = $self->dbh ) {
+        $dbh->disconnect;
     }
 }
 
@@ -194,6 +195,7 @@ sub _build_dbic {
     }
 }
 
+no Moose;
 __PACKAGE__->meta->make_immutable;
 
 1;

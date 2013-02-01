@@ -49,11 +49,11 @@ has config => (
     lazy_build => 1,
 );
 
-has db => (
-    is         => 'rw',
-    isa        => 'Grm::DB',
-    lazy_build => 1,
-);
+#has db => (
+#    is         => 'rw',
+#    isa        => 'Grm::DB',
+#    lazy_build => 1,
+#);
 
 has module_name => (
     is          => 'ro',
@@ -61,12 +61,15 @@ has module_name => (
     default     => 'ontology',
 );
 
-has ontology_accession_prefixes => (
+has types => (
     is          => 'ro',
-#    traits      => ['Array'],
+    lazy_build => 1,
+    traits      => ['Array'],
     isa         => 'ArrayRef[Str]',
     auto_deref  => 1,
 );
+
+my %DB_CACHE;
 
 # ----------------------------------------------------
 sub BUILD {
@@ -86,20 +89,30 @@ sub _build_config {
 }
 
 # ----------------------------------------------------
-sub _build_db {
-    my $self = shift;
-    my $db   = Grm::DB->new( $self->module_name );
-    return $db;
+sub db {
+    my $self  = shift;
+    my $type  = shift or die 'No ontology type';
+    my %valid = map { $_, 1 } $self->types;
+
+    $type = lc $type;
+
+    if ( $valid{ $type } ) {
+        $DB_CACHE{ $type } ||= Grm::DB->new("ontology_${type}");
+        return $DB_CACHE{ $type };
+    }
+    else {
+        die "Invalid type ($type)";
+    }
 }
 
 # ----------------------------------------------------
-sub _build_ontology_accession_prefixes {
+sub _build_types {
     my $self   = shift;
     my $conf   = $self->config;
     my $oconf  = $conf->get('ontology');
     my $labels = $oconf->{'label'};
 
-    return ref $labels eq 'HASH' ? sort keys %$labels : ();
+    return ref $labels eq 'HASH' ? [ sort keys %$labels ] : undef;
 }
 
 # ----------------------------------------------------
@@ -123,105 +136,108 @@ Returns an array(ref) of term_ids.
     my %args         = ref $_[0] eq 'HASH' 
                        ? %{ $_[0] } 
                        : scalar @_ == 1 ? ( query => $_[0] ) : @_;
-    my $db           = $self->db;
-    my $dbh          = $db->dbh;
     my $query        = $args{'query'} or return;
     my $search_field = $args{'search_field'} || '';
     my $order_by     = $args{'order_by'}     || '';
 
-    my @type_ids = map { $_ || () } uniq(
-        ref $args{'term_type_id'} eq 'ARRAY'
-        ? @{ $args{'term_type_id'} }
-        : split( /,/, $args{'term_type_id'} || '' )
-    );
+    my @matches;
+    for my $type ( $self->types ) {
+        my $db  = $self->db($type);
+        my $dbh = $db->dbh;
 
-    my @term_types;
-    for my $term_type (
-        uniq(
-            ref $args{'term_type'} eq 'ARRAY'
-            ? @{ $args{'term_type'} }
-            : split( /,/, $args{'term_type'} || '' )
-        )
-    ) {
-        next unless $term_type;
-        if ( my $alias = $TERM_TYPE_ALIAS{ uc $term_type } ) {
-            if ( ref $alias eq 'ARRAY' ) {
-                push @term_types, @$alias;
+        my @type_ids = map { $_ || () } uniq(
+            ref $args{'term_type_id'} eq 'ARRAY'
+            ? @{ $args{'term_type_id'} }
+            : split( /,/, $args{'term_type_id'} || '' )
+        );
+
+        my @term_types;
+        for my $term_type (
+            uniq(
+                ref $args{'term_type'} eq 'ARRAY'
+                ? @{ $args{'term_type'} }
+                : split( /,/, $args{'term_type'} || '' )
+            )
+        ) {
+            next unless $term_type;
+            if ( my $alias = $TERM_TYPE_ALIAS{ uc $term_type } ) {
+                if ( ref $alias eq 'ARRAY' ) {
+                    push @term_types, @$alias;
+                }
+                else {
+                    push @term_types, $alias;
+                }
             }
             else {
-                push @term_types, $alias;
+                push @term_types, $term_type;
             }
         }
-        else {
-            push @term_types, $term_type;
-        }
-    }
 
-    my @matches;
-    for my $qry ( split( /,\s*/, $query ) ) {
-        my $cmp = $qry =~ s/\*/%/g ? 'like' : '=';
+        for my $qry ( split( /,\s*/, $query ) ) {
+            my $cmp = $qry =~ s/\*/%/g ? 'like' : '=';
 
-        my $sql = q[
-            select     distinct t.term_id
-            from       term t
-            left join  term_definition d
-            on         t.term_id=d.term_id
-            left join  term_synonym s
-            on         t.term_id=s.term_id
-            inner join term_type tt
-            on         t.term_type_id=tt.term_type_id
-        ];
-    
-        my $prefixes = join( '|', keys %TERM_TYPE_ALIAS );
-        my @sql_args;
-        if ( $search_field ) {
-            $sql .= " where $search_field $cmp ? ";
-            @sql_args = ( $qry );
-        }
-        elsif ( $qry =~ /^($prefixes):/i ) {
-            $sql .= qq[
-                where t.term_accession $cmp '$qry'
+            my $sql = q[
+                select     distinct t.term_id
+                from       term t
+                left join  term_definition d
+                on         t.term_id=d.term_id
+                left join  term_synonym s
+                on         t.term_id=s.term_id
+                inner join term_type tt
+                on         t.term_type_id=tt.term_type_id
             ];
-        }
-        else {
-            $sql .= qq[
-                where  (
-                       t.term_accession $cmp ?
-                  or   t.name $cmp ?
-                  or   d.definition $cmp ?
-                  or   s.term_synonym $cmp ?
-                )
-            ];
+        
+            my $prefixes = join( '|', keys %TERM_TYPE_ALIAS );
+            my @sql_args;
+            if ( $search_field ) {
+                $sql .= " where $search_field $cmp ? ";
+                @sql_args = ( $qry );
+            }
+            elsif ( $qry =~ /^($prefixes):/i ) {
+                $sql .= qq[
+                    where t.term_accession $cmp '$qry'
+                ];
+            }
+            else {
+                $sql .= qq[
+                    where  (
+                           t.term_accession $cmp ?
+                      or   t.name $cmp ?
+                      or   d.definition $cmp ?
+                      or   s.term_synonym $cmp ?
+                    )
+                ];
 
-            @sql_args = ( $qry, $qry, $qry, $qry );
-        }
+                @sql_args = ( $qry, $qry, $qry, $qry );
+            }
 
-        if ( scalar @type_ids == 1 ) {
-            $sql .= ' and t.term_type_id=' . $type_ids[0] . ' ';
-        }
-        elsif ( @type_ids ) {
-            $sql .= ' and t.term_type_id in (' 
-                 .  join( ', ', @type_ids ) 
-                 . ') ';
-        }
+            if ( scalar @type_ids == 1 ) {
+                $sql .= ' and t.term_type_id=' . $type_ids[0] . ' ';
+            }
+            elsif ( @type_ids ) {
+                $sql .= ' and t.term_type_id in (' 
+                     .  join( ', ', @type_ids ) 
+                     . ') ';
+            }
 
-        if ( scalar @term_types == 1 ) {
-            $sql .= q[ and tt.term_type='] . $term_types[0] . q[' ];
-        }
-        elsif ( @term_types ) {
-            $sql .= ' and tt.term_type in ('
-                 .  join( ', ', map {qq['$_']} @term_types ) . ') ';
-        }
+            if ( scalar @term_types == 1 ) {
+                $sql .= q[ and tt.term_type='] . $term_types[0] . q[' ];
+            }
+            elsif ( @term_types ) {
+                $sql .= ' and tt.term_type in ('
+                     .  join( ', ', map {qq['$_']} @term_types ) . ') ';
+            }
 
-        if ( !$args{'include_obsolete_terms'} ) {
-            $sql .= ' and t.is_obsolete=0 ';
-        }
+            if ( !$args{'include_obsolete_terms'} ) {
+                $sql .= ' and t.is_obsolete=0 ';
+            }
 
-        if ( $order_by ) {
-            $sql .= " order by $order_by ";
-        }
+            if ( $order_by ) {
+                $sql .= " order by $order_by ";
+            }
 
-        push @matches, @{ $dbh->selectcol_arrayref( $sql, {}, @sql_args ) };
+            push @matches, @{ $dbh->selectcol_arrayref( $sql, {}, @sql_args ) };
+        }
     }
 
     return wantarray ? @matches : \@matches;
