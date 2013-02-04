@@ -19,8 +19,8 @@ my $count = scalar @modules;
 ok( $count, "Got $count modules" );
 
 for my $module ( @modules ) {
-   ok( my $db = Grm::DB->new( $module ), "$module OK" );
-   ok( my $dbh = $db->dbh, 'Got a db handle' );
+   ok( my $db = Grm::DB->new( $module ), "$module config OK" );
+   ok( my $dbh = $db->dbh, "$module db handle" );
 }
 
 done_testing();
