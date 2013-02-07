@@ -47,11 +47,13 @@ if ( $help || $man_page ) {
     });
 }; 
 
-my $config  = Grm::Config->new;
-my @modules = $config->get('modules');
+my $config   = Grm::Config->new;
+my $sconf    = $config->get('search');
+my @reusable = split( /\s*,\s*/, $sconf->{'reusable_schemas'} || '' );
+my @modules  = $config->get('modules');
 
 if ( $show_list ) {
-    say join "\n", 'Valid module:', map { " - $_" } sort @modules;
+    say join "\n", 'Valid module:', map { " - $_" } sort @modules, @reusable;
     exit 0;
 }
 
@@ -69,7 +71,7 @@ my @dbs = $make_all ? @modules : split( /\s*,\s*/, $db_names );
 my %is_valid = map { $_, 1 } @modules;
 
 if ( my @bad = grep { !$is_valid{ $_ } } @dbs ) {
-    die "Invalid modules: ", join(', ', @bad), "\n";
+    die sprintf( "Invalid modules: %s\n", join(', ', @bad) );
 }
 
 unless ( $force ) {
@@ -95,6 +97,7 @@ else {
     mkpath( $out_dir );
 }
 
+my $reusable = join '|', @reusable;
 my %seen;
 DB:
 for my $db_name ( @dbs ) {
@@ -172,7 +175,7 @@ for my $db_name ( @dbs ) {
 
         $db = $build_db;
     }
-    elsif ( $db_name =~ /^(diversity|pathway)_/ ) {
+    elsif ( $db_name =~ /^($reusable)_/ ) {
         $db_name = $1;
         next DB if $seen{ $db_name }++;
     }

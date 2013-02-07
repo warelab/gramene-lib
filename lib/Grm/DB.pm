@@ -8,6 +8,7 @@ use DBI;
 use Grm::Config;
 use Grm::Utils qw( module_name_to_gdbic_class );
 use MooseX::Aliases;
+use Net::Ping;
 
 has db_name    => (
     is         => 'rw',
@@ -151,13 +152,13 @@ sub BUILD {
 }
 
 # ----------------------------------------------------
-sub DEMOLISH {
-    my $self = shift;
-
-    if ( my $dbh = $self->dbh ) {
-        $dbh->disconnect;
-    }
-}
+#sub DEMOLISH {
+#    my $self = shift;
+#
+#    if ( my $dbh = $self->dbh ) {
+#        $dbh->disconnect;
+#    }
+#}
 
 # ----------------------------------------------------------------
 sub _build_config {
@@ -166,7 +167,6 @@ sub _build_config {
 
 # ----------------------------------------------------------------
 sub _build_dbh {
-$DB::single = 1;
     my $self           = shift;
     my $db_name        = $self->db_name;
     my $dsn            = $self->dsn;
@@ -175,9 +175,19 @@ $DB::single = 1;
     my $password       = $self->password;
     my $real_name      = $self->real_name;
     my $connect_method = $ENV{'MOD_PERL'} ? 'connect' : 'connect_cached';
+
     my $dbh;
     eval {
-        $dbh = DBI->$connect_method($dsn, $user, $password, $self->db_options);
+        my $ping = Net::Ping->new;
+
+        if ( $ping->bind( $host ) ) {
+            $dbh = DBI->$connect_method(
+                $dsn, $user, $password, $self->db_options
+            );
+        }
+        else {
+            die "Cannot find db host ($host)";
+        }
     };
 
     if ( my $err = $@ ) {

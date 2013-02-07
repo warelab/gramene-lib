@@ -12,7 +12,7 @@ use Getopt::Long;
 use Grm::Config;
 use Grm::DB;
 use Grm::Search;
-use Grm::Ontology;
+#use Grm::Ontology;
 use Grm::Utils qw( camel_case commify timer_calc );
 use HTML::Strip;
 use IO::Prompt qw( prompt );
@@ -26,7 +26,7 @@ use Readonly;
 use Time::HiRes qw( gettimeofday tv_interval );
 use Time::Interval qw( parseInterval );
 
-my $indexer       = 'lucy';
+my $indexer       = 'mysql';
 my $force         =  0;
 my $load_all      =  0;
 my $load_like     = '';

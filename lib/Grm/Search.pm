@@ -64,7 +64,7 @@ use File::Find::Rule;
 use File::Spec::Functions qw( catdir );
 use File::Path;
 use Grm::Config;
-use Grm::Utils qw( timer_calc commify extract_ontology );
+use Grm::Utils qw( timer_calc commify extract_ontology camel_case );
 use Grm::Search::Indexer::MySQL;
 use List::MoreUtils qw( uniq );
 use Lucy::Search::IndexSearcher;
