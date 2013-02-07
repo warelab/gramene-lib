@@ -15,10 +15,10 @@ ok( my $config = Grm::Config->new, 'Made the config object' );
 
 ok( my @modules = $config->get('modules'), 'Got modules' );
 
-my %seen;
 for my $m ( @modules ) {
     ok( my $schema = Grm::DB->new( $m )->dbic, $m );
     isa_ok( $schema, 'DBIx::Class::Schema' );
+    last;
 }
 
 ok( my $schema = Grm::DB->new( $modules[0] )->schema, "'schema' alias" );
