@@ -3,12 +3,12 @@
 # with default data.
 #
 
-DB="ontology36"
-USER="kclark"
-PASS="g0p3rl!"
-HOST="cabot"
-ONT_BASE="$GRM_HOME/schemas/ontology/"
-SQL="$ONT_BASE/ontology.sql"
+DB=ontology37
+USER=kclark
+PASS=g0p3rl!
+HOST=cabot
+ONT_BASE=$GRM_HOME/schemas/ontology/
+SQL=$ONT_BASE/ontology.sql
 
 echo "Recreating $DB on $HOST"
 

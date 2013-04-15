@@ -3,9 +3,12 @@
 use strict;
 use warnings;
 use autodie;
+use feature 'say';
 use DBI;
 use Getopt::Long;
 use Grm::Config;
+use Grm::DB;
+use Grm::Utils 'commify';
 use Pod::Usage;
 use Readonly;
 use Text::TabularDisplay;
@@ -31,77 +34,70 @@ if ( !$build_version ) {
     $build_version = $conf->get('version') or pod2usage("No build version");
 }
 
-my @errors;
-MODULE:
-for my $module ( grep { /^ontology_/ } $conf->get('modules') ) {
-    ( my $amigo_name = $module ) =~ s/ontology/amigo/;
-    my $cur_db_name  = $amigo_name . $build_version;
-    my $prev_db_name = $amigo_name . ( $build_version - 1 );
-    my $db_conf      = $conf->get('database');
-    my $host         = $db_conf->{'default'}{'host'};
+my $cur_db_name  = 'amigo' . $build_version;
+my $prev_db_name = 'amigo' . ( $build_version - 1 );
+my $amigo_db     = Grm::DB->new('amigo');
+my $host         = $amigo_db->host;
 
-    my @args = (
-        $db_conf->{'default'}{'user'},
-        $db_conf->{'default'}{'password'},
-        { RaiseError => 1 }
+my @args = (
+    $amigo_db->user,
+    $amigo_db->password,
+    { RaiseError => 1 }
+);
+
+my $cur_db = DBI->connect(
+    "dbi:mysql:host=$host;database=$cur_db_name", @args
+);
+
+my $prev_db;
+eval {
+    $prev_db = DBI->connect(
+        "dbi:mysql:host=$host;database=$prev_db_name", @args
     );
+};
 
-    my $cur_db = DBI->connect(
-        "dbi:mysql:host=$host;database=$cur_db_name", @args
-    );
-
-    my $prev_db;
-    eval {
-        $prev_db = DBI->connect(
-            "dbi:mysql:host=$host;database=$prev_db_name", @args
-        );
-    };
-
-    if ( $@ || !$prev_db ) {
-        print "Error checking '$prev_db_name,' skipping.\n";
-        next MODULE;
-    }
-    
-    printf "Checking $prev_db_name => $cur_db_name\n";
-
-    my $tables = $cur_db->selectcol_arrayref('show tables');
-
-    for my $t ( @$tables ) {
-        my $sql        = "select count(*) from $t";
-        my $cur_count  = $cur_db->selectrow_array( $sql );
-        my $prev_count = $prev_db->selectrow_array( $sql );
-
-        if ( $cur_count != $prev_count ) {
-            push @errors, { 
-                table => "$cur_db_name.$t",
-                prev  => $prev_count,
-                cur   => $cur_count,
-            }
-        }
-    }
+if ( $@ || !$prev_db ) {
+    die "Error checking '$prev_db_name,' skipping.\n";
 }
 
-if ( @errors ) {
-    my @flds = qw( table prev cur );
-    my $tab  = Text::TabularDisplay->new( @flds );
+say "Checking $prev_db_name => $cur_db_name";
 
-    for my $err ( @errors ) {
-        $tab->add( map { $err->{ $_ } } @flds );
+my $sql = 'select count(*) as count, term_type from term group by 2';
+my $cur_count  = $cur_db->selectall_hashref( $sql, 'term_type' );
+my $prev_count = $prev_db->selectall_hashref( $sql, 'term_type' );
+
+my @results;
+for my $term_type ( sort keys %$prev_count ) {
+    next unless $term_type;
+
+    my $cur  = $cur_count->{ $term_type }{'count'}  || 0;
+    my $prev = $prev_count->{ $term_type }{'count'} || 0;
+
+    push @results, { 
+        term_type => $term_type,
+        prev      => sprintf( '%9s', commify($prev) ),
+        cur       => sprintf( '%9s', commify($cur)  ),
+        ok        => $prev <= $cur ? '' : 'BAD',
+    };
+}
+
+if ( @results ) {
+    my @flds = qw( term_type prev cur ok );
+    my $tab  = Text::TabularDisplay->new( 
+        'term_type', $prev_db_name, $cur_db_name, 'ok' 
+    );
+
+    for my $res ( @results ) {
+        $tab->add( map { $res->{ $_ } } @flds );
     }
 
-    my $num = scalar @errors;
-
-    print join "\n", 
-        $tab->render, 
-        sprintf( 'Found %s error%s.', $num, $num == 1 ? '' : 's' ),,
-        ''
-    ;
+    say $tab->render;
 }
 else {
-    print "Found no problems.\n";
+    say 'Found nothing?';
 }
 
-print "Done.\n";
+say 'Done';
 
 __END__
 

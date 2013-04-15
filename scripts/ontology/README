@@ -1,0 +1,9 @@
+To update ontologies
+
+1) on brie, cd /usr/local/ontologies, check and run "update.sh" 
+
+2) Come back here, run "amigo-load-check.pl"
+
+3) initialize-ontology-db.sh
+
+4) load-from-go.pl
