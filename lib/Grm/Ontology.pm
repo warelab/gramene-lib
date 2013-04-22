@@ -49,11 +49,11 @@ has config => (
     lazy_build => 1,
 );
 
-#has db => (
-#    is         => 'rw',
-#    isa        => 'Grm::DB',
-#    lazy_build => 1,
-#);
+has db => (
+    is         => 'rw',
+    isa        => 'Grm::DB',
+    lazy_build => 1,
+);
 
 has module_name => (
     is          => 'ro',
@@ -89,20 +89,10 @@ sub _build_config {
 }
 
 # ----------------------------------------------------
-sub db {
+sub _build_db {
     my $self  = shift;
-    my $type  = shift or die 'No ontology type';
-    my %valid = map { $_, 1 } $self->types;
 
-    $type = lc $type;
-
-    if ( $valid{ $type } ) {
-        $DB_CACHE{ $type } ||= Grm::DB->new("ontology_${type}");
-        return $DB_CACHE{ $type };
-    }
-    else {
-        die "Invalid type ($type)";
-    }
+    return Grm::DB->new('ontology');
 }
 
 # ----------------------------------------------------
@@ -141,103 +131,103 @@ Returns an array(ref) of term_ids.
     my $order_by     = $args{'order_by'}     || '';
 
     my @matches;
-    for my $type ( $self->types ) {
-        my $db  = $self->db($type);
-        my $dbh = $db->dbh;
+    my $db  = $self->db;
+    my $dbh = $db->dbh;
 
-        my @type_ids = map { $_ || () } uniq(
-            ref $args{'term_type_id'} eq 'ARRAY'
-            ? @{ $args{'term_type_id'} }
-            : split( /,/, $args{'term_type_id'} || '' )
-        );
+    my @type_ids = map { $_ || () } uniq(
+        ref $args{'term_type_id'} eq 'ARRAY'
+        ? @{ $args{'term_type_id'} }
+        : split( /,/, $args{'term_type_id'} || '' )
+    );
 
-        my @term_types;
-        for my $term_type (
-            uniq(
-                ref $args{'term_type'} eq 'ARRAY'
-                ? @{ $args{'term_type'} }
-                : split( /,/, $args{'term_type'} || '' )
-            )
-        ) {
-            next unless $term_type;
-            if ( my $alias = $TERM_TYPE_ALIAS{ uc $term_type } ) {
-                if ( ref $alias eq 'ARRAY' ) {
-                    push @term_types, @$alias;
-                }
-                else {
-                    push @term_types, $alias;
-                }
+    my @term_types;
+    for my $term_type (
+        uniq(
+            ref $args{'term_type'} eq 'ARRAY'
+            ? @{ $args{'term_type'} }
+            : split( /,/, $args{'term_type'} || '' )
+        )
+    ) {
+        next unless $term_type;
+        if ( my $alias = $TERM_TYPE_ALIAS{ uc $term_type } ) {
+            if ( ref $alias eq 'ARRAY' ) {
+                push @term_types, @$alias;
             }
             else {
-                push @term_types, $term_type;
+                push @term_types, $alias;
             }
         }
+        else {
+            push @term_types, $term_type;
+        }
+    }
 
-        for my $qry ( split( /,\s*/, $query ) ) {
-            my $cmp = $qry =~ s/\*/%/g ? 'like' : '=';
+    for my $qry ( split( /,\s*/, $query ) ) {
+        my $cmp = $qry =~ s/\*/%/g ? 'like' : '=';
 
-            my $sql = q[
-                select     distinct t.term_id
-                from       term t
-                left join  term_definition d
-                on         t.term_id=d.term_id
-                left join  term_synonym s
-                on         t.term_id=s.term_id
-                inner join term_type tt
-                on         t.term_type_id=tt.term_type_id
+        my $sql = q[
+            select     distinct t.term_id
+            from       term t
+            left join  term_definition d
+            on         t.term_id=d.term_id
+            left join  term_synonym s
+            on         t.term_id=s.term_id
+            inner join term_type tt
+            on         t.term_type_id=tt.term_type_id
+        ];
+    
+        my $prefixes = join( '|', keys %TERM_TYPE_ALIAS );
+        my @sql_args;
+        if ( $search_field ) {
+            $sql .= " where $search_field $cmp ? ";
+            @sql_args = ( $qry );
+        }
+        elsif ( $qry =~ /^($prefixes):/i ) {
+            $sql .= qq[
+                where (
+                    t.term_accession $cmp '$qry' or s.term_synonym $cmp '$qry'
+                )
             ];
-        
-            my $prefixes = join( '|', keys %TERM_TYPE_ALIAS );
-            my @sql_args;
-            if ( $search_field ) {
-                $sql .= " where $search_field $cmp ? ";
-                @sql_args = ( $qry );
-            }
-            elsif ( $qry =~ /^($prefixes):/i ) {
-                $sql .= qq[
-                    where t.term_accession $cmp '$qry'
-                ];
-            }
-            else {
-                $sql .= qq[
-                    where  (
-                           t.term_accession $cmp ?
-                      or   t.name $cmp ?
-                      or   d.definition $cmp ?
-                      or   s.term_synonym $cmp ?
-                    )
-                ];
-
-                @sql_args = ( $qry, $qry, $qry, $qry );
-            }
-
-            if ( scalar @type_ids == 1 ) {
-                $sql .= ' and t.term_type_id=' . $type_ids[0] . ' ';
-            }
-            elsif ( @type_ids ) {
-                $sql .= ' and t.term_type_id in (' 
-                     .  join( ', ', @type_ids ) 
-                     . ') ';
-            }
-
-            if ( scalar @term_types == 1 ) {
-                $sql .= q[ and tt.term_type='] . $term_types[0] . q[' ];
-            }
-            elsif ( @term_types ) {
-                $sql .= ' and tt.term_type in ('
-                     .  join( ', ', map {qq['$_']} @term_types ) . ') ';
-            }
-
-            if ( !$args{'include_obsolete_terms'} ) {
-                $sql .= ' and t.is_obsolete=0 ';
-            }
-
-            if ( $order_by ) {
-                $sql .= " order by $order_by ";
-            }
-
-            push @matches, @{ $dbh->selectcol_arrayref( $sql, {}, @sql_args ) };
         }
+        else {
+            $sql .= qq[
+                where  (
+                       t.term_accession $cmp ?
+                  or   t.name $cmp ?
+                  or   d.definition $cmp ?
+                  or   s.term_synonym $cmp ?
+                )
+            ];
+
+            @sql_args = ( $qry, $qry, $qry, $qry );
+        }
+
+        if ( scalar @type_ids == 1 ) {
+            $sql .= ' and t.term_type_id=' . $type_ids[0] . ' ';
+        }
+        elsif ( @type_ids ) {
+            $sql .= ' and t.term_type_id in (' 
+                 .  join( ', ', @type_ids ) 
+                 . ') ';
+        }
+
+        if ( scalar @term_types == 1 ) {
+            $sql .= q[ and tt.term_type='] . $term_types[0] . q[' ];
+        }
+        elsif ( @term_types ) {
+            $sql .= ' and tt.term_type in ('
+                 .  join( ', ', map {qq['$_']} @term_types ) . ') ';
+        }
+
+        if ( !$args{'include_obsolete_terms'} ) {
+            $sql .= ' and t.is_obsolete=0 ';
+        }
+
+        if ( $order_by ) {
+            $sql .= " order by $order_by ";
+        }
+
+        push @matches, @{ $dbh->selectcol_arrayref( $sql, {}, @sql_args ) };
     }
 
     return wantarray ? @matches : \@matches;
@@ -265,6 +255,36 @@ sub search_xref {
     my $rs    = $dbic->resultset('Term');
 
     return map { $rs->find( $_ ) } @$term_ids;
+}
+
+sub obsolete_term_alternates {
+    my $self       = shift;
+    my %args       = @_;
+    my $term_id    = $args{'term_id'} || '';
+    my $amigo_db   = Grm::DB->new('amigo');
+    my $alternates = $amigo_db->dbh->selectall_arrayref(
+        q[  
+            select     child.term_type as ontology,
+                       child.acc as child_acc,
+                       child.name as child_name,
+                       rel.acc as rel_acc,
+                       parent.term_type as parent_type,
+                       parent.acc as parent_acc,
+                       parent.name as parent_name
+            from       term as child
+            inner join term2term_metadata
+                       on (child.id=term2_id)
+            inner join term as parent
+                       on (parent.id=term1_id)
+            inner join term as rel
+                       on (rel.id=relationship_type_id)
+            where      term2term_metadata.term2_id=?
+        ],
+        { Columns => {} },
+        $term_id,
+    );
+
+    return wantarray ? @$alternates : $alternates;
 }
 
 no Moose;

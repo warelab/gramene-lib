@@ -66,28 +66,60 @@ has dbh => (
     is  => 'rw',
 );
 
+has config => (
+    is  => 'ro',
+    isa => 'Grm::Config',
+    lazy_build => 1,
+);
+
 # ----------------------------------------------------
 sub BUILD {
     my ( $self, $args ) = @_;
 
-    my $module      = $self->module( $args->{'module'} ) or croak 'No module';
-    my $db_name     = 'grm_search_' . $module;
-    my $host        = 'cabot';
-    my $mysql_admin = "/usr/local/mysql/bin/mysqladmin -h $host";
+    my $module       = $self->module( $args->{'module'} ) or croak 'No module';
+    my $db_name      = 'grm_search_' . $module;
+    my $mysql_config = $self->config->get('mysql');
+    my $mysqlshow    = $mysql_config->{'mysqlshow'};
+    my $mysql_args   = join( ' ',
+        '-h', $mysql_config->{'host'},
+        '-u', $mysql_config->{'admin_user'},
+        q{-p'} . $mysql_config->{'admin_password'} . q{'},
+    );
 
-    eval { `$mysql_admin drop -f $db_name` };
-    `$mysql_admin create $db_name`;
+    #
+    # See if this exists
+    #
+    my @dbs = `$mysqlshow $mysql_args`;
+    splice @dbs, 0, 3;  # remove headers
+    splice @dbs, -1, 1; # remove footer
+
+    # extract db names
+    my %exists = map { $_, 1 } map { chomp; s/^\|\s*|\s*\|//g; $_ } @dbs; 
+
+    if ( !$exists{ $db_name } ) {
+        my $mysqladmin = join ' ', $mysql_config->{'mysqladmin'}, $mysql_args;
+        `$mysqladmin create $db_name`;
+    }
 
     my $dbh = DBI->connect(
-        "dbi:mysql:host=$host;database=$db_name",
-        'kclark',
-        'g0p3rl!',
+        "dbi:mysql:host=$mysql_config->{host};database=$db_name",
+        $mysql_config->{'admin_user'},
+        $mysql_config->{'admin_password'},
         { RaiseError => 1 }
     );
 
-    $dbh->do( $self->schema );
+    my %table = map { $_, 1 } @{ $dbh->selectcol_arrayref('show tables') };
+
+    if ( !$table{'search'} ) {
+        $dbh->do( $self->schema );
+    }
 
     $self->dbh( $dbh );
+}
+
+# ----------------------------------------------------
+sub _build_config {
+    return Grm::Config->new;
 }
 
 # ----------------------------------------------------

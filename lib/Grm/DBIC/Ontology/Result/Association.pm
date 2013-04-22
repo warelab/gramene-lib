@@ -35,28 +35,12 @@ __PACKAGE__->table("association");
   is_foreign_key: 1
   is_nullable: 0
 
-=head2 gene_product_id
+=head2 association_object_id
 
   data_type: 'integer'
   default_value: 0
+  is_foreign_key: 1
   is_nullable: 0
-
-=head2 object_class
-
-  data_type: 'varchar'
-  default_value: (empty string)
-  is_nullable: 0
-  size: 32
-
-=head2 is_not
-
-  data_type: 'tinyint'
-  is_nullable: 1
-
-=head2 role_group
-
-  data_type: 'integer'
-  is_nullable: 1
 
 =cut
 
@@ -70,14 +54,13 @@ __PACKAGE__->add_columns(
     is_foreign_key => 1,
     is_nullable    => 0,
   },
-  "gene_product_id",
-  { data_type => "integer", default_value => 0, is_nullable => 0 },
-  "object_class",
-  { data_type => "varchar", default_value => "", is_nullable => 0, size => 32 },
-  "is_not",
-  { data_type => "tinyint", is_nullable => 1 },
-  "role_group",
-  { data_type => "integer", is_nullable => 1 },
+  "association_object_id",
+  {
+    data_type      => "integer",
+    default_value  => 0,
+    is_foreign_key => 1,
+    is_nullable    => 0,
+  },
 );
 __PACKAGE__->set_primary_key("association_id");
 
@@ -98,9 +81,24 @@ __PACKAGE__->belongs_to(
   { is_deferrable => 1, on_delete => "CASCADE", on_update => "CASCADE" },
 );
 
+=head2 association_object
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-15 14:23:52
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:MpuqOLU36wUiIOHAQkYztQ
+Type: belongs_to
+
+Related object: L<Grm::DBIC::Ontology::Result::AssociationObject>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "association_object",
+  "Grm::DBIC::Ontology::Result::AssociationObject",
+  { association_object_id => "association_object_id" },
+  { is_deferrable => 1, on_delete => "CASCADE", on_update => "CASCADE" },
+);
+
+
+# Created by DBIx::Class::Schema::Loader v0.07010 @ 2013-04-16 18:02:31
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:zRgJNgK/Af21rn289MShRA
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

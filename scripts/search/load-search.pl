@@ -26,6 +26,8 @@ use Readonly;
 use Time::HiRes qw( gettimeofday tv_interval );
 use Time::Interval qw( parseInterval );
 
+Readonly my $COMMA_SPACE => qr/\s*,\s*/;
+
 my $indexer       = 'mysql';
 my $force         =  0;
 my $load_all      =  0;
@@ -61,7 +63,6 @@ my $index_path = $search_db->index_path or die "No index_path\n";
 my @modules    = $gconf->get('modules');
 my $sconf      = $gconf->get('search');
 
-
 if ( $show_list ) {
     print join "\n",
         'Valid modules:',
@@ -77,15 +78,15 @@ if ( $load_like && $load_not_like ) {
 
 my @do_modules;
 if ( $modules ) {
-    @do_modules = split /\s*,\s*/, $modules;
+    @do_modules = split $COMMA_SPACE, $modules;
 }
 elsif ( $load_like ) {
-    for my $like ( split( /\s*,\s*/, $load_like ) ) {
+    for my $like ( split( $COMMA_SPACE, $load_like ) ) {
         push @do_modules, grep { /$like/ } @modules;
     }
 }
 elsif ( $load_not_like ) {
-    for my $not_like ( split( /\s*,\s*/, $load_not_like ) ) {
+    for my $not_like ( split( $COMMA_SPACE, $load_not_like ) ) {
         push @do_modules, grep { !/$not_like/ } @modules;
     }
 }

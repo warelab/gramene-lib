@@ -73,21 +73,6 @@ __PACKAGE__->add_unique_constraint("xref_key", ["xref_key", "xref_keytype", "xre
 
 =head1 RELATIONS
 
-=head2 evidences
-
-Type: has_many
-
-Related object: L<Grm::DBIC::Ontology::Result::Evidence>
-
-=cut
-
-__PACKAGE__->has_many(
-  "evidences",
-  "Grm::DBIC::Ontology::Result::Evidence",
-  { "foreign.dbxref_id" => "self.dbxref_id" },
-  { cascade_copy => 0, cascade_delete => 0 },
-);
-
 =head2 term_dbxrefs
 
 Type: has_many
@@ -119,8 +104,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-15 18:27:44
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:4YUIOcTJNQDcbOd5CiV6sA
+# Created by DBIx::Class::Schema::Loader v0.07010 @ 2013-04-16 18:02:31
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:j2ij/Cz7Rytvc9A3VDZzTQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

@@ -323,6 +323,7 @@ tables and records indexed and the elapsed time.
             }
 
             my $ids = $dbh->selectcol_arrayref("select $id_field from $table");
+$DB::single=1;
 
             $num_tables++;
 

@@ -20,18 +20,6 @@ CREATE TABLE dbxref (
   UNIQUE (xref_key,xref_keytype,xref_dbname)
 ) ENGINE=InnoDB;
 
-DROP TABLE IF EXISTS evidence;
-CREATE TABLE evidence (
-  evidence_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  evidence_code varchar(8) NOT NULL DEFAULT '',
-  association_id INT NOT NULL DEFAULT '0',
-  object_class varchar(32) NOT NULL DEFAULT '',
-  dbxref_id INT NOT NULL DEFAULT '0',
-  seq_acc varchar(255) DEFAULT NULL,
-  KEY (dbxref_id),
-  FOREIGN KEY (dbxref_id) REFERENCES dbxref (dbxref_id)
-) ENGINE=InnoDB;
-
 DROP TABLE IF EXISTS term_type;
 CREATE TABLE term_type (
   term_type_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -42,16 +30,6 @@ DROP TABLE IF EXISTS relationship_type;
 CREATE TABLE relationship_type (
   relationship_type_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   type_name varchar(255) NOT NULL DEFAULT ''
-) ENGINE=InnoDB;
-
-DROP TABLE IF EXISTS species;
-CREATE TABLE species (
-  species_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  ncbi_taxa_id INT DEFAULT NULL,
-  common_name varchar(255) DEFAULT NULL,
-  lineage_string text,
-  genus varchar(32) DEFAULT NULL,
-  species varchar(32) DEFAULT NULL
 ) ENGINE=InnoDB;
 
 DROP TABLE IF EXISTS term;
@@ -119,19 +97,6 @@ CREATE TABLE term_to_term (
   FOREIGN KEY (term2_id) REFERENCES term (term_id)
 ) ENGINE=InnoDB;
 
-DROP TABLE IF EXISTS association;
-CREATE TABLE association (
-  association_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  term_id INT NOT NULL DEFAULT '0',
-  gene_product_id INT NOT NULL DEFAULT '0',
-  object_class varchar(32) NOT NULL DEFAULT '',
-  is_not tinyint(1) DEFAULT NULL,
-  role_group INT DEFAULT NULL,
-  KEY (term_id),
-  KEY (term_id,gene_product_id,object_class),
-  FOREIGN KEY (term_id) REFERENCES term (term_id)
-) ENGINE=InnoDB;
-
 DROP TABLE IF EXISTS graph_path;
 CREATE TABLE graph_path (
   graph_path_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -156,38 +121,44 @@ CREATE TABLE graph_path_to_term (
   FOREIGN KEY (term_id) REFERENCES term (term_id)
 ) ENGINE=InnoDB;
 
-DROP TABLE IF EXISTS object_association_count;
-CREATE TABLE object_association_count (
-  object_association_count_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  term_id INT NOT NULL DEFAULT '0',
-  object_type varchar(128) NOT NULL DEFAULT '',
-  object_species varchar(128) NOT NULL DEFAULT '',
-  object_count INT NOT NULL DEFAULT '0',
-  association_count INT NOT NULL DEFAULT '0',
-  UNIQUE (term_id,object_type,object_species),
-  FOREIGN KEY (term_id) REFERENCES term (term_id)
+CREATE TABLE species (
+  species_id int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  ncbi_taxa_id int DEFAULT NULL,
+  common_name varchar(255) DEFAULT NULL,
+  lineage_string text,
+  genus varchar(32) DEFAULT NULL,
+  species varchar(32) DEFAULT NULL
 ) ENGINE=InnoDB;
 
-DROP TABLE IF EXISTS quick_term_to_object;
-CREATE TABLE quick_term_to_object (
-  quick_term_to_object_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+DROP TABLE IF EXISTS association_object_type;
+CREATE TABLE association_object_type (
+  association_object_type_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  type varchar(255) NOT NULL,
+  UNIQUE (type)
+) ENGINE=InnoDB;
+
+DROP TABLE IF EXISTS association_object;
+CREATE TABLE association_object (
+  association_object_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  association_object_type_id INT NOT NULL DEFAULT '0',
+  db_object_id varchar(255) NOT NULL,
+  db_object_name varchar(255) NOT NULL,
+  db_object_symbol varchar(255) NOT NULL,
+  species_id INT NOT NULL DEFAULT '0',
+  KEY (association_object_type_id),
+  KEY (species_id),
+  FOREIGN KEY (association_object_type_id) REFERENCES association_object_type (association_object_type_id),
+  FOREIGN KEY (species_id) REFERENCES species (species_id)
+) ENGINE=InnoDB;
+
+DROP TABLE IF EXISTS association;
+CREATE TABLE association (
+  association_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   term_id INT NOT NULL DEFAULT '0',
-  term_accession varchar(15) NOT NULL DEFAULT '',
-  term_name varchar(255) NOT NULL DEFAULT '',
-  term_type varchar(64) NOT NULL DEFAULT '',
-  object_database varchar(64) NOT NULL DEFAULT '',
-  object_type varchar(64) NOT NULL DEFAULT '',
-  object_accession_id varchar(64) NOT NULL DEFAULT '',
-  object_symbol varchar(255) NOT NULL DEFAULT '',
-  object_name varchar(255) DEFAULT NULL,
-  object_synonyms text,
-  object_species varchar(128) NOT NULL DEFAULT '',
-  evidences varchar(255) NOT NULL DEFAULT '',
-  UNIQUE (term_id,object_database,object_type,object_accession_id),
+  association_object_id INT NOT NULL DEFAULT '0',
   KEY (term_id),
-  KEY (term_name),
-  KEY (object_symbol),
-  KEY (object_species),
-  FOREIGN KEY (term_id) REFERENCES term (term_id)
+  KEY (association_object_id),
+  FOREIGN KEY (term_id) REFERENCES term (term_id),
+  FOREIGN KEY (association_object_id) REFERENCES association_object (association_object_id)
 ) ENGINE=InnoDB;
 
