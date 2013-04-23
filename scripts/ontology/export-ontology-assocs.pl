@@ -13,6 +13,7 @@ use File::Path 'mkpath';
 use File::Spec::Functions;
 use Getopt::Long;
 use Grm::DB;
+use Grm::Ontology;
 use Grm::Utils qw( commify timer_calc );
 use Gramene::QTL::DB;
 use IO::Prompt 'prompt';
@@ -111,7 +112,6 @@ if ( grep { /^all$/i } @object_types ) {
 
 my @tmp;
 for my $obj_type ( @object_types ) {
-    say $obj_type;
     if ( $DISPATCH{ $obj_type }{'expands'} ) {
         push @tmp, grep { /^$obj_type/  } $gconf->get('modules');
     }
@@ -144,30 +144,21 @@ if ( !$force ) {
 # Make a jazz noise here...
 #
 
-my $timer = timer_calc();
-my $dt    = DateTime->now;
-(my $date = $dt->ymd) =~ s/-//g;
+my $timer  = timer_calc();
+my $dt     = DateTime->now;
+(my $date  = $dt->ymd) =~ s/-//g;
+my $odb    = Grm::Ontology->new;
+my $odbh   = $odb->db->dbh;
 
 my ( %fh_cache, %object_results, %ontology_results );
-
 my $total_count = 0;
+
 for my $obj_type ( sort @object_types ) {
-    say "Exporting $obj_type";
-
-    my $i = 0;
-    my $progress    = sub { 
-        my $name    = shift || $obj_type;
-        my $total   = shift || 0;
-        my $counter = ++$i;
-
-        if ( $total > 0 ) {
-            $counter = sprintf('%3d%%/%s', int(($i/$total) * 100), $i);
-        }
-
-        printf "%-70s\r", sprintf( "%10s: %s", $counter, $name );
-
-        return $i;
+    my $count    = -1;
+    my $progress = sub { 
+        printf "%-70s\r", sprintf("Exporting %s ... %s", $obj_type, ++$count);
     };
+    $progress->();
 
     my $assocs;
     {
@@ -176,14 +167,21 @@ for my $obj_type ( sort @object_types ) {
         $assocs      = &$sub_name( $obj_type, $progress ); 
     }
 
-    my $count = $progress->();
-    printf "%-70s\n", sprintf( "%10s: Done", $count - 1 );
+    print "\n" if $count > 0;
 
     if ( ref $assocs eq 'ARRAY' && @$assocs ) {
+        my %obsolete_term;
+        my $assoc_num;
         ASSOC:
         for my $assoc ( @$assocs ) {
             my $term_acc = $assoc->{'term_accession'} or die sprintf( 
                 "ERROR: No term accession\n%s\n", Dumper($assoc) 
+            );
+
+            printf "%-70s\r", sprintf( "%10s (%3d%%): %s", 
+                commify(++$assoc_num), 
+                int(($assoc_num/$count) * 100), 
+                $term_acc
             );
 
             my $ont_type;
@@ -206,11 +204,52 @@ for my $obj_type ( sort @object_types ) {
             $assoc->{'aspect'}      ||= $ONTOLOGY_ASPECT{ lc $ont_type } || '';
             $assoc->{'date'}        ||= $date;
 
+            if ( !defined $obsolete_term{ $term_acc } ) {
+                my $is_obsolete = $odbh->selectrow_array(
+                    'select is_obsolete from term where term_accession=?', {},
+                    $term_acc
+                );
+
+                $obsolete_term{ $term_acc }++ if $is_obsolete;
+            }
+    
             say $fh join( "\t", map { $assoc->{ $_ } || '' } @OUT_FIELDS );
 
             $object_results{ $obj_type }++;
             $ontology_results{ $ont_type }++;
             $total_count++;
+        }
+
+        print "\n";
+
+        if ( %obsolete_term ) {
+            my $file = catfile $out_dir, 
+                       join('_', lc $obj_type, 'obsolete.tab');
+
+            printf "%-70s\n", sprintf("  %s obsolete terms to '%s'", 
+                commify(scalar keys %obsolete_term), basename($file)
+            );
+
+            open my $fh, '>', $file;
+
+            say $fh join "\t", qw[ term_acc alternates ];
+
+            my $obs_num;
+            for my $term_acc ( keys %obsolete_term ) {
+                my $alternates = join (', ', 
+                    map { $_->{'parent_acc'} } @{
+                        $odb->obsolete_term_alternates( term_acc => $term_acc )
+                    }
+                );
+
+                printf "%-70s\r", sprintf('  %s: %s => %s', 
+                    ++$obs_num, $term_acc, substr( $alternates, 0, 30) 
+                );
+    
+                say $fh join "\t", $term_acc, $alternates;
+            }
+
+            close $fh;
         }
     }
     else {
@@ -218,18 +257,11 @@ for my $obj_type ( sort @object_types ) {
     }
 }
 
+print "\n";
+
 #
 # Report
 #
-my $msg = sprintf 'Done exporting %s association%s in %s.',
-    commify($total_count), 
-    $total_count == 1 ? '' : 's',
-    $timer->(),
-;
-
-my $line = '-' x length $msg;
-print join "\n", '', $line, $msg, $line, '', '';
-
 for my $ref ( 
     [ 'Object Type', \%object_results   ], 
     [ 'Ontology'   , \%ontology_results ],
@@ -246,6 +278,12 @@ for my $ref (
 
     say $tab->render;
 }
+
+printf "\nFinished exporting %s association%s in %s.\n",
+    commify($total_count), 
+    $total_count == 1 ? '' : 's',
+    $timer->(),
+;
 
 exit 0;
 
@@ -288,7 +326,7 @@ sub _export_qtl {
 
     for my $qtl_id ( @$qtl_ids ) {
         my $Qtl = $schema->resultset('Qtl')->find( $qtl_id );
-        $progress->( $Qtl->qtl_accession_id, $total );
+        $progress->();
 
         for my $assoc ( $qdb->get_qtl_associations( qtl_id => $qtl_id ) ) {
             next unless $assoc->{'association_type'} eq 'ontology';
@@ -348,10 +386,7 @@ sub _export_diversity {
 
         next unless @$traits;
 
-        my $object_type = sprintf('%s Diversity %s',
-            ucfirst( $species ),
-            $type eq 'to' ? 'Trait' : 'Environment'
-        );
+        my $object_type = $type eq 'to' ? 'trait' : 'environment';
 
         TRAIT:
         for my $trait ( @$traits ) {
@@ -363,10 +398,9 @@ sub _export_diversity {
 
             my $trait_name = $trait->{'local_trait_name'} || $term_acc;
 
-            $progress->( "$module_name - $trait_name" );
+            $progress->();
 
             push @assocs, {
-                db                => "GR_diversity_${species}",
                 db_object_id      => $trait->{'div_trait_uom_id'}, 
                 db_object_symbol  => $trait_name,
                 term_accession    => $term_acc,
@@ -374,8 +408,13 @@ sub _export_diversity {
                 evidence_code     => 'SM',
                 db_object_name    => $trait_name,
                 db_object_synonym => '',
-                db_object_type    => $object_type,
                 taxon             => $tax_id,
+                db_object_type    => join(' ', 
+                    ucfirst( $species ), 'Diversity', ucfirst($object_type)
+                ),
+                db                => join('_', 
+                    'GR', 'diversity', $species, 'trait'
+                ),
             };
         }
     }
@@ -443,12 +482,11 @@ sub _export_ensembl {
 
         next if $seen{ "${term_acc}-${gene}" }++;
 
-        my $status = join ' - ', $species, $term_acc, $gene;
-        $progress->( substr( $status, 0, 50 ), $total );
+        $progress->();
         ( my $obj_type = "$species gene" ) =~ s/_/ /g;
 
         push @assocs, {
-            db                => 'GR_' . $species,
+            db                => join('_', 'GR', $species, 'gene'),
             db_object_id      => $gene,
             db_object_symbol  => '',
             term_accession    => $term_acc,
@@ -460,36 +498,6 @@ sub _export_ensembl {
             taxon             => $taxon_id,
         };
     }
-
-#        if ( !$type_check ) {
-#            $sth = $dbh->prepare( $sql . $sql_transcript );
-#            $sth->execute() or die $dbh->errstr;
-#            while ( my ( $gene, $go_name, $go_acc, $evn )
-#                = $sth->fetchrow_array() 
-#            ) {
-#                my $is_obsolete
-#                    = $onto_db->selectrow_array(
-#                    'select is_obsolete from term where term_accesssion=?',
-#                    {}, 
-#                    $go_acc 
-#                );
-#
-#                if ( $is_obsolete ) {
-#                    my $alternates = join( ',',
-#                        get_obsolete_alternates( $amigo_db, $go_acc ) );
-#
-#                    print $obs_fh join( "\t", $gene, $go_acc, $alternates ), "\n";
-#                }
-#
-#                my $assoc = join( "\t", ( $gene, $go_name, $go_acc, $evn ) );
-#                unless ( $seen_assocs{ $assoc }++ ) {
-#                    print_GOC_file( $print_header, $dbc,
-#                        $out_fh, $err_fh, $gene, $go_name,
-#                        $go_acc, $evn,    $species
-#                    );
-#                }
-#            }
-#        }
 
     return \@assocs;
 }

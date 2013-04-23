@@ -1,0 +1,36 @@
+ontology:
+  types:
+    eo: Environment Ontology
+    gaz: GAZ
+    go: Gene Ontology
+    gro: Growth Stage Ontology
+    po: Plant Ontology
+    to: Trait Ontology
+    GR_tax: Taxonomy
+
+  object_xref_url:
+    Arabidopsis Diversity Environment: TT@/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_arabidopsis&id=[% assoc.object_accession_id %]
+    Arabidopsis Diversity Trait: TT@/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_arabidopsis&id=[% assoc.object_accession_id %]
+    Maize Diversity Trait: TT@/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_maize&id=[% assoc.object_accession_id %]
+    Rice Diversity Trait: TT@/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_rice&id=[% assoc.object_accession_id %]
+    Sorghum Diversity Trait: TT@/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_sorghum&id=[% assoc.object_accession_id %]
+    Wheat Diversity Trait: TT@/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_wheat&id=[% assoc.object_accession_id %]
+    Maize Diversity Environment: TT@/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_maize&id=[% assoc.object_accession_id %]
+    Rice Diversity Environment: TT@/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_rice&id=[% assoc.object_accession_id %]
+    Sorghum Diversity Environment: TT@/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_sorghum&id=[% assoc.object_accession_id %]
+    Wheat Diversity Environment: TT@/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_wheat&id=[% assoc.object_accession_id %]
+    GR_QTL: /db/qtl/qtl_display?qtl_accession_id=
+    QTL: /db/qtl/qtl_display?qtl_accession_id=
+    Gene: /db/genes/search_gene?acc=
+    Protein: /db/protein/protein_search?acc=
+    evidence_codes: /plant_ontology/evidence_codes.html#
+    GR_REF: /db/literature/pub_search?ref_id=
+    APWeb: http://www.mobot.org/MOBOT/Research/APweb/welcome.html
+    NCBI_taxid: http://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?mode=Info&lvl=3&keep=1&srchmode=1&unlock&id=
+    Map set: /db/markers/marker_view?action=view_map_set&map_set_acc=
+    Marker library: /db/markers/marker_view?action=view_library&library_id=
+    Marker species: /db/markers/marker_view?action=view_species&species_id=
+    InterPro: http://www.ebi.ac.uk/interpro/IEntry?ac=
+    PMID: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=
+    GR_ensembl_oryza_sativa_japonica: /Oryza_sativa/Gene/Summary?g=
+    GR_ensembl_oryza_sativa_indica: /Oryza_indica/Gene/Summary?g=

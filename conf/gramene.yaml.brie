@@ -1,5 +1,5 @@
 ---
-also_load: search.yaml
+also_load: search.yaml,ontology.yaml
 
 base_dir: /home/kclark/gramene-lib
 
@@ -140,16 +140,6 @@ database:
 #    name: germplasm37
 #    user: gramene_web
 #    pass: gram3n3
-
-ontology:
-  types:
-    eo: Environment Ontology
-    gaz: GAZ
-    go: Gene Ontology
-    gro: Growth Stage Ontology
-    po: Plant Ontology
-    to: Trait Ontology
-    GR_tax: Taxonomy
 
 diversity:
   tax_id:

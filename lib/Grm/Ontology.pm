@@ -60,6 +60,15 @@ has type_labels => (
     auto_deref  => 1,
 );
 
+Readonly my %RELATIONSHIP_SYMBOLS => (
+    is_a                 => '[i] ',
+    part_of              => '[p] ',
+    develops_from        => '[d] ',
+    regulates            => '[r] ',
+    positively_regulates => '[+r] ',
+    negatively_regulates => '[-r] ',
+);
+
 my %DB_CACHE;
 
 # ----------------------------------------------------
@@ -107,6 +116,258 @@ sub _build_type_labels {
 }
 
 # --------------------------------------------------
+sub get_accession {
+    my $self = shift;
+    my $id   = shift;
+    my $dbh  = $self->db->dbh;
+
+    return $dbh->selectrow_array( 
+        'select term_accession from term where term_id=?', {} , $id 
+    );
+}
+
+# --------------------------------------------------
+sub get_association_count_by_type {
+    my $self    = shift;
+    my $term_id = shift or die 'No term id';
+    my $dbh     = $self->db->dbh;
+    my @args    = ( $term_id );
+
+    my $sql;
+    if ( my $obj_type = shift ) {
+        $sql = q[
+            select count(a.association_id)
+            from   association a, association_object o, 
+                   association_object_type t
+            where  a.term_id=?
+            and    a.association_object_id=o.association_object_id
+            and    o.association_object_type_id=t.association_object_type_id
+            and    t.type=?
+        ];
+        push @args, $obj_type;
+    }
+    else {
+        $sql = q[
+            select count(*)
+            from   association 
+            where  term_id=?
+        ];
+    }
+
+    my $count = $dbh->selectrow_array( $sql, {}, @args );
+
+    return $count || 0;
+}
+
+# --------------------------------------------------
+sub get_name {
+    my $self = shift;
+    my $id   = shift or die 'No id';
+    my $dbh  = $self->db->dbh;
+
+    return $dbh->selectrow_array( 
+        'select name as term_name from term where term_id=?', {}, $id
+    );
+}
+
+# --------------------------------------------------
+sub get_relationship_type {
+    # post: return $ISA, $PARTOF, $DEVELOPSFROM, or ""
+
+    my ( $self, $parent, $child ) = @_;
+    die "Invalid input in get_relationship_type2"
+        unless ( defined $parent and defined $child );
+
+    my $dbh = $self->db->dbh;
+
+    return $dbh->selectrow_array(
+        q[
+            select type_name 
+            from   term_to_term tt, relationship_type r
+            where  r.relationship_type_id=tt.relationship_type_id
+            and    term1_id=? 
+            and    term2_id=?
+        ],
+        {},
+        ( $parent, $child )
+    );
+}
+
+# --------------------------------------------------
+sub get_relationship_symbol {
+    my ( $self, $parent, $child ) = @_;
+    my $relationship = get_relationship_type( $self, $parent, $child );
+
+    if ( $relationship && exists $RELATIONSHIP_SYMBOLS{$relationship}) {
+        return $RELATIONSHIP_SYMBOLS{$relationship};
+    }	
+
+    return '';
+}
+
+# --------------------------------------------------
+sub get_term_children_count {
+    my $self = shift;
+    my $id   = shift;
+    my $dbh  = $self->db->dbh;
+
+    return $dbh->selectrow_array(
+        q[
+            select count(*)
+            from   term_to_term 
+            where  term1_id=?
+        ],
+        {},
+        $id
+    );
+}
+
+# --------------------------------------------------
+sub get_term_xrefs {
+    my $self         = shift;
+    my $id           = shift or die 'No term id for xrefs';
+    my $opts_ref     = shift || {};
+    my @xref_dbnames = map { $_ || () } (
+        ref $opts_ref->{'xref_dbname'} eq 'ARRAY'
+        ? @{ $opts_ref->{'xref_dbname'} } 
+        : $opts_ref->{'xref_dbname'}
+    );
+    my $dbh      = $self->db->dbh;
+    my $sql      = sprintf(
+        q[
+            SELECT xref_dbname, xref_key
+            FROM   term_dbxref, dbxref
+            WHERE  term_dbxref.dbxref_id = dbxref.dbxref_id
+            AND    term_id = ?
+            %s
+        ],
+        @xref_dbnames 
+        ? 'AND xref_dbname in ('
+            . join(', ', map { $dbh->quote($_) } @xref_dbnames) 
+            . ')'
+        : ''
+    );
+
+    my $data = $dbh->selectall_arrayref( $sql, { Columns => {} }, $id );
+
+    if ( $opts_ref->{'as_hashref'} ) {
+        return wantarray ? @$data : $data;
+    }
+    else {
+        my @term_xrefs;
+        for my $xref ( @$data ) {
+            push @term_xrefs, "$xref->{xref_dbname}:$xref->{xref_key}";
+        }
+
+        return wantarray ? @term_xrefs : \@term_xrefs;
+    }
+}
+
+# --------------------------------------------------
+sub get_all_association_counts {
+    my ( $self, %args ) = @_;
+
+    my $id = $args{'term_id'} or die 'No term id';
+    my $db = $self->db->dbh;
+
+    my $assocs = $db->selectall_arrayref(
+        q[
+            select t.type as object_type,
+                   s.species as object_species,
+                   count(a.association_id) as object_count
+            from   association a, association_object o, 
+                   association_object_type t, species s
+            where  a.term_id=?
+            and    a.association_object_id=o.association_object_id
+            and    o.association_object_type_id=t.association_object_type_id
+            and    o.species_id=s.species_id
+            group by 1,2
+            order by 1,2,3
+        ],
+        { Columns => {} },
+        ( $id )
+    );
+
+    my %assoc;
+    for my $a ( @$assocs ) {
+        push @{ $assoc{ $a->{'object_type'} } }, {
+            species => $a->{'object_species'},
+            count   => $a->{'object_count'},
+        };
+    }
+
+    return wantarray ? %assoc : \%assoc;
+}
+
+# --------------------------------------------------
+sub get_parents {
+    my $self    = shift;
+    my $id      = shift or die 'No term id';
+    my $dbh     = $self->db->dbh;
+    my $parents = $dbh->selectcol_arrayref(
+        q[
+            select   t2t.term1_id 
+            from     term_to_term t2t, term t
+            where    t2t.term2_id=?
+            and      t2t.term2_id=t.term_id
+            and      t.is_obsolete=0 
+            order by t2t.term1_id
+        ],
+        {},
+        ( $id )
+    ); 
+    
+    return wantarray ? @$parents : $parents;
+}       
+
+# --------------------------------------------------
+sub get_parents_recursive {
+    my $self    = shift;
+    my $id      = shift or die 'No term id';
+
+    my @parents;
+    for my $id ( $self->get_parents( $id ) ) {
+        push @parents, $id, $self->get_parents_recursive( $id );
+    }
+
+    return uniq( @parents );
+}
+        
+# --------------------------------------------------
+sub get_children {
+    my $self     = shift;
+    my $id       = shift or die 'No term id';
+    my $dbh      = $self->db->dbh;
+    my $children = $dbh->selectcol_arrayref(
+        q[  
+            select t2t.term2_id
+            from   term_to_term t2t, term t
+            where  t2t.term1_id=?
+            and    t2t.term2_id=t.term_id
+            and    t.is_obsolete=0 
+        ],
+        {},
+        ( $id )
+    );
+
+    return wantarray ? @$children : $children;
+}
+
+# --------------------------------------------------
+sub get_children_recursive {
+    my $self   = shift;
+    my $tax_id = shift;
+    my $db     = $self->db->dbh;
+
+    my @children;
+    for my $id ( $self->get_children( $tax_id ) ) {
+        push @children, $id, $self->get_children_recursive( $id );
+    }
+
+    return uniq( @children );
+}
+
+# --------------------------------------------------
 sub get_type_label {
     my $self   = shift;
     my $type   = shift or return '';
@@ -118,18 +379,19 @@ sub get_type_label {
 # --------------------------------------------------
 sub get_term_associations {
     my ( $self, %args ) = @_;
-    my $id              = $args{'term_id'}  || '';
-    my $term_acc        = $args{'term_acc'} || '';
-    my $obj_type        = $args{'type'}     || '';
-    my $obj_species     = $args{'species'}  || '';
-    my $sort_by         = $args{'order_by'} || 'object_symbol';
 
-    my $dbh = $self->dbh;
+    my $id          = $args{'term_id'}  || '';
+    my $term_acc    = $args{'term_acc'} || '';
+    my $obj_type    = $args{'type'}     || '';
+    my $obj_species = $args{'species'}  || '';
+    my $sort_by     = $args{'order_by'} || 'object_symbol';
+    my $dbh         = $self->db->dbh;
+
     my $sql = q[
         select t.term_accession,
                t.name as term_name,
                tt.term_type,
-               t.type as object_type,
+               ot.type as object_type,
                o.db_object_id as object_accession_id,
                o.db_object_symbol as object_symbol,
                o.db_object_name as object_name,
@@ -137,12 +399,12 @@ sub get_term_associations {
                s.common_name as object_species,
                '' as evidences
         from   association a, association_object o, 
-               association_object_type t, term t, term_type tt,
+               association_object_type ot, term t, term_type tt,
                species s
         where  a.term_id=t.term_id
         and    t.term_type_id=tt.term_type_id
-        and    a.assocation_object_id=o.assocation_object_id
-        and    o.assocation_object_type_id=t.assocation_object_type_id
+        and    a.association_object_id=o.association_object_id
+        and    o.association_object_type_id=ot.association_object_type_id
         and    o.species_id=s.species_id
         and    a.term_id=?
         
@@ -150,7 +412,7 @@ sub get_term_associations {
 
     my @params = ( $id );
     if ( $obj_type ) {
-        $sql .= ' and t.type=?';
+        $sql .= ' and ot.type=?';
         push @params, $obj_type;
     }
 
@@ -193,7 +455,6 @@ Returns an array(ref) of term_ids.
                        ? %{ $_[0] } 
                        : scalar @_ == 1 ? ( query => $_[0] ) : @_;
 
-print STDERR "search args = ", Dumper(\%args), "\n"; use Data::Dumper;
     my $query        = $args{'query'} or return;
     my $search_field = $args{'search_field'} || '';
     my $order_by     = $args{'order_by'}     || '';
@@ -272,10 +533,10 @@ print STDERR "search args = ", Dumper(\%args), "\n"; use Data::Dumper;
         }
 
         if ( scalar @term_types == 1 ) {
-            $sql .= q[ and tt.term_type='] . $term_types[0] . q[' ];
+            $sql .= q[ and tt.prefix='] . $term_types[0] . q[' ];
         }
         elsif ( @term_types ) {
-            $sql .= ' and tt.term_type in ('
+            $sql .= ' and tt.prefix in ('
                  .  join( ', ', map {qq['$_']} @term_types ) . ') ';
         }
 
@@ -286,8 +547,6 @@ print STDERR "search args = ", Dumper(\%args), "\n"; use Data::Dumper;
         if ( $order_by ) {
             $sql .= " order by $order_by ";
         }
-print STDERR "$sql\n";
-print STDERR "args = ", join(', ', @sql_args), "\n";
 
         push @matches, @{ $dbh->selectcol_arrayref( $sql, {}, @sql_args ) };
     }
@@ -322,8 +581,25 @@ sub search_xref {
 # ----------------------------------------------------
 sub obsolete_term_alternates {
     my $self       = shift;
-    my %args       = @_;
-    my $term_id    = $args{'term_id'} || '';
+    my %args       = scalar @_ == 1 ? ( term_id => shift ) : @_;
+    my $term_id    = $args{'term_id'}  || '';
+    my $term_acc   = $args{'term_acc'} || $args{'term_accession'} || '';
+
+    unless ( $term_id || $term_acc ) {
+        die 'Need term_id or term_acc';
+    }
+
+    if ( !$term_id && $term_acc ) {
+        my $schema = $self->db->dbic;
+        my ($Term) = $schema->resultset('Term')->find({
+            term_accession => $term_acc
+        });
+
+        if ( $Term ) {
+            $term_id = $Term->id;
+        }
+    }
+
     my $amigo_db   = Grm::DB->new('amigo');
     my $alternates = $amigo_db->dbh->selectall_arrayref(
         q[  
