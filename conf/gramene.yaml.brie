@@ -142,14 +142,14 @@ database:
 #    pass: gram3n3
 
 ontology:
-  label:
-    eo: Environment
+  types:
+    eo: Environment Ontology
     gaz: GAZ
-    go: Gene 
-    gro: Growth Stage
-    tax: Taxonomy
-    po: Plant 
-    to: Trait
+    go: Gene Ontology
+    gro: Growth Stage Ontology
+    po: Plant Ontology
+    to: Trait Ontology
+    GR_tax: Taxonomy
 
 diversity:
   tax_id:

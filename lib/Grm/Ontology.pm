@@ -28,21 +28,6 @@ use Readonly;
 
 no warnings 'redefine';
 
-Readonly my %TERM_TYPE_ALIAS => (
-    GRO    => 'Growth Stage',
-    TO     => 'Trait',
-    EO     => 'Environment',
-    GR_TAX => 'Taxonomy',
-    GAZ    => 'GAZ',
-    GO     => [
-        'Biological Process', 'Cellular Component', 'Molecular Function'
-    ],
-    PO     => [
-        'Plant Structure', 'Plant Growth and Development Stage',
-        'plant_anatomy', 'plant_ontology'
-    ],
-);
-
 has config => (
     is         => 'rw',
     isa        => 'Grm::Config',
@@ -63,9 +48,15 @@ has module_name => (
 
 has types => (
     is          => 'ro',
-    lazy_build => 1,
-    traits      => ['Array'],
+    lazy_build  => 1,
     isa         => 'ArrayRef[Str]',
+    auto_deref  => 1,
+);
+
+has type_labels => (
+    is          => 'ro',
+    lazy_build  => 1,
+    isa         => 'HashRef[Str]',
     auto_deref  => 1,
 );
 
@@ -100,9 +91,84 @@ sub _build_types {
     my $self   = shift;
     my $conf   = $self->config;
     my $oconf  = $conf->get('ontology');
-    my $labels = $oconf->{'label'};
+    my $types  = $oconf->{'types'};
 
-    return ref $labels eq 'HASH' ? [ sort keys %$labels ] : undef;
+    return ref $types eq 'HASH' ? [ sort keys %$types ] : [];
+}
+
+# ----------------------------------------------------
+sub _build_type_labels {
+    my $self   = shift;
+    my $conf   = $self->config;
+    my $oconf  = $conf->get('ontology');
+    my $labels = $oconf->{'types'};
+
+    return ref $labels eq 'HASH' ? $labels : {};
+}
+
+# --------------------------------------------------
+sub get_type_label {
+    my $self   = shift;
+    my $type   = shift or return '';
+    my %labels = $self->type_labels;
+
+    return $labels{ lc $type } || '';
+}
+
+# --------------------------------------------------
+sub get_term_associations {
+    my ( $self, %args ) = @_;
+    my $id              = $args{'term_id'}  || '';
+    my $term_acc        = $args{'term_acc'} || '';
+    my $obj_type        = $args{'type'}     || '';
+    my $obj_species     = $args{'species'}  || '';
+    my $sort_by         = $args{'order_by'} || 'object_symbol';
+
+    my $dbh = $self->dbh;
+    my $sql = q[
+        select t.term_accession,
+               t.name as term_name,
+               tt.term_type,
+               t.type as object_type,
+               o.db_object_id as object_accession_id,
+               o.db_object_symbol as object_symbol,
+               o.db_object_name as object_name,
+               '' as object_synonyms,
+               s.common_name as object_species,
+               '' as evidences
+        from   association a, association_object o, 
+               association_object_type t, term t, term_type tt,
+               species s
+        where  a.term_id=t.term_id
+        and    t.term_type_id=tt.term_type_id
+        and    a.assocation_object_id=o.assocation_object_id
+        and    o.assocation_object_type_id=t.assocation_object_type_id
+        and    o.species_id=s.species_id
+        and    a.term_id=?
+        
+    ];
+
+    my @params = ( $id );
+    if ( $obj_type ) {
+        $sql .= ' and t.type=?';
+        push @params, $obj_type;
+    }
+
+    if ( $obj_species ) {
+        $sql .= ' and s.common_name=?';
+        push @params, $obj_species;
+    }
+
+    $sql .= qq[
+        group by term_accession, object_accession_id, object_type 
+        order by $sort_by
+    ];
+
+    my $associations = $dbh->selectall_arrayref( 
+        $sql, { Columns => {} }, @params 
+    );
+
+    return wantarray ? @$associations : $associations;
 }
 
 # ----------------------------------------------------
@@ -126,6 +192,8 @@ Returns an array(ref) of term_ids.
     my %args         = ref $_[0] eq 'HASH' 
                        ? %{ $_[0] } 
                        : scalar @_ == 1 ? ( query => $_[0] ) : @_;
+
+print STDERR "search args = ", Dumper(\%args), "\n"; use Data::Dumper;
     my $query        = $args{'query'} or return;
     my $search_field = $args{'search_field'} || '';
     my $order_by     = $args{'order_by'}     || '';
@@ -140,24 +208,16 @@ Returns an array(ref) of term_ids.
         : split( /,/, $args{'term_type_id'} || '' )
     );
 
+    my %valid_term_type = map { $_, 1 } $self->types;
     my @term_types;
     for my $term_type (
         uniq(
             ref $args{'term_type'} eq 'ARRAY'
             ? @{ $args{'term_type'} }
-            : split( /,/, $args{'term_type'} || '' )
+            : split( /\s*,\s*/, $args{'term_type'} || '' )
         )
     ) {
-        next unless $term_type;
-        if ( my $alias = $TERM_TYPE_ALIAS{ uc $term_type } ) {
-            if ( ref $alias eq 'ARRAY' ) {
-                push @term_types, @$alias;
-            }
-            else {
-                push @term_types, $alias;
-            }
-        }
-        else {
+        if ( $term_type && $valid_term_type{ lc $term_type } ) {
             push @term_types, $term_type;
         }
     }
@@ -176,7 +236,7 @@ Returns an array(ref) of term_ids.
             on         t.term_type_id=tt.term_type_id
         ];
     
-        my $prefixes = join( '|', keys %TERM_TYPE_ALIAS );
+        my $prefixes = join( '|', keys %valid_term_type );
         my @sql_args;
         if ( $search_field ) {
             $sql .= " where $search_field $cmp ? ";
@@ -226,6 +286,8 @@ Returns an array(ref) of term_ids.
         if ( $order_by ) {
             $sql .= " order by $order_by ";
         }
+print STDERR "$sql\n";
+print STDERR "args = ", join(', ', @sql_args), "\n";
 
         push @matches, @{ $dbh->selectcol_arrayref( $sql, {}, @sql_args ) };
     }
@@ -257,6 +319,7 @@ sub search_xref {
     return map { $rs->find( $_ ) } @$term_ids;
 }
 
+# ----------------------------------------------------
 sub obsolete_term_alternates {
     my $self       = shift;
     my %args       = @_;

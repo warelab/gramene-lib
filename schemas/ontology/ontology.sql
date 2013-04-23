@@ -23,7 +23,8 @@ CREATE TABLE dbxref (
 DROP TABLE IF EXISTS term_type;
 CREATE TABLE term_type (
   term_type_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  term_type varchar(128) NOT NULL DEFAULT ''
+  term_type varchar(128) NOT NULL DEFAULT '',
+  prefix char(10)
 ) ENGINE=InnoDB;
 
 DROP TABLE IF EXISTS relationship_type;

@@ -260,6 +260,49 @@ for my $table ( @tables ) {
     print "\n";
 }
 
+#
+# Set the term_type.prefix
+#
+my %skip = map { $_, 1 } 
+           qw( metadata relationship subset synonym_scope synonym_type );
+print "Updating term_type prefixes\n";
+for my $TT ( $schema->resultset('TermType')->all ) {
+    next if !$TT->term_type || $skip{ $TT->term_type };
+
+    my $prefixes = $ont_db->dbh->selectcol_arrayref(
+        q[
+            select distinct left(term_accession, 
+                   locate(':', term_accession) - 1) 
+            from   term
+            where  term_accession like '%:%'
+            and    term_type_id=?
+        ],
+        {},
+        ( $TT->id )
+    );
+
+    my $num_prefixes = scalar @$prefixes;
+    if ( $num_prefixes == 1 ) {
+        my $prefix = shift @$prefixes;
+
+        printf "  %s => %s\n", $TT->term_type, $prefix;
+
+        $ont_db->dbh->do(
+            q[
+                update term_type
+                set    prefix=?
+                where  term_type_id=?
+            ],
+            {},
+            ( $prefix, $TT->id )
+        );
+    }
+    else {
+        printf "  WARNING: Found %s prefixes for term type '%s' (%s)\n",
+            $num_prefixes, $TT->term_type, $TT->id;
+    }
+}
+
 printf "Done, processed %s terms in %s.\n", commify($term_count), $timer->();
 
 __END__
@@ -270,11 +313,11 @@ __END__
 
 =head1 NAME
 
-load-from-go.pl - loads the Gramene "ontologyXX" db from the "amigoXX" db
+load-from-amigo.pl - loads the Gramene "ontologyXX" db from the "amigoXX" db
 
 =head1 SYNOPSIS
 
-  load-from-go.pl 
+  load-from-amigo.pl 
 
 Required:
 

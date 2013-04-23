@@ -21,7 +21,7 @@ ok( my @types = $odb->types, 'got prefixes' );
 
 is( scalar @types, 7, 'found 7 types' );
 
-ok( my $db = $odb->db('eo'), 'got db obj' );
+ok( my $db = $odb->db, 'got db obj' );
 
 isa_ok( $db, 'Grm::DB' );
 
@@ -32,5 +32,15 @@ isa_ok( $conf, 'Grm::Config' );
 ok( my @results = $odb->search('*waxy*'), 'search for "waxy"' );
 
 is( scalar @results, 3, 'found 3 results' );
+
+ok( my %labels = $odb->type_labels, 'type_labels' );
+
+is( $labels{'po'}, 'Plant Ontology', 'PO label' );
+
+ok( my $po_label = $odb->get_type_label('PO'), 'get_type_label("po")' );
+
+is( $po_label, 'Plant Ontology', 'PO label OK' );
+
+is( $odb->get_type_label('foo'), '', 'Bad label gets nothing' );
 
 done_testing();
