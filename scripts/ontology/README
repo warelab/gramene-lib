@@ -1,9 +1,19 @@
 To update ontologies
 
-1) on brie, cd /usr/local/ontologies, check and run "update.sh" 
+1) on brie, "cd /usr/local/ontologies", check and run "update.sh" 
 
-2) Come back here, run "amigo-load-check.pl"
+2) Come back here, run "amigo-load-check.pl" to make sure that went OK
 
-3) initialize-ontology-db.sh
+3) Edit and run "initialize-ontology-db.sh" to create a new db with 
+default data
 
-4) load-from-go.pl
+4) "load-from-amigo.pl"
+
+5) "export-ontology-assocs.pl"
+
+Gets all the ontology associations from Ensembl, markers, QTL, etc., for
+placing on the FTP site.
+
+6) "load-associations.pl"
+
+Loads the associations from the previous step.
