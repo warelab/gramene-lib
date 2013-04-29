@@ -154,11 +154,14 @@ my ( %fh_cache, %object_results, %ontology_results );
 my $total_count = 0;
 
 for my $obj_type ( sort @object_types ) {
-    my $count    = -1;
+    my $count    = 0;
     my $progress = sub { 
-        printf "%-70s\r", sprintf("Exporting %s ... %s", $obj_type, ++$count);
+        my $msg  = shift || '';
+        printf "%-70s\r", sprintf(
+            "Exporting %s ... %s", $obj_type, $msg || ++$count
+        );
     };
-    $progress->();
+    $progress->('working');
 
     my $assocs;
     {
@@ -170,7 +173,7 @@ for my $obj_type ( sort @object_types ) {
     print "\n" if $count > 0;
 
     if ( ref $assocs eq 'ARRAY' && @$assocs ) {
-        my %obsolete_term;
+        my @obsolete_terms;
         my $assoc_num;
         ASSOC:
         for my $assoc ( @$assocs ) {
@@ -204,13 +207,13 @@ for my $obj_type ( sort @object_types ) {
             $assoc->{'aspect'}      ||= $ONTOLOGY_ASPECT{ lc $ont_type } || '';
             $assoc->{'date'}        ||= $date;
 
-            if ( !defined $obsolete_term{ $term_acc } ) {
-                my $is_obsolete = $odbh->selectrow_array(
-                    'select is_obsolete from term where term_accession=?', {},
-                    $term_acc
-                );
+            my $is_obsolete = $odbh->selectrow_array(
+                'select is_obsolete from term where term_accession=?', {},
+                $term_acc
+            );
 
-                $obsolete_term{ $term_acc }++ if $is_obsolete;
+            if ( $is_obsolete ) {
+                push @obsolete_terms, $assoc;
             }
     
             say $fh join( "\t", map { $assoc->{ $_ } || '' } @OUT_FIELDS );
@@ -222,31 +225,39 @@ for my $obj_type ( sort @object_types ) {
 
         print "\n";
 
-        if ( %obsolete_term ) {
+        if ( @obsolete_terms ) {
             my $file = catfile $out_dir, 
                        join('_', lc $obj_type, 'obsolete.tab');
 
             printf "%-70s\n", sprintf("  %s obsolete terms to '%s'", 
-                commify(scalar keys %obsolete_term), basename($file)
+                commify(scalar @obsolete_terms), basename($file)
             );
 
             open my $fh, '>', $file;
 
-            say $fh join "\t", qw[ term_acc alternates ];
+            my @flds = qw[ 
+                taxon db_object_id db_object_name term_accession alternates 
+            ];
 
-            my $obs_num;
-            for my $term_acc ( keys %obsolete_term ) {
-                my $alternates = join (', ', 
+            say $fh join "\t", @flds;
+
+            my $obs_num = 0;
+            for my $assoc ( @obsolete_terms ) {
+                $assoc->{'alternates'} = join (', ', 
                     map { $_->{'parent_acc'} } @{
-                        $odb->obsolete_term_alternates( term_acc => $term_acc )
+                        $odb->obsolete_term_alternates( 
+                            term_acc => $assoc->{'term_accession'} 
+                        )
                     }
                 );
 
                 printf "%-70s\r", sprintf('  %s: %s => %s', 
-                    ++$obs_num, $term_acc, substr( $alternates, 0, 30) 
+                    ++$obs_num, 
+                    $assoc->{'term_accession'}, 
+                    substr( $assoc->{'alternates'}, 0, 30 ) 
                 );
     
-                say $fh join "\t", $term_acc, $alternates;
+                say $fh join "\t", map { $assoc->{ $_ } } @flds;
             }
 
             close $fh;
@@ -296,7 +307,9 @@ sub get_fh {
     my $ont_type     = lc shift;
 
     if ( !$fh_cache{ $object_type }{ $ont_type } ) {
-        my $out_file = catfile $dir, "${ont_type}-${object_type}.gaf";
+        my $out_file = catfile $dir, join( '',
+            $ont_type, '_', $object_type, '.gaf'
+        );
 
         open my $fh, '>', $out_file;
 

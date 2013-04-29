@@ -38,7 +38,32 @@ if ( $help || $man_page ) {
     });
 }; 
 
-my @files  = @ARGV or die pod2usage('No files');
+my @files;
+{
+    my @bad;
+    for my $arg ( @ARGV ) {
+        if ( -e $arg && -s _ && -r _ ) {
+            push @files, $arg;
+        }
+        else {
+            push @bad, $arg;
+        }
+    }
+
+    if ( @bad ) {
+        print join "\n",
+            'Bad file arguments:',
+            ( map { " - $_" } @bad ),
+            '',
+        ;
+        exit 0;
+    }
+}
+
+if ( !@files ) {
+    pod2usage('No files');
+}
+
 my $odb    = Grm::Ontology->new;
 my $schema = $odb->db->dbic;
 my $timer  = timer_calc();
@@ -48,14 +73,18 @@ open my $obsolete_fh, '>', $obsolete_file;
 say $obsolete_fh join("\t", qw[term_acc obj_type obj_name alternates]);
 
 my ( $num_files, $num_assocs ) = ( 0, 0 );
+my $file_count = scalar @files;
+my $file_width = length $file_count;
 
 for my $file ( @files ) {
     my $num_lines = count_lines( $file );
 
     open my $fh, '<', $file;
 
-    printf "%3d: Processing %s line%s in file '%s'\n", 
+    printf 
+        "%${file_width}d/%${file_width}d: Processing %s line%s in file '%s'\n", 
         ++$num_files, 
+        $file_count,
         commify($num_lines),
         $num_lines == 1 ? '' : 's',
         basename($file);
@@ -100,7 +129,7 @@ for my $file ( @files ) {
         my $obj_id   = $rec{'db_object_id'}   or next;
         my $obj_type = $rec{'db'}             || '';
         my $obj_name = $rec{'db_object_name'} || '';
-        my $taxon    = $rec{'taxon'} || 'NA';
+        my $taxon    = $rec{'taxon'}          || 'NA';
 
         unless ( $obj_id && $obj_type ) {
             say STDERR "Line $line_num: no type and name/ID";
@@ -108,7 +137,9 @@ for my $file ( @files ) {
         }
 
         if ( $Term->is_obsolete ) {
-            my $alternates = $odb->obsolete_term_alternates;
+            my $alternates 
+                = $odb->obsolete_term_alternates( term_id => $Term->id );
+
             say $obsolete_fh join("\t",
                 $term_acc, $obj_type, $obj_name, 
                 join(',', map { $_->{'parent_acc'} } @$alternates)
@@ -132,30 +163,7 @@ for my $file ( @files ) {
             }
         }
 
-        my $Species;
-        if ( $taxon =~ /^GR_tax:/ ) {
-            my ($Tax) = $schema->resultset('Term')->search(
-                { term_accession => $taxon }
-            ) or die "Can't find GR_tax '$taxon'";
-
-            my ( $genus, $species ) = split( /\s+/, $Tax->name, 2 );
-            $Species = $schema->resultset('Species')->find_or_create(
-                { 
-                    common_name => $Tax->name,
-                    genus       => $genus,
-                    species     => $species,
-                }
-            );
-        }
-        else {
-            $Species = $schema->resultset('Species')->find_or_create(
-                { 
-                    ncbi_taxa_id => $NCBI_UNKNOWN_TAXA_ID,
-                    common_name  => 'Unclassified',
-                }
-            );
-        }
-
+        my $Species = get_species( $odb, $schema, $taxon );
         my $Type = $schema->resultset('AssociationObjectType')->find_or_create(
             { type => $obj_type },
         );
@@ -181,12 +189,13 @@ for my $file ( @files ) {
             $obj_id,
         ;
 
-        my $Assoc = $schema->resultset('Association')->find_or_create(
-            { 
-                association_object_id => $Object->id,
-                term_id               => $Term->id,
-            },
-        );
+        my $Assoc = $schema->resultset('Association')->find_or_create({ 
+            association_object_id => $Object->id,
+            term_id               => $Term->id,
+            evidence_code         => $rec{'evidence_code'},
+        });
+
+        last if $line_num > 100;
     }
 
     print "\n";
@@ -200,6 +209,89 @@ printf "Done, processed %s association%s in %s file%s in %s\n",
     $num_files == 1 ? '' : 's',
     $timer->(),
 ;
+
+exit 0;
+
+# ----------------------------------------------------
+sub get_species {
+    my $odb          = shift;
+    my $schema       = shift;
+    my $taxon        = shift or return;
+    my $ncbi_taxa_id = '';
+
+    $taxon =~ s/^taxon://;
+
+    my ( $Species, $Term );
+
+    if ( $taxon =~ /^\d+$/ ) {
+        ($Species) = $schema->resultset('Species')->find({ 
+            ncbi_taxa_id => $taxon 
+        });
+
+        if ( $Species ) {
+            return $Species;
+        }
+        else {
+            my $term_id = $odb->db->dbh->selectrow_array(
+                q[
+                    select t.term_id
+                    from   term t, term_dbxref tx, dbxref x
+                    where  x.xref_dbname=?
+                    and    x.xref_key=?
+                    and    x.dbxref_id=tx.dbxref_id
+                    and    tx.term_id=t.term_id
+                ],
+                {},
+                ( 'NCBI_taxid', $taxon )
+            );
+            
+            if ( $term_id ) {
+                $ncbi_taxa_id = $taxon;
+                ($Term) = $schema->resultset('Term')->find( $term_id );
+            }
+        }
+    }
+    elsif ( $taxon =~ /^GR_tax:/ ) {
+        ($Term) = $schema->resultset('Term')->search(
+            { term_accession => $taxon }
+        ) or die "Can't find GR_tax '$taxon'";
+
+        if ( $Term ) {
+            $ncbi_taxa_id = $odb->db->dbh->selectrow_array(
+                q[
+                    select x.xref_key
+                    from   term_dbxref tx, dbxref x
+                    where  x.xref_dbname=?
+                    and    x.dbxref_id=tx.dbxref_id
+                    and    tx.term_id=?
+                ],
+                {},
+                ( 'NCBI_taxid', $Term->id )
+            );
+        }
+    }
+
+    if ( $Term ) {
+        my ( $genus, $species, @junk ) = split( /\s+/, $Term->name, 3 );
+        ($Species) = $schema->resultset('Species')->find_or_create(
+            { 
+                common_name  => $Term->name,
+                genus        => $genus,
+                species      => $species,
+                ncbi_taxa_id => $ncbi_taxa_id || '',
+            }
+        );
+    }
+
+    $Species ||= $schema->resultset('Species')->find_or_create(
+        { 
+            ncbi_taxa_id => $NCBI_UNKNOWN_TAXA_ID,
+            common_name  => 'Unclassified',
+        }
+    );
+
+    return $Species;
+}
 
 __END__
 

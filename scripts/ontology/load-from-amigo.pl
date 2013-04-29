@@ -26,9 +26,15 @@ my %COL_MAP = (
     term_definition  => { term_definition => 'definition' },
 );
 
-my $force = 0;
+my $ont_db        = Grm::DB->new('ontology');
+my $amigo_db      = Grm::DB->new('amigo');
+my $ont_db_name   = $ont_db->real_name;
+my $amigo_db_name = $amigo_db->real_name;
+my $force         = 0;
+
 my ( $help, $man_page );
 GetOptions(
+    'd|db:s'   => \$amigo_db_name,
     'force'    => \$force,
     'help'     => \$help,
     'man'      => \$man_page,
@@ -40,11 +46,6 @@ if ( $help || $man_page ) {
         -verbose => $man_page ? 2 : 1
     });
 }; 
-
-my $ont_db        = Grm::DB->new('ontology');
-my $amigo_db      = Grm::DB->new('amigo');
-my $amigo_db_name = $amigo_db->real_name;
-my $ont_db_name   = $ont_db->real_name;
 
 unless ( $force ) {
     my $yn = prompt -yn, "OK to load $amigo_db_name => $ont_db_name? [yn] ";
@@ -321,7 +322,7 @@ load-from-amigo.pl - loads the Gramene "ontologyXX" db from the "amigoXX" db
 
 Required:
 
-  -d|--db     GO db name
+  -d|--db     Amigo db name
 
 Options:
 

@@ -25,6 +25,7 @@ use Grm::DB;
 use List::MoreUtils qw( uniq );
 use Moose;
 use Readonly;
+use Template;
 
 no warnings 'redefine';
 
@@ -273,7 +274,7 @@ sub get_all_association_counts {
     my $assocs = $db->selectall_arrayref(
         q[
             select t.type as object_type,
-                   s.species as object_species,
+                   s.common_name as object_species,
                    count(a.association_id) as object_count
             from   association a, association_object o, 
                    association_object_type t, species s
@@ -290,10 +291,24 @@ sub get_all_association_counts {
 
     my %assoc;
     for my $a ( @$assocs ) {
-        push @{ $assoc{ $a->{'object_type'} } }, {
+        push @{ $assoc{ $a->{'object_type'} }{'counts'} }, {
             species => $a->{'object_species'},
             count   => $a->{'object_count'},
         };
+    }
+
+    my $t = Template->new;
+    for my $obj_type ( keys %assoc ) {
+        my $conf         = $self->get_object_xref_url_conf( $obj_type );
+        my $display_tmpl = $conf->{'type_display'};
+        my $display      = '';
+        $t->process(
+            \$display_tmpl,
+            { object_type => $obj_type },
+            \$display,
+        ) or $display = $t->error;
+
+        $assoc{ $obj_type }{'display'} = $display;
     }
 
     return wantarray ? %assoc : \%assoc;
@@ -368,6 +383,95 @@ sub get_children_recursive {
 }
 
 # --------------------------------------------------
+sub get_object_xref_type_display {
+    my $self     = shift;
+    my $obj_type = shift or return;
+    my $conf     = $self->get_object_xref_url_conf( $obj_type );
+    my $tmpl     = $conf->{'type_display'} or return;
+    my $t        = Template->new;
+    my $display  = '';
+
+    $t->process(
+        \$tmpl, { object_type => $obj_type }, \$display
+    ) or $display = $t->error;
+
+    return $display;
+}
+
+# --------------------------------------------------
+sub get_object_xref_url {
+    my $self           = shift;
+    my %args           = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
+    my $object_type    = $args{'type'}
+                      || $args{'object_type'} 
+                      || '';
+    my $db_object_id   = $args{'db_object_id'} 
+                      || $args{'object_accession_id'} 
+                      || $args{'object_acc'} 
+                      || '';
+    my $db_object_name = $args{'db_object_name'}
+                      || $args{'object_name'} 
+                      || $args{'name'} 
+                      || '';
+    my $db_object_sym  = $args{'db_object_symbol'}
+                      || $args{'object_symbol'} 
+                      || $args{'symbol'} 
+                      || '';
+    my $url_conf       = $self->get_object_xref_url_conf( $object_type );
+    my $url_tmpl       = $url_conf->{'url'}     
+                         or die "No URL for '$object_type'";
+    my $display_tmpl   = $url_conf->{'object_display'} 
+                         or die "No object display for '$object_type'";
+    my $t              = Template->new;
+
+    my ( $url, $display ) = ( '', '' );
+    for my $tmp ( 
+        [ \$url_tmpl    , \$url     ],
+        [ \$display_tmpl, \$display ],
+    ) {
+        my $tmpl   = $tmp->[0];
+        my $result = $tmp->[1];
+
+        $t->process( 
+            $tmpl, 
+            { 
+                object_type      => $object_type,
+                db_object_id     => $db_object_id,
+                db_object_name   => $db_object_name,
+                db_object_symbol => $db_object_sym,
+            }, 
+            $result 
+        ) or $display = $t->error;
+    }
+
+    return {
+        url     => $url,
+        display => $display,
+    };
+}
+
+# --------------------------------------------------
+sub get_object_xref_url_conf {
+    my $self         = shift;
+    my $object_type  = shift || '';
+    my $config       = $self->config->get('ontology');
+    my $obj_xref_url = $config->{'object_xref_url'};
+
+    if ( !defined $obj_xref_url->{ $object_type } ) {
+        for my $test_type ( keys %$obj_xref_url ) {
+            if ( $object_type =~ /^$test_type/i ) {
+                $object_type = $test_type;
+                last;
+            }
+        }
+
+        $object_type = 'default' if !defined $obj_xref_url->{ $object_type };
+    }
+
+    return $obj_xref_url->{ $object_type };
+}
+
+# --------------------------------------------------
 sub get_type_label {
     my $self   = shift;
     my $type   = shift or return '';
@@ -378,8 +482,8 @@ sub get_type_label {
 
 # --------------------------------------------------
 sub get_term_associations {
-    my ( $self, %args ) = @_;
-
+    my $self        = shift;
+    my %args        = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
     my $id          = $args{'term_id'}  || '';
     my $term_acc    = $args{'term_acc'} || '';
     my $obj_type    = $args{'type'}     || '';
@@ -395,9 +499,8 @@ sub get_term_associations {
                o.db_object_id as object_accession_id,
                o.db_object_symbol as object_symbol,
                o.db_object_name as object_name,
-               '' as object_synonyms,
                s.common_name as object_species,
-               '' as evidences
+               a.evidence_code
         from   association a, association_object o, 
                association_object_type ot, term t, term_type tt,
                species s
@@ -429,6 +532,17 @@ sub get_term_associations {
     my $associations = $dbh->selectall_arrayref( 
         $sql, { Columns => {} }, @params 
     );
+
+    my $t = Template->new;
+    my %obj_type_display;
+    for my $ot ( uniq( map { $_->{'object_type'} } @$associations ) ) {
+        $obj_type_display{ $ot } = $self->get_object_xref_type_display($ot);
+    }
+
+    for my $assoc ( @$associations ) {
+        $assoc->{'object_type_display'} 
+            = $obj_type_display{ $assoc->{'object_type'} };
+    }
 
     return wantarray ? @$associations : $associations;
 }

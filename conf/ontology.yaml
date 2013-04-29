@@ -9,28 +9,75 @@ ontology:
     GR_tax: Taxonomy
 
   object_xref_url:
-    Arabidopsis Diversity Environment: TT@/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_arabidopsis&id=[% assoc.object_accession_id %]
-    Arabidopsis Diversity Trait: TT@/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_arabidopsis&id=[% assoc.object_accession_id %]
-    Maize Diversity Trait: TT@/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_maize&id=[% assoc.object_accession_id %]
-    Rice Diversity Trait: TT@/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_rice&id=[% assoc.object_accession_id %]
-    Sorghum Diversity Trait: TT@/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_sorghum&id=[% assoc.object_accession_id %]
-    Wheat Diversity Trait: TT@/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_wheat&id=[% assoc.object_accession_id %]
-    Maize Diversity Environment: TT@/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_maize&id=[% assoc.object_accession_id %]
-    Rice Diversity Environment: TT@/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_rice&id=[% assoc.object_accession_id %]
-    Sorghum Diversity Environment: TT@/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_sorghum&id=[% assoc.object_accession_id %]
-    Wheat Diversity Environment: TT@/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_wheat&id=[% assoc.object_accession_id %]
-    GR_QTL: /db/qtl/qtl_display?qtl_accession_id=
-    QTL: /db/qtl/qtl_display?qtl_accession_id=
-    Gene: /db/genes/search_gene?acc=
-    Protein: /db/protein/protein_search?acc=
-    evidence_codes: /plant_ontology/evidence_codes.html#
-    GR_REF: /db/literature/pub_search?ref_id=
-    APWeb: http://www.mobot.org/MOBOT/Research/APweb/welcome.html
-    NCBI_taxid: http://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?mode=Info&lvl=3&keep=1&srchmode=1&unlock&id=
-    Map set: /db/markers/marker_view?action=view_map_set&map_set_acc=
-    Marker library: /db/markers/marker_view?action=view_library&library_id=
-    Marker species: /db/markers/marker_view?action=view_species&species_id=
-    InterPro: http://www.ebi.ac.uk/interpro/IEntry?ac=
-    PMID: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=
-    GR_ensembl_oryza_sativa_japonica: /Oryza_sativa/Gene/Summary?g=
-    GR_ensembl_oryza_sativa_indica: /Oryza_indica/Gene/Summary?g=
+    default:
+      url: "http://www.google.com/?q=[% db_object_id %]"
+      object_display: "[% db_object_id %]"
+      type_display:
+    "GR_QTL":
+      url: "/db/qtl/qtl_display?qtl_accession_id=[% db_object_id %]"
+      object_display: "Gramene QTL &quot;[% db_object_name %]&quot;"
+      type_display: Gramene QTL
+    "Gene":
+      url: "/db/genes/search_gene?acc=[% db_object_id %]"
+      object_display: "Gramene Gene &quot;[% db_object_name OR db_object_id %]&quot;"
+      type_display: Gramene Gene
+    "Protein":
+      url: "/db/protein/protein_search?acc=[% db_object_id %]"
+      object_display: "Gramene Protein &quot;[% db_object_name OR db_object_id %]&quot;"
+      type_display: Gramane Protein
+    "evidence_codes":
+      url: "/plant_ontology/evidence_codes.html#[% db_object_id %]"
+      object_display: "Evidence Code"
+      type_display: Evidence Code
+    "GR_REF":
+      url: "/db/literature/pub_search?ref_id=[% db_object_id %]"
+      object_display: "Literature Reference &quot;[% db_object_id %]&quot;"
+      type_display: Literature Reference
+    "APWeb":
+      url: "http://www.mobot.org/MOBOT/Research/APweb/welcome.html?[% db_object_id %]"
+      object_display: APWeb
+      type_display: APWeb
+    "NCBI_taxid":
+      url: "http://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?mode=Info&lvl=3&keep=1&srchmode=1&unlock&id=[% db_object_id %]"
+      object_display: "NCBI Taxonomy &quot;[% db_object_id %]&quot;"
+      type_display: NCBI Taxonomy
+    "Map set":
+      url: "/db/markers/marker_view?action=view_map_set&map_set_acc=[% db_object_id %]"
+      object_display: "Gramene Map Set &quot;[% db_object_name %]&quot;"
+      type_display: Gramene Map Set
+    "Marker library":
+      url: "/db/markers/marker_view?action=view_library&library_id=[% db_object_id %]"
+      object_display: "Gramene Marker Library &quot;[% db_object_name %]&quot;"
+      type_display: Gramene Marker Library
+    "Marker species":
+      url: "/db/markers/marker_view?action=view_species&species_id=[% db_object_id %]"
+      object_display: "Gramene Marker Species &quot;[% db_object_name %]&quot;"
+      type_display: Gramene Marker Species
+    "InterPro":
+      url: "http://www.ebi.ac.uk/interpro/IEntry?ac=[% db_object_id %]"
+      object_display: "InterPro &quot;[% db_object_id %]&quot;"
+      type_display: InterPro 
+    "PMID":
+      url: "http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=[% db_object_id %]"
+      object_display: "PubMed ID &quot;[% db_object_id %]&quot;"
+      type_display: PubMed
+    "GR_ensembl_oryza_sativa_japonica_gene":
+      url: "/Oryza_sativa/Gene/Summary?g=[% db_object_id %]"
+      object_display: "Oryza sativa japonica gene &quot;[% db_object_id %]&quot;"
+      type_display: Oryza sativa japonica gene
+    "GR_ensembl_oryza_sativa_indica":
+      url: "/Oryza_indica/Gene/Summary?g=[% db_object_id %]"
+      object_display: "Oryza sativa indica gene &quot;[% db_object_id %]&quot;"
+      type_display: Oryza sativa indica gene
+    "GR_ensembl_(.+)":
+      url: "/[% object_type.replace('GR_ensembl_','').replace('_gene','').ucfirst %]/Gene/Summary?g=[% db_object_id %]"
+      object_display: "[% object_type.replace('GR_ensembl_','').replace('_gene',' gene').ucfirst %] &quot;[% db_object_name OR db_object_id %]&quot;"
+      type_display: "[% object_type.replace('GR_ensembl_','').replace('_',' ').ucfirst %]"
+    "GR_diversity_(\w+)_environment":
+      url: "/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_[% object_type.replace('GR_diversity_','').replace('_environment','').lower %]&id=[% db_object_id %]"
+      object_display: "Gramene Diversity Environment &quot;[% db_object_name %]&quot;"
+      type_display: Gramene Diversity Environment
+    "GR_diversity_(\w+)_trait":
+      url: "/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_[% object_type.replace('GR_diversity_','').replace('_trait','').lower %]&id=[% db_object_id %]"
+      object_display: "Gramene Diversity Trait &quot;[% db_object_name %]&quot;"
+      type_display: Gramene Diversity Trait

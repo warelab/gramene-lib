@@ -3,7 +3,7 @@
 # with default data.
 #
 
-DB=ontology37
+DB=ontology37b
 USER=kclark
 PASS=g0p3rl!
 HOST=cabot

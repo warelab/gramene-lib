@@ -124,11 +124,10 @@ CREATE TABLE graph_path_to_term (
 
 CREATE TABLE species (
   species_id int NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  ncbi_taxa_id int DEFAULT NULL,
-  common_name varchar(255) DEFAULT NULL,
-  lineage_string text,
-  genus varchar(32) DEFAULT NULL,
-  species varchar(32) DEFAULT NULL
+  ncbi_taxa_id int DEFAULT 0,
+  common_name varchar(255) DEFAULT '',
+  genus varchar(32) DEFAULT '',
+  species varchar(32) DEFAULT ''
 ) ENGINE=InnoDB;
 
 DROP TABLE IF EXISTS association_object_type;
@@ -157,6 +156,7 @@ CREATE TABLE association (
   association_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   term_id INT NOT NULL DEFAULT '0',
   association_object_id INT NOT NULL DEFAULT '0',
+  evidence_code char(10) DEFAULT '',
   KEY (term_id),
   KEY (association_object_id),
   FOREIGN KEY (term_id) REFERENCES term (term_id),

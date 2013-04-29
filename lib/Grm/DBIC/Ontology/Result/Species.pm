@@ -39,11 +39,6 @@ __PACKAGE__->table("species");
   is_nullable: 1
   size: 255
 
-=head2 lineage_string
-
-  data_type: 'text'
-  is_nullable: 1
-
 =head2 genus
 
   data_type: 'varchar'
@@ -65,8 +60,6 @@ __PACKAGE__->add_columns(
   { data_type => "integer", is_nullable => 1 },
   "common_name",
   { data_type => "varchar", is_nullable => 1, size => 255 },
-  "lineage_string",
-  { data_type => "text", is_nullable => 1 },
   "genus",
   { data_type => "varchar", is_nullable => 1, size => 32 },
   "species",
@@ -92,8 +85,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2013-04-16 18:02:31
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:jhpt9xdeQSV9mLjVTRu4zg
+# Created by DBIx::Class::Schema::Loader v0.07010 @ 2013-04-25 13:19:48
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:qpWKigQLc9zF3cHDcZksAA
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

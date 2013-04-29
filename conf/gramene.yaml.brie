@@ -58,7 +58,7 @@ database:
     name: amigo37
 
   ontology:
-    name: ontology37
+    name: ontology37b
 
   qtl:
     name: qtl37
