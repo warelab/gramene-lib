@@ -12,9 +12,10 @@ use File::Basename;
 use Getopt::Long;
 use Grm::DB;
 use Grm::Ontology;
-use Grm::Utils qw( commify timer_calc );
+use Grm::Utils qw( commify timer_calc commify );
 use File::CountLines qw( count_lines );
 use File::Spec::Functions;
+use IO::Prompt qw( prompt );
 use Pod::Usage;
 use Readonly;
 
@@ -25,8 +26,10 @@ Readonly my @FIELD_NAMES => qw(
     taxon date assigned_by annotation_extension gene_product_form_id
 );
 
+my $reinitialize = 0;
 my ( $help, $man_page );
 GetOptions(
+    'r'    => \$reinitialize,
     'help' => \$help,
     'man'  => \$man_page,
 ) or pod2usage(2);
@@ -38,10 +41,15 @@ if ( $help || $man_page ) {
     });
 }; 
 
+my $timer  = timer_calc();
+my $odb    = Grm::Ontology->new;
+my $schema = $odb->db->dbic;
+
 my @files;
 {
     my @bad;
     for my $arg ( @ARGV ) {
+        printf "%-70s\r", 'Checking input file ' . basename($arg);
         if ( -e $arg && -s _ && -r _ ) {
             push @files, $arg;
         }
@@ -58,15 +66,32 @@ my @files;
         ;
         exit 0;
     }
+
+    printf "%-70s\n", sprintf('Will process %s files', commify(scalar @files));
+    @ARGV = ();
 }
 
 if ( !@files ) {
     pod2usage('No files');
 }
 
-my $odb    = Grm::Ontology->new;
-my $schema = $odb->db->dbic;
-my $timer  = timer_calc();
+if ( $reinitialize ) {
+    my $ok = prompt -yn, 
+        'Are you sure you want to remove all association data? [yn] ';
+
+    if ( $ok ) {
+        for my $table ( qw[ 
+            association association_object association_object_type species
+        ] ) {
+            say " - Truncating '$table'";
+            $odb->db->dbh->do("delete from $table");
+        }
+    }
+    else {
+        say 'OK, bye.';
+        exit 0;
+    }
+}
 
 my $obsolete_file = catfile( cwd(), 'obsolete-terms.txt' );
 open my $obsolete_fh, '>', $obsolete_file;
@@ -194,8 +219,6 @@ for my $file ( @files ) {
             term_id               => $Term->id,
             evidence_code         => $rec{'evidence_code'},
         });
-
-        last if $line_num > 100;
     }
 
     print "\n";
@@ -309,6 +332,7 @@ load-associations.pl - loads GAF association files
 
 Options:
 
+  -r       Reinitialize all the tables related to associations
   --help   Show brief help and exit
   --man    Show full documentation
 
