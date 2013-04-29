@@ -180,7 +180,7 @@ sub _build_dbh {
     eval {
         my $ping = Net::Ping->new;
 
-        if ( $ping->bind( $host ) ) {
+        if ( $ping->ping( $host ) ) {
             $dbh = DBI->$connect_method(
                 $dsn, $user, $password, $self->db_options
             );
