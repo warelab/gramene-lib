@@ -548,6 +548,24 @@ sub get_term_associations {
 }
 
 # ----------------------------------------------------
+sub get_ontology_accession_prefixes {
+
+=pod search
+
+  my @prefixes = $odb->get_ontology_accession_prefixes;
+
+Returns an array(ref) of "term_type.prefix".
+
+=cut
+
+    my $self = shift;
+    my $dbh  = $self->db->dbh;
+    my $prefixes = $dbh->selectcol_arrayref('select prefix from term_type');
+
+    return wantarray ? @$prefixes : $prefixes;
+}
+
+# ----------------------------------------------------
 sub search {
 
 =pod search

@@ -77,7 +77,7 @@ Grm::DBIC::Ontology::Term objects.
     my $odb      = Grm::Ontology->new;
     my $dbic     = $odb->db->dbic;
     my $term_rs  = $dbic->resultset('Term');
-    my $ont_pref = join '|', $odb->ontology_accession_prefixes;
+    my $ont_pref = join '|', $odb->get_ontology_accession_prefixes;
     my ( @Terms, %seen );
 
     while ( $string =~ /(($ont_pref):\d+)/ig ) {

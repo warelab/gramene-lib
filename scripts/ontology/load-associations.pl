@@ -107,7 +107,7 @@ for my $file ( @files ) {
     open my $fh, '<', $file;
 
     printf 
-        "%${file_width}d/%${file_width}d: Processing %s line%s in file '%s'\n", 
+        "%${file_width}d/%${file_width}d: Processing %s line%s in '%s'\n", 
         ++$num_files, 
         $file_count,
         commify($num_lines),
@@ -166,7 +166,7 @@ for my $file ( @files ) {
                 = $odb->obsolete_term_alternates( term_id => $Term->id );
 
             say $obsolete_fh join("\t",
-                $term_acc, $obj_type, $obj_name, 
+                $term_acc, $obj_type, $obj_id, 
                 join(',', map { $_->{'parent_acc'} } @$alternates)
             );
 
@@ -179,9 +179,6 @@ for my $file ( @files ) {
                 });
 
                 if ( @Terms == 1 ) {
-                    printf STDERR "Moving from obsolete term '%s' => '%s'\n",
-                        $term_acc, $new_term_acc;
-
                     $term_acc = $new_term_acc;
                     $Term = shift @Terms;
                 }

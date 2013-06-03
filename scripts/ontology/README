@@ -16,4 +16,5 @@ placing on the FTP site.
 
 6) "load-associations.pl"
 
-Loads the associations from the previous step.
+Loads the associations from the previous step.  Check the 
+"obsolete-terms.txt" file for dbs to update.
