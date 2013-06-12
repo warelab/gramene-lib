@@ -26,7 +26,7 @@ modules:
   - diversity_rice
   - diversity_sorghum
   - diversity_wheat
-#  - germplasm
+  - genes
   - help
   - literature
   - maps
@@ -50,6 +50,9 @@ database:
     dbd      : mysql
     user     : gramene_rw
     password : ()ryz@
+
+  genes:
+    name: genes37
 
   maps:
     name: maps37

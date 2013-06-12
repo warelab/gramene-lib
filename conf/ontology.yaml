@@ -81,3 +81,7 @@ ontology:
       url: "/db/diversity/diversity_view?action=view&object=div_trait_uom&db_name=diversity_[% object_type.replace('GR_diversity_','').replace('_trait','').lower %]&id=[% db_object_id %]"
       object_display: "Gramene Diversity Trait &quot;[% db_object_name %]&quot;"
       type_display: Gramene Diversity Trait
+    "GR_gene":
+      url: "/db/genes/search_gene?acc=[% db_object_id %]"
+      object_display: "Gramene Gene [% db_object_name %]"
+      type_display: "Gramene Gene"

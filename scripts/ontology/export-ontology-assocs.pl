@@ -71,6 +71,7 @@ my %DISPATCH  =  (
     diversity => { expands => 1, run => '_export_diversity' },
     ensembl   => { expands => 1, run => '_export_ensembl' },
     qtl       => { expands => 0, run => '_export_qtl' },
+    genes     => { expands => 0, run => '_export_genes' },
 );
 
 my $gconf = Grm::Config->new;
@@ -513,6 +514,48 @@ sub _export_ensembl {
     }
 
     return \@assocs;
+}
+
+# ----------------------------------------------------
+sub _export_genes {
+    my ( $module_name, $progress ) = @_;
+
+    my $dbh    = Grm::DB->new( $module_name )->dbh;
+    my $assocs = $dbh->selectall_arrayref(
+        q[
+            select g.gene_id,
+                   g.accession       as db_object_id, 
+                   g.symbol          as db_object_symbol, 
+                   g.name            as db_object_name,
+                   a.term_accession  as term_accession, 
+                   'GR_REF:0'        as db_reference,
+                   'SM'              as evidence_code,
+                   s.ncbi_taxa_id    as taxon,
+                   'GR_gene'         as db_object_type,
+                   'GR_gene'         as db
+            from   gene_ontology_association a, 
+                   gene_gene g,
+                   gene_species s
+            where  object_table='gene'
+            and    a.object_id=g.gene_id
+            and    g.species_id=s.species_id
+        ],
+        { Columns => {} }
+    );
+
+
+    for my $assoc ( @$assocs ) {
+        $progress->();
+        $assoc->{'db_object_synonym'} = join(',', @{
+            $dbh->selectcol_arrayref(
+                'select synonym_name from gene_gene_synonym where gene_id=?',
+                {},
+                $assoc->{'gene_id'}
+            )
+        });
+    }
+
+    return $assocs;
 }
 
 __END__
