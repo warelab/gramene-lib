@@ -30,7 +30,7 @@ my $format     = 'table';
 my $limit      =  0;
 my $query_file = '';
 my $verbose    =  0;
-my $db         = 'lucy';
+my $db         = 'mysql';
 my ( $help, $man_page );
 GetOptions(
     'c|category:s' => \$category,
@@ -89,7 +89,6 @@ my ( $query_num, $total_hits ) = ( 0, 0 );
 TERM:
 for my $term ( @terms ) {
     next if $seen{ $term }++;
-
 
     my $res;
     for my $t ( iterative_search_values( $term ) ) {

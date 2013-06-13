@@ -147,34 +147,88 @@ search:
       select 'GR_tax:018122' as ontology_acc;
 
   search_dbs:
-    - grm_search_ensembl_arabidopsis_lyrata         
-    - grm_search_ensembl_arabidopsis_thaliana       
-    - grm_search_ensembl_brachypodium_distachyon    
-    - grm_search_ensembl_brassica_rapa              
-    - grm_search_ensembl_chlamydomonas_reinhardtii  
-    - grm_search_ensembl_cyanidioschyzon_merolae    
-    - grm_search_ensembl_glycine_max                
-    - grm_search_ensembl_oryza_barthii              
-    - grm_search_ensembl_oryza_brachyantha          
-    - grm_search_ensembl_oryza_glaberrima           
-    - grm_search_ensembl_oryza_glumaepatula         
-    - grm_search_ensembl_oryza_meridionalis         
-    - grm_search_ensembl_oryza_minutabb             
-    - grm_search_ensembl_oryza_minutacc             
-    - grm_search_ensembl_oryza_nivara               
-    - grm_search_ensembl_oryza_officinalis          
-    - grm_search_ensembl_oryza_punctata             
-    - grm_search_ensembl_oryza_rufipogon3s          
-    - grm_search_ensembl_oryza_rufipogon_fpc        
-    - grm_search_ensembl_oryza_sativa_indica        
-    - grm_search_ensembl_oryza_sativa_japonica      
-    - grm_search_ensembl_physcomitrella_patens      
-    - grm_search_ensembl_populus_trichocarpa        
-    - grm_search_ensembl_selaginella_moellendorffii 
-    - grm_search_ensembl_setaria_italica            
-    - grm_search_ensembl_solanum_lycopersicum       
-    - grm_search_ensembl_sorghum_bicolor            
-    - grm_search_ensembl_vitis_vinifera             
-    - grm_search_ensembl_zea_mays                   
-    - grm_search_pathway_arabidopsis                
+    - grm_search_diversity_arabidopsis
+    - grm_search_ensembl_arabidopsis_lyrata
+    - grm_search_ensembl_arabidopsis_thaliana
+    - grm_search_ensembl_brachypodium_distachyon
+    - grm_search_ensembl_brassica_rapa
+    - grm_search_ensembl_chlamydomonas_reinhardtii
+    - grm_search_ensembl_cyanidioschyzon_merolae
+    - grm_search_ensembl_glycine_max
+    - grm_search_ensembl_hordeum_vulgare
+    - grm_search_ensembl_leersia_perrieri
+    - grm_search_ensembl_medicago_truncatula
+    - grm_search_ensembl_musa_acuminata
+    - grm_search_ensembl_oryza_barthii
+    - grm_search_ensembl_oryza_brachyantha
+    - grm_search_ensembl_oryza_glaberrima
+    - grm_search_ensembl_oryza_glumaepatula
+    - grm_search_ensembl_oryza_granulata
+    - grm_search_ensembl_oryza_longistaminata
+    - grm_search_ensembl_oryza_meridionalis
+    - grm_search_ensembl_oryza_minutabb
+    - grm_search_ensembl_oryza_minutacc
+    - grm_search_ensembl_oryza_nivara
+    - grm_search_ensembl_oryza_officinalis
+    - grm_search_ensembl_oryza_punctata
+    - grm_search_ensembl_oryza_rufipogon3s
+    - grm_search_ensembl_oryza_rufipogon_fpc
+    - grm_search_ensembl_oryza_sativa_indica
+    - grm_search_ensembl_oryza_sativa_japonica
+    - grm_search_ensembl_physcomitrella_patens
+    - grm_search_ensembl_populus_trichocarpa
+    - grm_search_ensembl_selaginella_moellendorffii
+    - grm_search_ensembl_setaria_italica
+    - grm_search_ensembl_solanum_lycopersicum
+    - grm_search_ensembl_sorghum_bicolor
+    - grm_search_ensembl_vitis_vinifera
+    - grm_search_ensembl_zea_mays
+    - grm_search_pathway_arabidopsis
+    - grm_search_pathway_rice
 
+list_columns:
+  "diversity_*.cdv_marker": "name"
+
+  "diversity_*.div_passport": "accename,accenumb,div_synonyms.synonym,cdv_source_id.source"
+
+  "diversity_*.div_experiment": "name,design,originator,comments"
+
+  "ensembl_*.dna_align_feature": "hit_name,analysis.logic_name"
+
+  "ensembl_*.interpro": "id_field,interpro_ac[sprintf('Interpro accession &quot;%s&quot; in domain &quot;%s&quot;')]"
+
+  "ensembl_*.marker": "type,display_marker_synonym.name"
+
+  "ensembl_*.seq_region": "name"
+
+  "ensembl_*.gene": "biotype,display_xref.display_label,stable_id,description[sprintf('%s gene &quot;%s&quot; [%s]: %s')]"
+
+  "help.question": "question,answer[sprintf('&quot;%s&quot;: %s')]"
+
+  "genes.gene_gene": "species.genus,species.species,symbol,accession,name[sprintf('%s %s gene &quot;%s&quot; (%s): %s')]"
+
+  "genes.gene_germplasm": "species.genus,species.species,accession,wild_type"
+
+  "literature.reference": "authors.contributor.contributor_name,title,source.source_name,year,volume,start_page,end_page[sprintf('%s, &quot;%s&quot;, <u>%s</u>, %s, vol. %s, pp. %s-%s')]"
+
+  "germplasm.germplasm": "species.name,germplasm_acc"
+
+  "maps.map_set": "species.species,map_type.map_type,map_set_name"
+
+  "maps.feature": "species.species,feature_type.feature_type,feature_synonyms.feature_name"
+
+  "maps.feature_type": "feature_type,description"
+
+  "maps.germplasm": "species.species,germplasm_name,description"
+
+  "maps.library": "species.species,library_name,center_name,center_project"
+
+  "ontology.term": "term_type.term_type,name,term_accession"
+
+  "pathway_*.pathway_gramene_search": "gene_name,enzyme_name,reaction_id,reaction_name,ec,pathway_id,pathway_name"
+
+  "protein.gene_product": "gene_product_to_cultivars.cultivar.species.genus,gene_product_to_cultivars.cultivar.species.species,gene_product_helpers.swissprot_acc,gene_product_full_name[sprintf('%s %s protein &quot;%s&quot;: %s')]"
+
+  "qtl.qtl": "species.species,qtl_accession_id,published_symbol,qtl_trait.qtl_trait_category.trait_category,qtl_trait.trait_symbol,qtl_trait.trait_name,qtl_trait.to_accession"
+
+  "variation_oryza_sativa.variation": "name"

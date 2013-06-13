@@ -538,6 +538,7 @@ Options include:
                        : scalar @_ == 1 
                          ? ( query => $_[0] ) : @_;
     my $q          = $args{'query'}    or return;
+    my $taxonomy   = $args{'taxonomy'} || '';
     my $offset     = $args{'offset'}   ||  0;
     my $category   = $args{'category'} || '';
     my $limit      = $args{'limit'}    ||  0;
@@ -565,13 +566,38 @@ Options include:
                 from   search
                 where
                 match(content) against (%s in boolean mode)
-                order by score desc
             ],
             $dbh->quote($q),
             $dbh->quote('%' . $q . '%'),
         );
-        
-        my $hits    = $dbh->selectall_arrayref( $sql, { Columns => {} } );
+
+        my @args;
+        if ( $category ) {
+            $sql .= ' and category=? ';
+            push @args, $category;
+        }
+
+        if ( $taxonomy ) {
+            my @tax = ref $taxonomy eq 'ARRAY' ? @$taxonomy : ( $taxonomy );
+
+            if ( my @valid = grep { /^GR_tax:\d+/ } @tax ) {
+                if ( scalar @valid == 1 ) {
+                    $sql .= ' and taxonomy=? ';
+                    push @args, shift @valid;
+                }
+                else {
+                    $sql .= sprintf(
+                        ' and taxonomy in (%s) ',
+                        join( ', ', map { $dbh->quote($_) } @valid )
+                    );
+                }
+            }
+        }
+
+       print STDERR "$db_name\n$sql\n"; 
+
+        $sql       .= 'order by score desc';
+        my $hits    = $dbh->selectall_arrayref($sql, { Columns => {} }, @args);
         my $num     = scalar @$hits or next DB;
         $hit_count += $num;
 
@@ -579,7 +605,7 @@ Options include:
     }
 
     return { 
-        num_hits => scalar @hits,
+        num_hits => $hit_count,
         data     => \@hits, 
         time     => $timer->(),
     };
