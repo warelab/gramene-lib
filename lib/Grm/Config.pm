@@ -119,21 +119,23 @@ sub _build_config {
 
             DB:
             for my $db ( @{ $reg_class->get_all_DBAdaptors() } ) {
-                my $dbc = $db->dbc;
-
+                my $dbc     = $db->dbc;
                 my $species = lc $db->species; 
-
-                if ( $species =~ /compara/ ) {
-                    $species = 'compara';
-                }
-                else {
-                    $species = 'ensembl_' . lc $db->species; 
-                }
 
                 #
                 # Skip those hosted at EBI and the "multi"
                 #
                 next DB if $dbc->host =~ /^ensembl/ || $species =~ /multi/;
+
+                if ( $species =~ /compara/ ) {
+                    $species = 'compara';
+                }
+                elsif ( $db->group eq 'variation' ) {
+                    $species = 'variation_' . $species;
+                }
+                else {
+                    $species = 'ensembl_' . $species; 
+                }
 
                 $conf->{'database'}{ $species } = {
                     name     => $dbc->dbname,

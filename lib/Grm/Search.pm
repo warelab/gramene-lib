@@ -222,22 +222,23 @@ tables and records indexed and the elapsed time.
             $indexer = Grm::Search::Indexer::MySQL->new(
                 module => $module
             );
+
+            $indexer->truncate;
         }
 
-        my $odb      = Grm::Ontology->new;
-        my $db       = Grm::DB->new( $module );
-        my $dbh      = $db->dbh;
-        my $schema   = $db->dbic;
-
+        my $odb    = Grm::Ontology->new;
+        my $db     = Grm::DB->new( $module );
+        my $dbh    = $db->dbh;
+        my $schema = $db->dbic;
         ( my $category = lc ref $schema ) =~ s/Grm::DBIC:://i;
 
         my @docs;
         TABLE:
         for my $source_name ( $schema->sources ) {
-            my $timer   = timer_calc();
-            my $result  = $schema->resultset( $source_name );
-            my $source  = $result->result_source;
-            my $table   = $source->name;
+            my $timer  = timer_calc();
+            my $result = $schema->resultset( $source_name );
+            my $source = $result->result_source;
+            my $table  = $source->name;
 
             if ( %tables_to_index && !exists $tables_to_index{ $table } ) {
                 next TABLE;
@@ -483,6 +484,30 @@ tables and records indexed and the elapsed time.
 }
 
 # ----------------------------------------------------
+sub connect_mysql_search_db {
+    my ( $self, $db_name ) = @_;
+    my $config = $self->config->get('search');
+
+    if ( $db_name !~ /^grm_search_/ ) {
+        $db_name = 'grm_search_' . $db_name;
+    }
+
+    my $dsn = sprintf('dbi:mysql:host=%s;database=%s',
+        $config->{'database'}{'host'},
+        $db_name
+    );
+
+    my $dbh = DBI->connect(
+        $dsn,
+        $config->{'database'}{'user'},
+        $config->{'database'}{'password'},
+        { RaiseError => 1 }
+    );
+
+    return $dbh;
+}
+
+# ----------------------------------------------------
 sub search_mysql {
 
 =pod
@@ -553,11 +578,7 @@ Options include:
     my @hits;
     DB:
     for my $db_name ( @dbs ) {
-        my $dbh = DBI->connect(
-            "dbi:mysql:host=cabot;database=$db_name",
-            'kclark', 'g0p3rl!', { RaiseError => 1 }
-        );
-
+        my $dbh = $self->connect_mysql_search_db( $db_name );
         my $sql = sprintf(
             qq[
                 select url, title, category, taxonomy, ontology, content,
@@ -593,8 +614,6 @@ Options include:
                 }
             }
         }
-
-       print STDERR "$db_name\n$sql\n"; 
 
         $sql       .= 'order by score desc';
         my $hits    = $dbh->selectall_arrayref($sql, { Columns => {} }, @args);

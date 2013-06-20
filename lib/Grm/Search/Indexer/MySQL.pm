@@ -90,8 +90,10 @@ sub BUILD {
     # See if this exists
     #
     my @dbs = `$mysqlshow $mysql_args`;
-    splice @dbs, 0, 3;  # remove headers
-    splice @dbs, -1, 1; # remove footer
+    if ( @dbs ) {
+        splice @dbs, 0, 3;  # remove headers
+        splice @dbs, -1, 1; # remove footer
+    }
 
     # extract db names
     my %exists = map { $_, 1 } map { chomp; s/^\|\s*|\s*\|//g; $_ } @dbs; 
@@ -151,6 +153,13 @@ sub add_doc {
 # ----------------------------------------------------
 sub commit {
     return 1;
+}
+
+# ----------------------------------------------------
+sub truncate {
+    my $self = shift;
+    my $dbh  = $self->dbh;
+    $dbh->do('truncate table search');
 }
 
 1;

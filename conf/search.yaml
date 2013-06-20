@@ -1,4 +1,9 @@
 search:
+  database:
+    user: gramene_web
+    password: gram3n3
+    host: cabot
+
   page_size: 10
 
   index_path: search-index
