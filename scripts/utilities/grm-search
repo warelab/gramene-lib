@@ -100,6 +100,7 @@ for my $term ( @terms ) {
 
         last if $res->{'num_hits'} > 0;
     }
+    print "\n";
 
     my $num = $res->{'num_hits'};
 

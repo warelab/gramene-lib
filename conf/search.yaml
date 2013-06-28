@@ -8,19 +8,25 @@ search:
 
   index_path: search-index
 
-  reusable_schemas: diversity,pathway,amigo,ontology
+  reusable_schemas: "diversity,pathway,amigo,ontology"
 
   tables_to_index:
 
-    diversity_*: div_passport+div_synonym,div_taxonomy,div_stock;div_taxonomy;div_experiment;div_obs_unit_sample[name:producer];div_obs_unit[name];div_trait_uom[local_trait_name];div_stock[seed_lot:stock_source];div_taxonomy;cdv_source;div_poly_type;div_scoring_tech_type;cdv_marker[name]
+    "diversity_*": "div_passport+div_synonym,div_taxonomy,div_stock;div_taxonomy;div_experiment;div_obs_unit_sample[name:producer];div_obs_unit[name];div_trait_uom[local_trait_name];div_stock[seed_lot:stock_source];div_taxonomy;cdv_source;div_poly_type;div_scoring_tech_type;cdv_marker[name]"
 
-    compara: member[stable_id:description]
+    "compara": "member[stable_id:description]"
 
-    ensembl_*: gene[biotype:description:stable_id]+transcripts[stable_id],seq_region[name]
+    "ensembl_*": "gene[biotype:description:stable_id]+transcripts[stable_id],seq_region[name]"
 
-    maps: feature[description]+feature_type[feature_type],species[species:common_name:gramene_taxonomy_id],feature_synonyms[feature_name];feature_type;map_set+species,map_type;library+species
+    "genes": "gene_gene[accession:symbol:name:description:public_curation_comment]+gene_gene_synonyms[synonym_name],species[common_name:genus:species]"
 
-    ontology: term[term_name:term_accession]+term_definition[definition],term_type[term_type],term_synonym[synonym_name:synonym_acc]
+    "maps": "feature[description]+feature_type[feature_type],species[species:common_name:gramene_taxonomy_id],feature_synonyms[feature_name];feature_type;map_set+species,map_type;library+species"
+
+    "ontology": "term[name:term_accession]+term_definition[definition],term_type[term_type],term_synonyms[term_synonym]"
+
+    "protein": "gene_product[gene_product_full_name]+species[ncbi_taxa_id:common_name:genus:species],gene_product_synonyms[gene_product_synonym_symbol],gene_product_helper[swissprot_acc:swissprot_id:gene_product_name:gene_product_gene_name:organism],gene_product_comment[public_comment]"
+
+    "qtl": "qtl[qtl_accession_id:published_symbol:comments]+qtl_trait[trait_symbol:trait_name:to_accession],qtl_trait.qtl_trait_synonym[trait_synonym],qtl_trait.qtl_trait_category[trait_category:to_accession],species[species:common_name:gramene_taxonomy_id:ncbi_taxonomy_id]"
 
   list_columns:
 
@@ -58,19 +64,36 @@ search:
 
     pathway_*.pathway_gramene_search: gene_name,enzyme_name,reaction_id,reaction_name,ec,pathway_id,pathway_name
 
+    protein.gene_product: gene_product_to_cultivars.cultivar.species.genus,gene_product_to_cultivars.cultivar.species.species,gene_product_helpers.swissprot_acc,gene_product_full_name[sprintf('%s %s protein &quot;%s&quot;: %s')]
+
+    qtl.qtl: species.species,qtl_accession_id,published_symbol,qtl_trait.qtl_trait_category.trait_category,qtl_trait.trait_symbol,qtl_trait.trait_name,qtl_trait.to_accession
+
   sql_to_index:
     gene.gene_gene: |
       select o.term_accession
       from   gene_ontology_association o
       where  o.object_id=?
-      and    o.object_table='gene'
+      and    o.object_table='gene';
+
+      select g.accession, g.wild_type, s.common_name, s.genus, s.species
+      from   gene_object_to_germplasm o, gene_species s, gene_germplasm g
+      where  o.object_table='gene'
+      and    o.object_id=?
+      and    o.germplasm_id=g.germplasm_id
+      and    g.species_id=s.species_id;
+
+      select a.accession, a.symbol, a.name, a.description, 
+             a.allele_interaction_description, a.public_curation_comment
+      from   gene_gene_to_allele g2a, gene_allele a
+      where  g2a.gene_id=?
+      and    g2a.allele_id=a.allele_id;
 
     literature.reference: |
       select x.xref_value a
       from   xref x, xref_type xt
       where  x.record_id=?
       and    x.xref_type_id=xt.xref_type_id
-      and    xt.xref_type='gramene.ontology'
+      and    xt.xref_type='gramene.ontology';
 
     ensembl_*.gene: |
       select x.dbprimary_acc, x.display_label, x.description, 
@@ -151,6 +174,27 @@ search:
     pathway_poplar.pathway_gramene_search: |
       select 'GR_tax:018122' as ontology_acc;
 
+    protein.gene_product: |
+      select distinct d.xref_key
+      from   objectxref o, dbxref d
+      where  d.dbxref_id=o.dbxref_id
+      and    o.row_id=?
+      and    o.table_name='gramene.protein'
+      and    d.xref_dbname not in 
+           ('gramene.literature', 'gramene.ontology.taxonomy', 'gramene.gene');
+
+      select distinct xref_key as gramene_taxonomy_id
+      from   objectxref ox, dbxref dx
+      where  ox.dbxref_id=dx.dbxref_id
+      and    row_id=?
+      and    table_name='gramene.protein'
+      and    xref_dbname='gramene.ontology.taxonomy';
+
+      select k.keyword
+      from   keyword k, gene_product_to_keyword g
+      where  k.keyword_id=g.keyword_id
+      and    g.gene_product_id=?
+
   search_dbs:
     - grm_search_diversity_arabidopsis
     - grm_search_ensembl_arabidopsis_lyrata
@@ -185,11 +229,16 @@ search:
     - grm_search_ensembl_selaginella_moellendorffii
     - grm_search_ensembl_setaria_italica
     - grm_search_ensembl_solanum_lycopersicum
+    - grm_search_ensembl_solanum_tuberosum
     - grm_search_ensembl_sorghum_bicolor
     - grm_search_ensembl_vitis_vinifera
     - grm_search_ensembl_zea_mays
+    - grm_search_genes
+    - grm_search_ontology
+    - grm_search_qtl
     - grm_search_pathway_arabidopsis
     - grm_search_pathway_rice
+
 
 list_columns:
   "diversity_*.cdv_marker": "name"

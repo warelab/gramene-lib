@@ -327,7 +327,7 @@ tables and records indexed and the elapsed time.
 
             $num_tables++;
 
-            my $num_records = 0;
+            $num_records = 0;
 
             for my $id ( @$ids ) {
                 $num_records++;
@@ -359,7 +359,7 @@ tables and records indexed and the elapsed time.
                     my @other_columns = @{ $other->{'columns'} || [] } or next;
 
                     for my $other_obj ( 
-                        $rec->search_related( $other_table )->all
+                        $rec->search_related($other_table)->all
                     ) {
                         $text .= join( $SPACE, 
                             $EMPTY_STR,
@@ -562,7 +562,7 @@ Options include:
                        ? %{ $_[0] } 
                        : scalar @_ == 1 
                          ? ( query => $_[0] ) : @_;
-    my $q          = $args{'query'}    or return;
+    my $query      = $args{'query'}    or return;
     my $taxonomy   = $args{'taxonomy'} || '';
     my $offset     = $args{'offset'}   ||  0;
     my $category   = $args{'category'} || '';
@@ -575,42 +575,77 @@ Options include:
     my @dbs        = @{ $config->{'search_dbs'} };
     my $hit_count  = 0;
 
+
+    #
+    # Check if the query looks like an ontology accession
+    #
+    my $Term;
+    if ( $query =~ /^[A-Za-z_]+ : \d+$/xms ) {
+        my $ont_db   = Grm::Ontology->new;
+        my $schema   = $ont_db->db->schema;
+        my @term_ids = $ont_db->search( query => $query );
+        if ( scalar @term_ids == 1 ) {
+            my $term_id = shift @term_ids;
+            $Term = $schema->resultset('Term')->find($term_id);
+        }
+    }
+
     my @hits;
     DB:
     for my $db_name ( @dbs ) {
         my $dbh = $self->connect_mysql_search_db( $db_name );
-        my $sql = sprintf(
-            qq[
+
+        my ( $sql, @args );
+
+        if ( $db_name eq 'grm_search_ontology' && $Term ) {
+            $sql = qq[
                 select url, title, category, taxonomy, ontology, content,
-                       content as excerpt,
-                       match(content) against (%s) as score
+                       content as excerpt, '1' as score
                 from   search
-                where
-                match(content) against (%s in boolean mode)
-            ],
-            $dbh->quote($q),
-            $dbh->quote('%' . $q . '%'),
-        );
+                where  url=?
+            ];
 
-        my @args;
-        if ( $category ) {
-            $sql .= ' and category=? ';
-            push @args, $category;
+            @args = ( sprintf 'ontology/term/%s', $Term->id );
         }
+        else {
+            $sql = sprintf(
+                qq[
+                    select url, title, category, taxonomy, ontology, content,
+                           content as excerpt,
+                           match(content) against (%s) as score
+                    from   search
+                    where
+                    match(content) against (%s in boolean mode)
+                ],
+                $dbh->quote($query),
+                $dbh->quote('%' . $query . '%'),
+            );
 
-        if ( $taxonomy ) {
-            my @tax = ref $taxonomy eq 'ARRAY' ? @$taxonomy : ( $taxonomy );
+            if ( $category ) {
+                $sql .= ' and category=? ';
+                @args = ( $category );
+            }
 
-            if ( my @valid = grep { /^GR_tax:\d+/ } @tax ) {
-                if ( scalar @valid == 1 ) {
-                    $sql .= ' and taxonomy=? ';
-                    push @args, shift @valid;
-                }
-                else {
-                    $sql .= sprintf(
-                        ' and taxonomy in (%s) ',
-                        join( ', ', map { $dbh->quote($_) } @valid )
-                    );
+            if ( $Term ) {
+                $sql .= sprintf( 
+                    " and ontology like '%%%s%%' ", $Term->term_accession
+                );
+            }
+
+            if ( $taxonomy ) {
+                my @tax = ref $taxonomy eq 'ARRAY' ? @$taxonomy : ( $taxonomy );
+
+                if ( my @valid = grep { /^GR_tax:\d+/ } @tax ) {
+                    if ( scalar @valid == 1 ) {
+                        $sql .= ' and taxonomy=? ';
+                        push @args, shift @valid;
+                    }
+                    else {
+                        $sql .= sprintf(
+                            ' and taxonomy in (%s) ',
+                            join( ', ', map { $dbh->quote($_) } @valid )
+                        );
+                    }
                 }
             }
         }

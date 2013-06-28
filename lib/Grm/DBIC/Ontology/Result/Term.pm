@@ -147,21 +147,6 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
-=head2 object_association_counts
-
-Type: has_many
-
-Related object: L<Grm::DBIC::Ontology::Result::ObjectAssociationCount>
-
-=cut
-
-__PACKAGE__->has_many(
-  "object_association_counts",
-  "Grm::DBIC::Ontology::Result::ObjectAssociationCount",
-  { "foreign.term_id" => "self.term_id" },
-  { cascade_copy => 0, cascade_delete => 0 },
-);
-
 =head2 term_type
 
 Type: belongs_to
@@ -253,8 +238,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2013-04-16 18:02:31
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:2h32Q08Tmx2uQA9tsje8Dg
+# Created by DBIx::Class::Schema::Loader v0.07010 @ 2013-06-25 15:11:18
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:AN8Z5HgBlHjbCHMX87M5eQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

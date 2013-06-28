@@ -31,6 +31,7 @@ modules:
   - literature
   - maps
   - ontology
+  - protein
   - pathway_arabidopsis
   - pathway_brachypodium
   - pathway_capsicum_anuum
@@ -51,20 +52,49 @@ database:
     user     : gramene_rw
     password : ()ryz@
 
+  amigo:
+    name: amigo37
+
+  diversity_arabidopsis:
+    name: diversity_arabidopsis37
+    user: diversity_rw
+
+  diversity_maize:
+    name: diversity_maize37
+    user: diversity_rw
+
+  diversity_rice:
+    name: diversity_rice37
+    user: diversity_rw
+
+  diversity_sorghum:
+    name: diversity_sorghum37
+    user: diversity_rw
+
+  diversity_wheat:
+    name: diversity_wheat37
+    user: diversity_rw
+
   genes:
     name: genes37
+
+  help:
+    name: gramene_help37
+    user: gramene_web 
+    pass: gram3n3 
+
+  literature:
+    name: literature37
+    user: literature_rw
 
   maps:
     name: maps37
 
-  amigo:
-    name: amigo37
-
   ontology:
     name: ontology37b
 
-  qtl:
-    name: qtl37
+  protein:
+    name: protein37
 
   pathway_poplar:
     name: pathway_poplar37
@@ -110,34 +140,8 @@ database:
     name: pathway_sorghum_bicolor37
     user: pathway_rw
 
-  diversity_rice:
-    name: diversity_rice37
-    user: diversity_rw
-
-  diversity_arabidopsis:
-    name: diversity_arabidopsis37
-    user: diversity_rw
-
-  diversity_wheat:
-    name: diversity_wheat37
-    user: diversity_rw
-
-  diversity_maize:
-    name: diversity_maize37
-    user: diversity_rw
-
-  diversity_sorghum:
-    name: diversity_sorghum37
-    user: diversity_rw
-
-  literature:
-    name: literature37
-    user: literature_rw
-
-  help:
-    name: gramene_help37
-    user: gramene_web 
-    pass: gram3n3 
+  qtl:
+    name: qtl37
 
 #  germplasm:
 #    name: germplasm37
