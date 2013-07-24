@@ -22,23 +22,27 @@ Readonly my %VALID_OUTPUT => map { $_, 1 } qw[ perl json summary table ];
 Readonly my $SEPARATOR    => "************ Record %s ************\n";
 Readonly my $WIDTH        => 78;
 Readonly my @FIELDS       => 
-    qw[ category url title excerpt taxonomy ontology score ];
+    qw[ category url title content taxonomy ontology score ];
 
 my $category   = '';
+my $debug      =  0;
 my $index_path = '';
 my $format     = 'table';
 my $limit      =  0;
 my $query_file = '';
+my $taxonomy   = '';
 my $verbose    =  0;
 my $db         = 'mysql';
 my ( $help, $man_page );
 GetOptions(
     'c|category:s' => \$category,
     'd|db:s'       => \$db,
+    'debug'        => \$debug,
     'i|index:s'    => \$index_path,
     'f|format:s'   => \$format,
     'file:s'       => \$query_file,
     'l|limit:i'    => \$limit,
+    't|tax:s'      => \$taxonomy,
     'v|verbose'    => \$verbose,
     'help'         => \$help,
     'man'          => \$man_page,
@@ -96,6 +100,8 @@ for my $term ( @terms ) {
         $res         =  $search->$method( 
             query    => $t, 
             category => $category,
+            taxonomy => $taxonomy,
+            debug    => $debug,
         );
 
         last if $res->{'num_hits'} > 0;

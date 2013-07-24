@@ -54,6 +54,7 @@ use strict;
 use warnings;
 use namespace::autoclean;
 
+use DateTime;
 use Moose;
 use Carp;
 use CGI;
@@ -64,6 +65,7 @@ use File::Find::Rule;
 use File::Spec::Functions qw( catdir );
 use File::Path;
 use Grm::Config;
+use Grm::Maps;
 use Grm::Utils qw( timer_calc commify extract_ontology camel_case );
 use Grm::Search::Indexer::MySQL;
 use List::MoreUtils qw( uniq );
@@ -194,7 +196,8 @@ tables and records indexed and the elapsed time.
                   ? @{ $args{'module'} }
                   : split( /\s*,\s*/, $args{'module'} );
     my $verbose = defined $args{'verbose'} ? $args{'verbose'} : 1;
-    my $db_type = $args{'db_type'} || 'lucy';
+    my $db_type = $args{'db_type'} || 'mysql';
+    my $resume  = $args{'resume'}  ||       0;
     my $sconf   = $self->config->get('search');
     my %stats;
 
@@ -223,14 +226,15 @@ tables and records indexed and the elapsed time.
                 module => $module
             );
 
-            $indexer->truncate;
+            if ( !$resume ) {
+                $indexer->truncate;
+            }
         }
 
         my $odb    = Grm::Ontology->new;
         my $db     = Grm::DB->new( $module );
         my $dbh    = $db->dbh;
         my $schema = $db->dbic;
-        ( my $category = lc ref $schema ) =~ s/Grm::DBIC:://i;
 
         my @docs;
         TABLE:
@@ -325,10 +329,18 @@ tables and records indexed and the elapsed time.
 
             my $ids = $dbh->selectcol_arrayref("select $id_field from $table");
 
+            my %done;
+            if ( $resume ) {
+                %done = map { $_, 1 } @{
+                    $indexer->dbh->selectcol_arrayref('select url from search')
+                };
+            }
+
             $num_tables++;
 
             $num_records = 0;
 
+            ID:
             for my $id ( @$ids ) {
                 $num_records++;
 
@@ -337,6 +349,12 @@ tables and records indexed and the elapsed time.
                         int(100 * ( $num_records / $count )),
                         commify($num_records), 
                     );
+                }
+
+                if ( $resume ) {
+                    my $url = join '/', $module, $table, $id;
+
+                    next ID if $done{ $url };
                 }
 
                 my $rec = $result->find( $id ) 
@@ -452,7 +470,6 @@ tables and records indexed and the elapsed time.
                 my $doc = {
                     url      => join( '/', $module, $table, $id ),
                     title    => $title,
-                    category => $category,
                     content  => $text,
                     taxonomy => 
                         join( $SPACE, grep {  /^GR_tax/ } @ontology_accs ),
@@ -462,6 +479,13 @@ tables and records indexed and the elapsed time.
 
                 $indexer->add_doc( $doc );
             }
+
+            my $dt = DateTime->now;
+            $indexer->add_meta(
+                source_db    => $db->real_name,
+                last_indexed => $dt->ymd,
+                indexed_by   => (getpwuid($<))[0],
+            );
 
             if ( $verbose ) {
                 printf "%-70s\n\n", sprintf(
@@ -571,10 +595,8 @@ Options include:
                    ? undef 
                    : $args{'page_size'} || $self->page_size;
 
-    my $config     = $self->config->get('search');
-    my @dbs        = @{ $config->{'search_dbs'} };
     my $hit_count  = 0;
-
+    my $debug      = sub { $args{'debug'} && print STDERR @_, "\n" };
 
     #
     # Check if the query looks like an ontology accession
@@ -590,17 +612,28 @@ Options include:
         }
     }
 
+    my $config = $self->config->get('search');
+    my @dbs    = @{ $config->{'search_dbs'} };
     my @hits;
+
     DB:
     for my $db_name ( @dbs ) {
+        my ( $grm, $search, @rest ) = split /_/, $db_name;
+        my $this_category = $rest[0];
+
+        if ( $category ) {
+            next DB unless lc $this_category eq lc $category;
+        }
+
         my $dbh = $self->connect_mysql_search_db( $db_name );
 
         my ( $sql, @args );
 
         if ( $db_name eq 'grm_search_ontology' && $Term ) {
             $sql = qq[
-                select url, title, category, taxonomy, ontology, content,
-                       content as excerpt, '1' as score
+                select url, title, taxonomy, ontology, content,
+                       content as excerpt, '1' as score,
+                       'ontology' as category
                 from   search
                 where  url=?
             ];
@@ -610,9 +643,10 @@ Options include:
         else {
             $sql = sprintf(
                 qq[
-                    select url, title, category, taxonomy, ontology, content,
+                    select url, title, taxonomy, ontology, content,
                            content as excerpt,
-                           match(content) against (%s) as score
+                           match(content) against (%s) as score,
+                           '$this_category' as category
                     from   search
                     where
                     match(content) against (%s in boolean mode)
@@ -620,11 +654,6 @@ Options include:
                 $dbh->quote($query),
                 $dbh->quote('%' . $query . '%'),
             );
-
-            if ( $category ) {
-                $sql .= ' and category=? ';
-                @args = ( $category );
-            }
 
             if ( $Term ) {
                 $sql .= sprintf( 
@@ -650,19 +679,169 @@ Options include:
             }
         }
 
-        $sql       .= 'order by score desc';
-        my $hits    = $dbh->selectall_arrayref($sql, { Columns => {} }, @args);
-        my $num     = scalar @$hits or next DB;
-        $hit_count += $num;
+        $sql    .= 'order by score desc';
+        my $hits = $dbh->selectall_arrayref( $sql, { Columns => {} }, @args );
+        my $num  = scalar @$hits;
 
-        push @hits, @$hits;
+        $debug->(sprintf('Found %s for "%s" in %s', $num, $query, $db_name));
+
+        if ( $num ) {
+            $hit_count += $num;
+            push @hits, @$hits;
+        }
     }
+
+    if ( !$category || ( $category && $category =~ /ensembl/ ) ) {
+        my @ens_hits = $self->_search_ensembl( $query, $debug );
+        push @hits, @ens_hits;
+        $hit_count += scalar @ens_hits;
+    }
+
+    my @maps_hits = $self->_search_maps( $query, $debug );
+    push @hits, @maps_hits;
+    $hit_count += scalar @maps_hits;
 
     return { 
         num_hits => $hit_count,
         data     => \@hits, 
         time     => $timer->(),
     };
+}
+
+# ----------------------------------------------------
+sub _search_ensembl {
+    my ( $self, $query, $debug ) = @_;
+    $query =~ s/\*/%/g;
+    my @ensembl_modules  
+        = grep { /^(variation|ensembl)_/ } $self->config->get('modules');
+
+    my @hits;
+    ENS_MODULE:
+    for my $ens_module ( @ensembl_modules ) {
+        my $db = Grm::DB->new( $ens_module );
+        my $is_variation = ( $ens_module =~ /variation/ );
+
+        eval {
+            my $dba_class = sprintf( 
+                'Bio::EnsEMBL::%sDBSQL::DBAdaptor',
+                $is_variation ? 'Variation::' : '',
+            );
+
+            my $dba = $dba_class->new(
+                -user   => $db->user,
+                -pass   => $db->password,
+                -dbname => $db->real_name,
+                -host   => $db->host,
+                -driver => $db->dbd,
+            ); 
+
+            my @tmp;
+
+            if ( $ens_module =~ /variation/ ) {
+                if ( my $var_adaptor = $dba->get_adaptor('Variation') ) {
+                    my $db = $var_adaptor->db->dbc->db_handle;
+                    push @tmp, @{ $db->selectall_arrayref(
+                        qq[
+                            select concat_ws('/', 
+                                    '$ens_module', 'variation', variation_id 
+                                   ) as url,
+                                   name as title,
+                                   name as content,
+                                   name as excerpt,
+                                   'ensembl' as category,
+                                   '' as ontology
+                            from   variation 
+                            where  name=?
+                        ],
+                        { Columns => {} },
+                        $query,
+                    ) };
+                }
+            }
+            else {
+                if ( my $feat_adaptor = $dba->get_adaptor('DnaAlignFeature') ) {
+                    my @features = @{ 
+                        $feat_adaptor->fetch_all_by_hit_name( $query ) 
+                    };
+
+                    my %seen;
+                    for my $f ( @features ) {
+                        next if $seen{ $f->hseqname }++;
+
+                        push @tmp, {
+                            url => join('/', 
+                                $ens_module, 'dna_align_feature', $f->dbID
+                            ),
+                            title    => $f->hseqname,
+                            category => 'ensembl',
+                            ontology => '',
+                            content  => join( $SPACE, 
+                                $f->hseqname,
+                                $f->analysis->display_label 
+                                    || $f->analysis->logic_name,
+                                $f->feature_Slice->name
+                            ),
+                        };
+                    }
+                }
+
+                if ( my $marker_adaptor = $dba->get_adaptor('Marker') ) {
+                    my @markers = @{ 
+                        $marker_adaptor->fetch_all_by_synonym( $query ) 
+                    };
+
+                    for my $m ( @markers ) {
+                        my $content = join( $SPACE,
+                            map { $_->name() } 
+                            @{ $m->get_all_MarkerSynonyms }
+                        );
+
+                        push @tmp, {
+                            url => join('/', $ens_module, 'marker', $m->dbID),
+                            title    => $m->dbID,
+                            category => 'ensembl',
+                            ontology => '',
+                            content  => join( $SPACE,
+                                map { $_->name() } 
+                                @{ $m->get_all_MarkerSynonyms }
+                            ),
+                        };
+                    }
+                }
+            }
+
+            $debug->(sprintf('Found %s in %s', scalar @tmp, $ens_module));
+            push @hits, @tmp;
+        };
+    }
+
+    return @hits;
+}
+
+# ----------------------------------------------------
+sub _search_maps {
+    my ( $self, $query, $debug ) = @_;
+
+    my $maps = Grm::Maps->new;
+    my @hits;
+
+    for my $f ( $maps->feature_search( feature_name => $query ) ) {
+        my $title = join( ' ',
+            map { $f->{ $_ } } qw[ species feature_type feature_name ]
+        );
+
+        push @hits, {
+            url      => join('/', 'maps', 'feature', $f->{'feature_id'}),
+            title    => $title,
+            content  => $title,
+            taxonomy => $f->{'species'},
+            category => 'maps',
+        };
+    }
+
+    $debug->(sprintf('Found %s features in maps', scalar @hits));
+
+    return @hits;
 }
 
 # ----------------------------------------------------

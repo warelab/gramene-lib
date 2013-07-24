@@ -48,17 +48,23 @@ has schema => (
     is      => 'ro',
     isa     => 'Str',
     default => q[
-        CREATE TABLE search (
+        CREATE TABLE IF NOT EXISTS search (
           search_id int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
           url varchar(255) NOT NULL DEFAULT '',
           title varchar(255) NOT NULL DEFAULT '',
-          category varchar(255) NOT NULL DEFAULT '',
           taxonomy varchar(255) NOT NULL DEFAULT '',
           ontology text,
           content text,
           FULLTEXT KEY ontology (ontology),
           FULLTEXT KEY content (content)
-        ) ENGINE=MyISAM 
+        ) ENGINE=MyISAM;
+
+        CREATE TABLE IF NOT EXISTS meta (
+          meta_id int unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+          meta_name varchar(255) NOT NULL DEFAULT '',
+          meta_value varchar(255) NOT NULL DEFAULT '',
+          UNIQUE (meta_name)
+        ) ENGINE=MyISAM;
     ],
 );
 
@@ -113,7 +119,13 @@ sub BUILD {
     my %table = map { $_, 1 } @{ $dbh->selectcol_arrayref('show tables') };
 
     if ( !$table{'search'} ) {
-        $dbh->do( $self->schema );
+        my @sql = split /;/, $self->schema;
+
+        for my $sql ( @sql ) {
+            if ( $sql =~ /\w+/ ) {
+                $dbh->do( $sql );
+            }
+        }
     }
 
     $self->dbh( $dbh );
@@ -140,14 +152,15 @@ sub add_doc {
     my %rec  = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
 
     my $dbh  = $self->dbh; 
-    my @flds = qw( url title category taxonomy ontology content );
+    my @flds = qw( url title taxonomy ontology content );
+    my @vals = map { s/[^[:ascii:]]//g; $_ } map { $rec{ $_ } } @flds;
     my $sql  = sprintf(
         'insert into search (%s) values (%s)',
         join(', ', @flds), 
         join(', ', map { '?' } @flds), 
     );
 
-    $dbh->do( $sql, {}, map { $rec{ $_ } } @flds );
+    $dbh->do( $sql, {}, @vals );
 }
 
 # ----------------------------------------------------
@@ -160,6 +173,21 @@ sub truncate {
     my $self = shift;
     my $dbh  = $self->dbh;
     $dbh->do('truncate table search');
+}
+
+# ----------------------------------------------------
+sub add_meta {
+    my $self = shift;
+    my %args = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
+    my $dbh  = $self->dbh;
+
+    while ( my ( $key, $value ) = each %args ) {
+        $dbh->do(
+            'replace into meta (meta_name, meta_value) values (?,?)',
+            {},
+            ( $key, $value )
+        );    
+    }
 }
 
 1;

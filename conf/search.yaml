@@ -1,5 +1,6 @@
 search:
   database:
+    name: gramene_search38
     user: gramene_web
     password: gram3n3
     host: cabot
@@ -12,7 +13,7 @@ search:
 
   tables_to_index:
 
-    "diversity_*": "div_passport+div_synonym,div_taxonomy,div_stock;div_taxonomy;div_experiment;div_obs_unit_sample[name:producer];div_obs_unit[name];div_trait_uom[local_trait_name];div_stock[seed_lot:stock_source];div_taxonomy;cdv_source;div_poly_type;div_scoring_tech_type;cdv_marker[name]"
+    "diversity_*": "div_passport[div_passport_acc:accename:source:accenumb]+div_synonyms[synonym],div_taxonomy[genus:species:subspecies:common_name:term_accession],div_stocks[seed_lot:stock_source:comments];div_experiment[name:design:originator:comments];div_obs_unit_sample[name:producer];div_obs_unit[name];div_trait_uom[local_trait_name];div_stock[seed_lot:stock_source]"
 
     "compara": "member[stable_id:description]"
 
@@ -20,7 +21,9 @@ search:
 
     "genes": "gene_gene[accession:symbol:name:description:public_curation_comment]+gene_gene_synonyms[synonym_name],species[common_name:genus:species]"
 
-    "maps": "feature[description]+feature_type[feature_type],species[species:common_name:gramene_taxonomy_id],feature_synonyms[feature_name];feature_type;map_set+species,map_type;library+species"
+    "literature": "reference[title:abstract]+source[source_name],source.source_synonyms[source_synonym]"
+
+    "maps": "feature_type[feature_type];map_set[map_set_name:description]+species[species:common_name];map_type[map_type:description]"
 
     "ontology": "term[name:term_accession]+term_definition[definition],term_type[term_type],term_synonyms[term_synonym]"
 
@@ -62,7 +65,7 @@ search:
 
     ontology.term: term_type.term_type,term_name,term_accession
 
-    pathway_*.pathway_gramene_search: gene_name,enzyme_name,reaction_id,reaction_name,ec,pathway_id,pathway_name
+    pathway_*.search: gene_name,enzyme_name,reaction_id,reaction_name,ec,pathway_id,pathway_name
 
     protein.gene_product: gene_product_to_cultivars.cultivar.species.genus,gene_product_to_cultivars.cultivar.species.species,gene_product_helpers.swissprot_acc,gene_product_full_name[sprintf('%s %s protein &quot;%s&quot;: %s')]
 
@@ -94,6 +97,11 @@ search:
       where  x.record_id=?
       and    x.xref_type_id=xt.xref_type_id
       and    xt.xref_type='gramene.ontology';
+
+      select c.contributor_name
+      from   author a, contributor c
+      where  a.reference_id=?
+      and    a.contributor_id=c.contributor_id;
 
     ensembl_*.gene: |
       select x.dbprimary_acc, x.display_label, x.description, 
@@ -141,37 +149,37 @@ search:
       from   meta 
       where  meta_key='species.taxonomy_id';
 
-    pathway_arabidopsis.pathway_gramene_search: |
+    pathway_arabidopsis.search: |
       select 'GR_tax:014503' as ontology_acc;
 
-    pathway_rice.pathway_gramene_search: |
+    pathway_rice.search: |
       select 'GR_tax:013684' as ontology_acc;
 
-    pathway_capsicum_anuum.pathway_gramene_search: |
+    pathway_capsicum_anuum.search: |
       select 'GR_tax:018116' as ontology_acc;
 
-    pathway_coffea_canephora.pathway_gramene_search: |
+    pathway_coffea_canephora.search: |
       select 'GR_tax:052003' as ontology_acc;
 
-    pathway_medicago_truncatula.pathway_gramene_search: |
+    pathway_medicago_truncatula.search: |
       select 'GR_tax:018106' as ontology_acc;
 
-    pathway_solanum_lycopersicum.pathway_gramene_search: |
+    pathway_solanum_lycopersicum.search: |
       select 'GR_tax:018113' as ontology_acc;
 
-    pathway_solanum_tuberosum.pathway_gramene_search: |
+    pathway_solanum_tuberosum.search: |
       select 'GR_tax:018114' as ontology_acc;
 
-    pathway_sorghum_bicolor.pathway_gramene_search: |
+    pathway_sorghum_bicolor.search: |
       select 'GR_tax:014159' as ontology_acc;
 
-    pathway_maize.pathway_gramene_search: |
+    pathway_maize.search: |
       select 'GR_tax:014450' as ontology_acc;
 
-    pathway_brachypodium.pathway_gramene_search: |
+    pathway_brachypodium.search: |
       select 'GR_tax:012596' as ontology_acc;
 
-    pathway_poplar.pathway_gramene_search: |
+    pathway_poplar.search: |
       select 'GR_tax:018122' as ontology_acc;
 
     protein.gene_product: |
@@ -197,6 +205,10 @@ search:
 
   search_dbs:
     - grm_search_diversity_arabidopsis
+    - grm_search_diversity_maize
+    - grm_search_diversity_rice
+    - grm_search_diversity_sorghum
+    - grm_search_diversity_wheat
     - grm_search_ensembl_arabidopsis_lyrata
     - grm_search_ensembl_arabidopsis_thaliana
     - grm_search_ensembl_brachypodium_distachyon
@@ -234,11 +246,22 @@ search:
     - grm_search_ensembl_vitis_vinifera
     - grm_search_ensembl_zea_mays
     - grm_search_genes
+    - grm_search_literature
+    - grm_search_maps
     - grm_search_ontology
-    - grm_search_qtl
     - grm_search_pathway_arabidopsis
+    - grm_search_pathway_brachypodium
+    - grm_search_pathway_capsicum_anuum
+    - grm_search_pathway_coffea_canephora
+    - grm_search_pathway_maize
+    - grm_search_pathway_medicago_truncatula
+    - grm_search_pathway_poplar
     - grm_search_pathway_rice
-
+    - grm_search_pathway_solanum_lycopersicum
+    - grm_search_pathway_solanum_tuberosum
+    - grm_search_pathway_sorghum_bicolor
+    - grm_search_protein
+    - grm_search_qtl
 
 list_columns:
   "diversity_*.cdv_marker": "name"
@@ -279,7 +302,7 @@ list_columns:
 
   "ontology.term": "term_type.term_type,name,term_accession"
 
-  "pathway_*.pathway_gramene_search": "gene_name,enzyme_name,reaction_id,reaction_name,ec,pathway_id,pathway_name"
+  "pathway_*.search": "gene_name,enzyme_name,reaction_id,reaction_name,ec,pathway_id,pathway_name"
 
   "protein.gene_product": "gene_product_to_cultivars.cultivar.species.genus,gene_product_to_cultivars.cultivar.species.species,gene_product_helpers.swissprot_acc,gene_product_full_name[sprintf('%s %s protein &quot;%s&quot;: %s')]"
 

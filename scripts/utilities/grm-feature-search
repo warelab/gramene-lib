@@ -1,0 +1,92 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use autodie;
+use Getopt::Long;
+use Grm::Maps;
+use Grm::Utils 'timer_calc';
+use Pod::Usage;
+use Readonly;
+
+my ( $help, $man_page );
+GetOptions(
+    'help' => \$help,
+    'man'  => \$man_page,
+) or pod2usage(2);
+
+if ( $help || $man_page ) {
+    pod2usage({
+        -exitval => 0,
+        -verbose => $man_page ? 2 : 1
+    });
+}; 
+
+my @args  = @ARGV or pod2usage('No names to search');
+my $maps  = Grm::Maps->new;
+my $timer = timer_calc();
+my $total = 0;
+
+for my $name ( @args ) {
+    my @features = $maps->feature_search(
+        feature_name => $name
+    );
+
+    for my $f ( @features ) {
+        printf "%s: %s %s %s\n",
+            ++$total,
+            $f->{'species'},
+            $f->{'feature_type'},
+            $f->{'feature_name'},
+        ;
+    }
+}
+
+printf "Done, found %s feature%s in %s\n",
+    $total,
+    $total == 1 ? '' : 's',
+    $timer->(),
+;
+
+__END__
+
+# ----------------------------------------------------
+
+=pod
+
+=head1 NAME
+
+grm-feature-search - search Gramene features/maps db
+
+=head1 SYNOPSIS
+
+  grm-feature-search RM11 AT893783
+
+Options:
+
+  --help   Show brief help and exit
+  --man    Show full documentation
+
+=head1 DESCRIPTION
+
+Find things in the Gramene maps db.
+
+=head1 SEE ALSO
+
+Grm::Maps.
+
+=head1 AUTHOR
+
+Ken Youens-Clark E<lt>kclark@cshl.eduE<gt>.
+
+=head1 COPYRIGHT
+
+Copyright (c) 2013 Cold Spring Harbor Laboratory
+
+This module is free software; you can redistribute it and/or
+modify it under the terms of the GPL (either version 1, or at
+your option, any later version) or the Artistic License 2.0.
+Refer to LICENSE for the full license text and to DISCLAIMER for
+additional warranty disclaimers.
+
+=cut

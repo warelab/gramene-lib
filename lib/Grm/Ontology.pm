@@ -70,8 +70,6 @@ Readonly my %RELATIONSHIP_SYMBOLS => (
     negatively_regulates => '[-r] ',
 );
 
-my %DB_CACHE;
-
 # ----------------------------------------------------
 sub BUILD {
     my $self = shift;
@@ -93,7 +91,7 @@ sub _build_config {
 sub _build_db {
     my $self  = shift;
 
-    return Grm::DB->new('ontology');
+    return Grm::DB->new( $self->module_name );
 }
 
 # ----------------------------------------------------

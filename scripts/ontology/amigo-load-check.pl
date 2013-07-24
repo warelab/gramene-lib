@@ -9,6 +9,7 @@ use Getopt::Long;
 use Grm::Config;
 use Grm::DB;
 use Grm::Utils 'commify';
+use List::MoreUtils 'uniq';
 use Pod::Usage;
 use Readonly;
 use Text::TabularDisplay;
@@ -65,9 +66,10 @@ say "Checking $prev_db_name => $cur_db_name";
 my $sql = 'select count(*) as count, term_type from term group by 2';
 my $cur_count  = $cur_db->selectall_hashref( $sql, 'term_type' );
 my $prev_count = $prev_db->selectall_hashref( $sql, 'term_type' );
+my @term_types = sort(uniq(keys %$prev_count, keys %$cur_count));
 
 my @results;
-for my $term_type ( sort keys %$prev_count ) {
+for my $term_type ( @term_types ) {
     next unless $term_type;
 
     my $cur  = $cur_count->{ $term_type }{'count'}  || 0;

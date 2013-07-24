@@ -3,7 +3,7 @@ also_load: search.yaml,ontology.yaml
 
 base_dir: /home/kclark/gramene-lib
 
-version: 37
+version: 38
 
 ensembl:
   install_dir: /usr/local/ensembl-live
@@ -53,7 +53,7 @@ database:
     password : ()ryz@
 
   amigo:
-    name: amigo37
+    name: amigo38
 
   diversity_arabidopsis:
     name: diversity_arabidopsis37
@@ -91,53 +91,53 @@ database:
     name: maps37
 
   ontology:
-    name: ontology37b
+    name: ontology38
 
   protein:
     name: protein37
 
   pathway_poplar:
-    name: pathway_poplar37
+    name: pathway_poplar38
     user: pathway_rw
 
   pathway_rice:
-    name: pathway_rice37
+    name: pathway_rice38
     user: pathway_rw
 
   pathway_arabidopsis:
-    name: pathway_arabidopsis37
+    name: pathway_arabidopsis38
     user: pathway_rw
 
   pathway_brachypodium:
-    name: pathway_brachypodium37;host=cabot;mysql_emulated_prepare=1
+    name: pathway_brachypodium38
     user: pathway_rw
 
   pathway_capsicum_anuum:
-    name: pathway_capsicum_anuum37
+    name: pathway_capsicum_anuum38
     user: pathway_rw
 
   pathway_coffea_canephora:
-    name: pathway_coffea_canephora37
+    name: pathway_coffea_canephora38
     user: pathway_rw
 
   pathway_maize:
-    name: pathway_maize37
+    name: pathway_maize38
     user: pathway_rw
 
   pathway_medicago_truncatula:
-    name: pathway_medicago_truncatula37
+    name: pathway_medicago_truncatula38
     user: pathway_rw
 
   pathway_solanum_lycopersicum:
-    name: pathway_solanum_lycopersicum37
+    name: pathway_solanum_lycopersicum38
     user: pathway_rw
 
   pathway_solanum_tuberosum:
-    name: pathway_solanum_tuberosum37
+    name: pathway_solanum_tuberosum38
     user: pathway_rw
 
   pathway_sorghum_bicolor:
-    name: pathway_sorghum_bicolor37
+    name: pathway_sorghum_bicolor38
     user: pathway_rw
 
   qtl:

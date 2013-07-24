@@ -1,0 +1,12 @@
+To load pathway data into search:
+
+1) Grab the "pathway-tools/ptools-local/pgdbs/user" directories 
+
+2) Configure the "dump.sh" script to indicate the correct versions of 
+   the "data" directories 
+
+3) Update the "conf/gramene.yaml" file to indicate new pathway search dbs
+
+4) Configure "load-search.sh" to load the output from #2
+
+5) Run "../search/load-search.pl --like pathway"

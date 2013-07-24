@@ -28,14 +28,15 @@ use Time::Interval qw( parseInterval );
 
 Readonly my $COMMA_SPACE => qr/\s*,\s*/;
 
-my $indexer       = 'mysql';
 my $force         =  0;
+my $indexer       = 'mysql';
 my $load_all      =  0;
 my $load_like     = '';
 my $load_not_like = '';
-my $skip_done     =  0;
-my $show_list     =  0;
 my $modules       = '';
+my $resume        =  0;
+my $show_list     =  0;
+my $skip_done     =  0;
 my ( $help, $man_page );
 GetOptions(
     'a|all'       => \$load_all,
@@ -45,6 +46,7 @@ GetOptions(
     'like:s'      => \$load_like,
     'not-like:s'  => \$load_not_like,
     'm|module:s'  => \$modules,
+    'r|resume'    => \$resume,
     'skip-done'   => \$skip_done,
     'help'        => \$help,
     'man'         => \$man_page,
@@ -146,6 +148,7 @@ for my $module ( uniq( @do_modules ) ) {
     my $results = $search_db->index( 
         db_type => $indexer,
         module  => $module,
+        resume  => $resume,
         verbose => 1,
     );
 
@@ -156,11 +159,11 @@ for my $module ( uniq( @do_modules ) ) {
 }
 
 printf "Done processing %s record%s in %s table%s in %s module%s in %s.\n",
-    $num_records,
+    commify($num_records),
     $num_records == 1 ? '' : 's',
-    $num_tables,
+    commify($num_tables),
     $num_tables  == 1 ? '' : 's',
-    $num_modules,
+    commify($num_modules),
     $num_modules == 1 ? '' : 's',
     $total_timer->(),
 ;
