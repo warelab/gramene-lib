@@ -101,6 +101,7 @@ for my $term ( @terms ) {
             query    => $t, 
             category => $category,
             taxonomy => $taxonomy,
+            db       => $db,
             debug    => $debug,
         );
 

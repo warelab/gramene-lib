@@ -542,11 +542,12 @@ sub search_mysql {
 
   my $results = $sdb->search( 
       query     => 'waxy', # required
-      offset    => 100,
       category  => 'genomes',
+      db        => 'maps',
       limit     => 50,
       nopage    => 1,
       page_size => 50,
+      offset    => 100,
   );
 
 Performs a search.  Only "query" is required, and if only one argument 
@@ -587,6 +588,7 @@ Options include:
                        : scalar @_ == 1 
                          ? ( query => $_[0] ) : @_;
     my $query      = $args{'query'}    or return;
+    my $qry_db     = $args{'db'}       || '';
     my $taxonomy   = $args{'taxonomy'} || '';
     my $offset     = $args{'offset'}   ||  0;
     my $category   = $args{'category'} || '';
@@ -614,6 +616,11 @@ Options include:
 
     my $config = $self->config->get('search');
     my @dbs    = @{ $config->{'search_dbs'} };
+
+    if ( $qry_db ) {
+        @dbs = grep { /$qry_db/i } @dbs;
+    }
+
     my @hits;
 
     DB:
@@ -692,14 +699,16 @@ Options include:
     }
 
     if ( !$category || ( $category && $category =~ /ensembl/ ) ) {
-        my @ens_hits = $self->_search_ensembl( $query, $debug );
+        my @ens_hits = $self->_search_ensembl( $query, $qry_db, $debug );
         push @hits, @ens_hits;
         $hit_count += scalar @ens_hits;
     }
 
-    my @maps_hits = $self->_search_maps( $query, $debug );
-    push @hits, @maps_hits;
-    $hit_count += scalar @maps_hits;
+    if ( !$category || ( $category && $category =~ /maps/ ) ) {
+        my @maps_hits = $self->_search_maps( $query, $qry_db, $debug );
+        push @hits, @maps_hits;
+        $hit_count += scalar @maps_hits;
+    }
 
     return { 
         num_hits => $hit_count,
@@ -710,7 +719,7 @@ Options include:
 
 # ----------------------------------------------------
 sub _search_ensembl {
-    my ( $self, $query, $debug ) = @_;
+    my ( $self, $query, $qry_db, $debug ) = @_;
     $query =~ s/\*/%/g;
     my @ensembl_modules  
         = grep { /^(variation|ensembl)_/ } $self->config->get('modules');
@@ -718,6 +727,8 @@ sub _search_ensembl {
     my @hits;
     ENS_MODULE:
     for my $ens_module ( @ensembl_modules ) {
+        next if $qry_db && $qry_db !~ /$ens_module/;
+
         my $db = Grm::DB->new( $ens_module );
         my $is_variation = ( $ens_module =~ /variation/ );
 
@@ -820,7 +831,9 @@ sub _search_ensembl {
 
 # ----------------------------------------------------
 sub _search_maps {
-    my ( $self, $query, $debug ) = @_;
+    my ( $self, $query, $qry_db, $debug ) = @_;
+
+    return if $qry_db && $qry_db !~ /maps/;
 
     my $maps = Grm::Maps->new;
     my @hits;

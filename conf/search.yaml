@@ -32,44 +32,47 @@ search:
     "qtl": "qtl[qtl_accession_id:published_symbol:comments]+qtl_trait[trait_symbol:trait_name:to_accession],qtl_trait.qtl_trait_synonym[trait_synonym],qtl_trait.qtl_trait_category[trait_category:to_accession],species[species:common_name:gramene_taxonomy_id:ncbi_taxonomy_id]"
 
   list_columns:
+    "diversity_*.cdv_marker": "name"
 
-    diversity_*.cdv_marker: name
+    "diversity_*.div_experiment": "name,design,originator,comments"
 
-    diversity_*.div_passport: accename,accenumb,div_synonyms.synonym,cdv_source_id.source
+    "diversity_*.div_passport": "accename,accenumb,div_synonyms.synonym,cdv_source_id.source"
 
-    diversity_*.div_experiment: name,design,originator,comments
+    "ensembl_*.dna_align_feature": "hit_name,analysis.logic_name"
 
-    ensembl_*.dna_align_feature: hit_name,analysis.logic_name
+    "ensembl_*.gene": "biotype,display_xref.display_label,stable_id,description[sprintf('%s gene &quot;%s&quot; [%s]: %s')]"
 
-    ensembl_*.interpro: id_field,interpro_ac[sprintf('Interpro accession &quot;%s&quot; in domain &quot;%s&quot;')]
+    "ensembl_*.interpro": "id_field,interpro_ac[sprintf('Interpro accession &quot;%s&quot; in domain &quot;%s&quot;')]"
 
-    ensembl_*.marker: type,display_marker_synonym.name
+    "ensembl_*.marker": "type,display_marker_synonym.name"
 
-    ensembl_*.seq_region: name
+    "ensembl_*.seq_region": "name"
 
-    ensembl_*.gene: biotype,display_xref.display_label,stable_id,description[sprintf('%s gene &quot;%s&quot; [%s]: %s')]
+    "genes.gene_gene": "species.genus,species.species,symbol,accession,name[sprintf('%s %s gene &quot;%s&quot; (%s): %s')]"
 
-    literature.reference: authors.contributor.contributor_name,title,source.source_name,year,volume,start_page,end_page[sprintf('%s, &quot;%s&quot;, <u>%s</u>, %s, vol. %s, pp. %s-%s')]
+    "genes.gene_germplasm": "species.genus,species.species,accession,wild_type"
 
-    germplasm.germplasm: species.name,germplasm_acc
+    "germplasm.germplasm": "species.name,germplasm_acc"
 
-    maps.map_set: species.species,map_type.map_type,map_set_name
+    "help.question": "question,answer[sprintf('&quot;%s&quot;: %s')]"
 
-    maps.feature: species.species,feature_type.feature_type,display_synonym.feature_name
+    "literature.reference": "authors.contributor.contributor_name,title,source.source_name,year,volume,start_page,end_page[sprintf('%s, &quot;%s&quot;, <u>%s</u>, %s, vol. %s, pp. %s-%s')]"
+    
+    "maps.feature": "species.species,feature_type.feature_type,feature_synonyms.feature_name"
 
-    maps.marker_type: marker_type,description
+    "maps.feature_type": "feature_type,description"
 
-    maps.germplasm: species.species,germplasm_name,description
+    "maps.map_set": "species.species,map_type.map_type,map_set_name"
 
-    maps.library: species.species,library_name,center_name,center_project
+    "ontology.term": "term_type.term_type,term_name,term_accession"
 
-    ontology.term: term_type.term_type,term_name,term_accession
+    "pathway_*.search": "gene_name,enzyme_name,reaction_id,reaction_name,ec,pathway_id,pathway_name"
 
-    pathway_*.search: gene_name,enzyme_name,reaction_id,reaction_name,ec,pathway_id,pathway_name
+    "protein.gene_product": "gene_product_to_cultivars.cultivar.species.genus,gene_product_to_cultivars.cultivar.species.species,gene_product_helpers.swissprot_acc,gene_product_full_name[sprintf('%s %s protein &quot;%s&quot;: %s')]"
 
-    protein.gene_product: gene_product_to_cultivars.cultivar.species.genus,gene_product_to_cultivars.cultivar.species.species,gene_product_helpers.swissprot_acc,gene_product_full_name[sprintf('%s %s protein &quot;%s&quot;: %s')]
+    "qtl.qtl": "species.species,qtl_accession_id,published_symbol,qtl_trait.qtl_trait_category.trait_category,qtl_trait.trait_symbol,qtl_trait.trait_name,qtl_trait.to_accession"
 
-    qtl.qtl: species.species,qtl_accession_id,published_symbol,qtl_trait.qtl_trait_category.trait_category,qtl_trait.trait_symbol,qtl_trait.trait_name,qtl_trait.to_accession
+    "variation_*.variation": "name"
 
   sql_to_index:
     gene.gene_gene: |
@@ -249,63 +252,6 @@ search:
     - grm_search_literature
     - grm_search_maps
     - grm_search_ontology
-    - grm_search_pathway_arabidopsis
-    - grm_search_pathway_brachypodium
-    - grm_search_pathway_capsicum_anuum
-    - grm_search_pathway_coffea_canephora
-    - grm_search_pathway_maize
-    - grm_search_pathway_medicago_truncatula
-    - grm_search_pathway_poplar
-    - grm_search_pathway_rice
-    - grm_search_pathway_solanum_lycopersicum
-    - grm_search_pathway_solanum_tuberosum
-    - grm_search_pathway_sorghum_bicolor
     - grm_search_protein
     - grm_search_qtl
 
-list_columns:
-  "diversity_*.cdv_marker": "name"
-
-  "diversity_*.div_passport": "accename,accenumb,div_synonyms.synonym,cdv_source_id.source"
-
-  "diversity_*.div_experiment": "name,design,originator,comments"
-
-  "ensembl_*.dna_align_feature": "hit_name,analysis.logic_name"
-
-  "ensembl_*.interpro": "id_field,interpro_ac[sprintf('Interpro accession &quot;%s&quot; in domain &quot;%s&quot;')]"
-
-  "ensembl_*.marker": "type,display_marker_synonym.name"
-
-  "ensembl_*.seq_region": "name"
-
-  "ensembl_*.gene": "biotype,display_xref.display_label,stable_id,description[sprintf('%s gene &quot;%s&quot; [%s]: %s')]"
-
-  "help.question": "question,answer[sprintf('&quot;%s&quot;: %s')]"
-
-  "genes.gene_gene": "species.genus,species.species,symbol,accession,name[sprintf('%s %s gene &quot;%s&quot; (%s): %s')]"
-
-  "genes.gene_germplasm": "species.genus,species.species,accession,wild_type"
-
-  "literature.reference": "authors.contributor.contributor_name,title,source.source_name,year,volume,start_page,end_page[sprintf('%s, &quot;%s&quot;, <u>%s</u>, %s, vol. %s, pp. %s-%s')]"
-
-  "germplasm.germplasm": "species.name,germplasm_acc"
-
-  "maps.map_set": "species.species,map_type.map_type,map_set_name"
-
-  "maps.feature": "species.species,feature_type.feature_type,feature_synonyms.feature_name"
-
-  "maps.feature_type": "feature_type,description"
-
-  "maps.germplasm": "species.species,germplasm_name,description"
-
-  "maps.library": "species.species,library_name,center_name,center_project"
-
-  "ontology.term": "term_type.term_type,name,term_accession"
-
-  "pathway_*.search": "gene_name,enzyme_name,reaction_id,reaction_name,ec,pathway_id,pathway_name"
-
-  "protein.gene_product": "gene_product_to_cultivars.cultivar.species.genus,gene_product_to_cultivars.cultivar.species.species,gene_product_helpers.swissprot_acc,gene_product_full_name[sprintf('%s %s protein &quot;%s&quot;: %s')]"
-
-  "qtl.qtl": "species.species,qtl_accession_id,published_symbol,qtl_trait.qtl_trait_category.trait_category,qtl_trait.trait_symbol,qtl_trait.trait_name,qtl_trait.to_accession"
-
-  "variation_oryza_sativa.variation": "name"
