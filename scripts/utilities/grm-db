@@ -11,9 +11,11 @@ use MySQL::Config qw( parse_defaults );
 use Pod::Usage;
 
 my $list = 0;
+my $long = 0;
 my ( $help, $man_page );
 GetOptions(
     'l|list'  => \$list,
+    'long'    => \$long,
     'h|help'  => \$help,
     'man'     => \$man_page,
 ) or pod2usage(2);
@@ -29,8 +31,22 @@ my $config       = Grm::Config->new;
 my @modules      = $config->get('modules');
 my %valid_module = map { $_, 1 } @modules;
 
-if ( $list ) {
-    print join( "\n", 'Modules:', ( map { "  $_" } sort @modules ), '' );
+if ( $list || $long ) {
+    my $db_name    = sub {
+        my $module = shift or return;
+        my $db     = Grm::DB->new( $module );
+        return $db->real_name;
+    };
+
+    print join( "\n", 'Modules:', 
+        ( 
+            map { "  $_" } 
+            map { $long ? join(': ', $_, $db_name->($_)) : $_ }
+            sort @modules 
+        ), 
+        '',
+    );
+
     exit 0;
 }
 

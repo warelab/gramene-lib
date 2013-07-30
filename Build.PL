@@ -25,6 +25,7 @@ my $builder = Module::Build->new(
         'Log::Dispatch::File'          => 0,
         'Moose'                        => 0,
         'MooseX::Aliases'              => 0,
+        'namespace::autoclean'         => 0,
         'Net::Ping'                    => 0,
         'IO::Prompt'                   => 0,
         'Template'                     => 0,
