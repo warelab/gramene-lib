@@ -34,7 +34,9 @@ for my $module ( @modules ) {
     SKIP: {
         skip "Can't reach host '$host'", 1 unless $reachable{ $host };
  
-        ok( my $dbh = $db->dbh, "$module db handle" );
+        my $dbh;
+        eval { $dbh = $db->dbh };
+        isa_ok( $dbh, 'DBI::db' );
     }
 }
 
