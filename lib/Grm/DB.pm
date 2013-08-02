@@ -133,7 +133,9 @@ sub BUILD {
     }
 
     if ( ! $self->has_host ) {
-        $self->host( $db_conf->{'host'} || $default_db_conf->{'host'} || '' );
+        $self->host( 
+            $db_conf->{'host'} || $default_db_conf->{'host'} || 'localhost'
+        );
     }
 
     if ( ! $self->has_dbd ) {
