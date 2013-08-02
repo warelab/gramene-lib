@@ -36,7 +36,7 @@ for my $module ( @modules ) {
  
         my $dbh;
         eval { $dbh = $db->dbh };
-        isa_ok( $dbh, 'DBI::db' );
+        isa_ok( $dbh, 'DBI::db', "Connection to " . $db->real_name );
     }
 }
 

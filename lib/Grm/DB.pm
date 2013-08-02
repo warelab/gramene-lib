@@ -1,20 +1,20 @@
 package Grm::DB;
 
 use namespace::autoclean;
-use Moose;
 use Carp 'croak';
 use Class::Load qw( load_class );
 use DBI;
 use Grm::Config;
 use Grm::Utils qw( module_name_to_gdbic_class );
-use MooseX::Aliases;
 use Net::Ping;
+use Moose;
+use MooseX::Aliases;
 
-has db_name    => (
-    is         => 'rw',
-    isa        => 'Str',
-    alias      => [ qw( db name ) ],
-    lazy_build => 1,
+has db_name   => (
+    is        => 'rw',
+    isa       => 'Str',
+    alias     => [ qw( db name ) ],
+    predicate => 'has_db_name',
 );
 
 has real_name  => (
@@ -70,7 +70,8 @@ has password   => (
 has host       => (
     is         => 'rw',
     isa        => 'Str',
-    lazy_build => 1,
+    predicate  => 'has_host',
+    default    =>  'localhost',
 );
 
 has config     => (
@@ -96,7 +97,12 @@ around BUILDARGS => sub {
 
 # ----------------------------------------------------------------
 sub BUILD {
-    my $self        = shift;
+    my $self = shift;
+
+    if ( ! $self->has_db_name ) {
+        croak('No db name');
+    }
+
     my $db_name     = $self->db_name;
     my $all_db_conf = $self->config->get('database');
     my $db_conf     = $all_db_conf->{ $db_name } or croak(
@@ -199,6 +205,11 @@ sub _build_dbh {
 }
 
 # ----------------------------------------------------------------
+sub _build_db_name {
+    my $self    = shift;
+}
+
+# ----------------------------------------------------------------
 sub _build_dbic {
     my $self    = shift;
     my $db_name = $self->db_name;
@@ -208,12 +219,13 @@ sub _build_dbic {
         return $class->connect( sub { $self->dbh } );
     }
     else {
-        croak "Can't load '$class'\n";
+        croak("Can't load '$class'\n");
     }
 }
 
 no Moose;
-__PACKAGE__->meta->make_immutable;
+
+#__PACKAGE__->meta->make_immutable;
 
 1;
 

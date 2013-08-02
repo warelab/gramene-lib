@@ -53,45 +53,45 @@ database:
     name: amigo38
 
   diversity_arabidopsis:
-    name: diversity_arabidopsis37
+    name: diversity_arabidopsis38
     user: diversity_rw
 
   diversity_maize:
-    name: diversity_maize37
+    name: diversity_maize38
     user: diversity_rw
 
   diversity_rice:
-    name: diversity_rice37
+    name: diversity_rice38
     user: diversity_rw
 
   diversity_sorghum:
-    name: diversity_sorghum37
+    name: diversity_sorghum38
     user: diversity_rw
 
   diversity_wheat:
-    name: diversity_wheat37
+    name: diversity_wheat38
     user: diversity_rw
 
   genes:
-    name: genes37
+    name: genes38
 
   help:
-    name: gramene_help37
+    name: gramene_help38
     user: gramene_web 
     pass: gram3n3 
 
   literature:
-    name: literature37
+    name: literature38
     user: literature_rw
 
   maps:
-    name: maps37
+    name: maps38
 
   ontology:
     name: ontology38
 
   protein:
-    name: protein37
+    name: protein38
 
   pathway_poplar:
     name: pathway_poplar38
@@ -126,7 +126,7 @@ database:
     user: pathway_rw
 
   qtl:
-    name: qtl37
+    name: qtl38
 
 #  germplasm:
 #    name: germplasm37
