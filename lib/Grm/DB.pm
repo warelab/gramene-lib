@@ -71,7 +71,6 @@ has host       => (
     is         => 'rw',
     isa        => 'Str',
     predicate  => 'has_host',
-    default    =>  'localhost',
 );
 
 has config     => (
