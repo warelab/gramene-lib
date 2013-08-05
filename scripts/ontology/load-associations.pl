@@ -204,6 +204,11 @@ for my $file ( @files ) {
             $Object->update;
         }
 
+        if ( my $syn = $rec{'db_object_synonym'} ) {
+            $Object->db_object_synonym( $syn );
+            $Object->update;
+        }
+
         printf "%-70s\r", sprintf "  %10s (%3d%%): %s => %s", 
             commify($line_num), 
             $line_num == $num_lines ? '100' : int($line_num/$num_lines * 100), 
@@ -231,6 +236,7 @@ printf "Done, processed %s association%s in %s file%s in %s\n",
 ;
 
 exit 0;
+
 
 # ----------------------------------------------------
 sub get_species {

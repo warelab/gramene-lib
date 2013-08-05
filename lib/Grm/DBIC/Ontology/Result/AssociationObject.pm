@@ -60,6 +60,11 @@ __PACKAGE__->table("association_object");
   is_foreign_key: 1
   is_nullable: 0
 
+=head2 synonyms
+
+  data_type: 'text'
+  is_nullable: 1
+
 =cut
 
 __PACKAGE__->add_columns(
@@ -85,6 +90,8 @@ __PACKAGE__->add_columns(
     is_foreign_key => 1,
     is_nullable    => 0,
   },
+  "synonyms",
+  { data_type => "text", is_nullable => 1 },
 );
 __PACKAGE__->set_primary_key("association_object_id");
 
@@ -136,8 +143,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2013-04-19 15:59:35
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:moaJMh/qBlU6ElWDNypsPA
+# Created by DBIx::Class::Schema::Loader v0.07010 @ 2013-08-05 15:13:25
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:Y1XPy4jcAIjnzYCoOJ6Ulg
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
