@@ -614,8 +614,7 @@ Options include:
         }
     }
 
-    my $config = $self->config->get('search');
-    my @dbs    = @{ $config->{'search_dbs'} };
+    my @dbs = $self->search_dbs;
 
     if ( $qry_db ) {
         @dbs = grep { /$qry_db/i } @dbs;
@@ -855,6 +854,23 @@ sub _search_maps {
     $debug->(sprintf('Found %s features in maps', scalar @hits));
 
     return @hits;
+}
+
+# ----------------------------------------------------
+sub search_dbs {
+
+=pod
+
+=head2 search_dbs
+
+  my @dbs = $sdb->search_dbs;
+
+=cut
+
+    my $self   = shift;
+    my $config = $self->config->get('search');
+
+    return @{ $config->{'search_dbs'} };
 }
 
 # ----------------------------------------------------

@@ -10,6 +10,7 @@ use Net::Ping;
 
 use_ok('Grm::Config');
 use_ok('Grm::DB');
+use_ok('Grm::Search');
 
 my $conf;
 ok( $conf = Grm::Config->new, 'Got Grm::Config' );
@@ -38,6 +39,11 @@ for my $module ( @modules ) {
         eval { $dbh = $db->dbh };
         isa_ok( $dbh, 'DBI::db', "Connection to " . $db->real_name );
     }
+}
+
+my $sdb = Grm::Search->new;
+for my $db ( $sdb->search_dbs ) {
+    ok( my $db = $sdb->connect_mysql_search_db( $db ), "$db ok" );
 }
 
 done_testing();

@@ -212,6 +212,7 @@ search:
     - grm_search_diversity_rice
     - grm_search_diversity_sorghum
     - grm_search_diversity_wheat
+    - grm_search_ensembl_aegilops_tauschii
     - grm_search_ensembl_arabidopsis_lyrata
     - grm_search_ensembl_arabidopsis_thaliana
     - grm_search_ensembl_brachypodium_distachyon
@@ -246,12 +247,21 @@ search:
     - grm_search_ensembl_solanum_lycopersicum
     - grm_search_ensembl_solanum_tuberosum
     - grm_search_ensembl_sorghum_bicolor
+    - grm_search_ensembl_triticum_aestivum
+    - grm_search_ensembl_triticum_urartu
     - grm_search_ensembl_vitis_vinifera
     - grm_search_ensembl_zea_mays
     - grm_search_genes
     - grm_search_literature
     - grm_search_maps
     - grm_search_ontology
+    - grm_search_pathway_arabidopsis
+    - grm_search_pathway_brachypodium
+    - grm_search_pathway_maize
+    - grm_search_pathway_poplar
+    - grm_search_pathway_rice
+    - grm_search_pathway_solanum_lycopersicum
+    - grm_search_pathway_solanum_tuberosum
+    - grm_search_pathway_sorghum_bicolor
     - grm_search_protein
     - grm_search_qtl
-
