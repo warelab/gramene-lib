@@ -73,14 +73,15 @@ for my $core ( @cores ) {
 printf "\nFound %s Ensembl cores for version %s\n\n", 
     commify(scalar keys %core_name), $grm_version;
 
+my $num_errors = 0;
+my $indent     = '    - ';
+my $report     = sub { say $indent, @_ };
+my $error      = sub { $num_errors++; say STDERR $indent, 'ERROR: ', @_ };
+
 my $i;
 for my $module ( @ens_modules ) {
     my $db = Grm::DB->new( $module );
     printf "%3s: %s\n", ++$i, $module;
-
-    my $indent = '    - ';
-    my $report = sub { say $indent, @_ };
-    my $error  = sub { say STDERR $indent, 'ERROR: ', @_ };
 
     if ( $db->host eq $db_conf->{'default'}{'host'} ) {
         $report->(sprintf('host ok (%s)', $db->host));
@@ -125,7 +126,8 @@ for my $module ( @ens_modules ) {
     }
 }
 
-say 'Done.';
+printf "Done, found %s error%s.\n", 
+    commify($num_errors), $num_errors == 1 ? '' : 's';
 
 __END__
 
