@@ -127,7 +127,8 @@ if ( !@do_modules ) {
 
 unless ( $force ) {
     my $ok = prompt -yn, 
-        sprintf("OK to load the following?\n%s\n[yn] ", 
+        sprintf("OK to %s the following?\n%s\n[yn] ", 
+            $resume ? 'resume loading' : 'load',
             join("\n", map { " - $_" } @do_modules)
         )
     ;
@@ -190,6 +191,7 @@ Options:
   --like       Comma-separated list of regexes to select modules
   --not-like   Comma-separated list of regexes to deselect modules
   -m|--module  Comma-separated list of modules to index
+  -r|--resume  Resume indexing, don't truncate at the start
   --skip-done  Skip previously indexed modules (useful w/other selectors)
 
   --help       Show brief help and exit
