@@ -296,7 +296,7 @@ tables and records indexed and the elapsed time.
 
             my @index_also;
             for my $other ( @other_tables ) {
-                my $other_table  = $other->{'table_name'};
+                my $other_table = $other->{'table_name'};
 
                 my @other_columns;
                 if ( $other->{'fields'}[0] eq $ALL ) {
@@ -320,9 +320,10 @@ tables and records indexed and the elapsed time.
                 or next;
 
             if ( $verbose ) {
-                printf "\rProcessing %s record%s in '%s.%s'\n",
+                printf "\rProcessing %s record%s in %s '%s.%s'\n",
                     commify($count),
                     $count == 1 ? '' : 's',
+                    $db->real_name,
                     $module,
                     $table;
             }
@@ -373,12 +374,17 @@ tables and records indexed and the elapsed time.
 
                 OTHER_TABLE:
                 for my $other ( @index_also ) {
-                    my $other_table   = $other->{'table_name'};
                     my @other_columns = @{ $other->{'columns'} || [] } or next;
+                    my @methods       = split( /\./, $other->{'table_name'} );
+                    my $other_obj     = $rec;
 
-                    for my $other_obj ( 
-                        $rec->search_related($other_table)->all
-                    ) {
+                    # drill into "qtl.qtl_trait.qtl_trait_category"
+                    while ( my $method = shift @methods ) {
+                        last unless $other_obj;
+                        ($other_obj) = $other_obj->$method() or last;
+                    }
+
+                    if ( $other_obj ) {
                         $text .= join( $SPACE, 
                             $EMPTY_STR,
                             grep { $_ ne 'NULL' }
@@ -1195,7 +1201,7 @@ Returns a hash(ref) of the tables to index for a given module.
 
                 for my $table ( split /,/, $other_tables ) {
                     if ( $table =~ /
-                        (\w+) # table name
+                        ([\w.]+) # table name
                         (     # start capture
                         \[    # left square
                         (.*?) # list (optionally null) of fields

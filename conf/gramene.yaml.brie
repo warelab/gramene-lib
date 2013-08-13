@@ -28,6 +28,7 @@ modules:
   - diversity_sorghum
   - diversity_wheat
   - genes
+  - germplasm
   - help
   - literature
   - maps
@@ -35,7 +36,10 @@ modules:
   - protein
   - pathway_arabidopsis
   - pathway_brachypodium
+  - pathway_coffea_canephora
   - pathway_maize
+  - pathway_medicago_truncatula
+  - pathway_plant
   - pathway_poplar
   - pathway_rice
   - pathway_solanum_lycopersicum
@@ -76,6 +80,9 @@ database:
   genes:
     name: genes38
 
+  germplasm:
+    name: germplasm38
+
   help:
     name: gramene_help38
     user: gramene_web 
@@ -94,14 +101,6 @@ database:
   protein:
     name: protein38
 
-  pathway_poplar:
-    name: pathway_poplar38
-    user: pathway_rw
-
-  pathway_rice:
-    name: pathway_rice38
-    user: pathway_rw
-
   pathway_arabidopsis:
     name: pathway_arabidopsis38
     user: pathway_rw
@@ -110,8 +109,28 @@ database:
     name: pathway_brachypodium38
     user: pathway_rw
 
+  pathway_coffea_canephora:
+    name: pathway_coffea_canephora38
+    user: pathway_rw
+
   pathway_maize:
     name: pathway_maize38
+    user: pathway_rw
+
+  pathway_medicago_truncatula:
+    name: pathway_medicago_truncatula38
+    user: pathway_rw
+
+  pathway_poplar:
+    name: pathway_poplar38
+    user: pathway_rw
+
+  pathway_plant:
+    name: pathway_plant38
+    user: pathway_rw
+
+  pathway_rice:
+    name: pathway_rice38
     user: pathway_rw
 
   pathway_solanum_lycopersicum:
@@ -128,11 +147,6 @@ database:
 
   qtl:
     name: qtl38
-
-#  germplasm:
-#    name: germplasm38
-#    user: gramene_web
-#    pass: gram3n3
 
 diversity:
   tax_id:

@@ -150,7 +150,6 @@ sub _build_module {
 sub add_doc {
     my $self = shift;
     my %rec  = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
-
     my $dbh  = $self->dbh; 
     my @flds = qw( url title taxonomy ontology content );
     my @vals = map { s/[^[:ascii:]]//g; $_ } map { $rec{ $_ } } @flds;
