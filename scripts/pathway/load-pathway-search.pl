@@ -9,7 +9,7 @@ use File::CountLines 'count_lines';
 use Getopt::Long;
 use Grm::Config;
 use Grm::DB;
-use Grm::Utils qw( commify );
+use Grm::Utils qw( commify timer_calc );
 use IO::Prompt qw( prompt );
 use Pod::Usage;
 use Readonly;
@@ -50,6 +50,7 @@ if ( $help || $man_page ) {
     });
 }; 
 
+my $timer = timer_calc();
 my $gconf = Grm::Config->new;
 
 if ( $list ) {
@@ -111,7 +112,7 @@ while ( my $rec = $p->fetchrow_hashref ) {
     );
 }
 
-printf "\nDone, loaded %s new records.\n", commify($i);
+printf "\nFinished loading %s records in %s.\n", commify($i), $timer->();
 
 __END__
 

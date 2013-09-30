@@ -47,14 +47,14 @@ Readonly my @OUT_FIELDS => qw(
     gene_product_form_id
 );
 
-my $object_types = 'all';
-my $out_dir      = '';
-my ( $force, $show_types, $help, $man_page );
+my $selected_modules = 'all';
+my $out_dir = '';
+my ( $force, $list_modules, $help, $man_page );
 GetOptions(
     'd|dir:s'    => \$out_dir,
-    'l|list'     => \$show_types,
+    'l|list'     => \$list_modules,
     'f|force'    => \$force,
-    'm|module:s' => \$object_types,
+    'm|module:s' => \$selected_modules,
     'help'       => \$help,
     'man'        => \$man_page,
 ) or pod2usage(2);
@@ -91,9 +91,9 @@ my $gconf = Grm::Config->new;
 
 my %valid = map { $_, 1 } keys %DISPATCH;
 
-if ( $show_types ) {
+if ( $list_modules ) {
     print join "\n", 
-        'Valid types:',
+        'Modules:',
         ( map { " - $_" } sort keys %valid ),
         '',
     ;
@@ -101,27 +101,29 @@ if ( $show_types ) {
     exit 0;
 }
 
-my @object_types = sort uniq split /\s*,\s*/, $object_types;
+my @selected_modules = sort uniq split /\s*,\s*/, $selected_modules;
 
-if ( my @bad = grep { !defined $valid{ $_ } } @object_types ) {
-    pod2usage( sprintf( "Invalid types:\n  %s\n", join(', ', @bad) ) );
+if ( my @bad = grep { !defined $valid{ $_ } } @selected_modules ) {
+    pod2usage( sprintf( "Invalid modules:\n  %s\n", join(', ', @bad) ) );
 }
 
-if ( grep { /^all$/i } @object_types ) {
-    @object_types = sort grep { !$DISPATCH{ $_ }{'expands'} } keys %DISPATCH;
+if ( grep { /^all$/i } @selected_modules ) {
+    @selected_modules = 
+        sort grep { !$DISPATCH{ $_ }{'expands'} } 
+        keys %DISPATCH;
 }
 
 my @tmp;
-for my $obj_type ( @object_types ) {
-    if ( $DISPATCH{ $obj_type }{'expands'} ) {
-        push @tmp, grep { /^$obj_type/  } $gconf->get('modules');
+for my $module ( @selected_modules ) {
+    if ( $DISPATCH{ $module }{'expands'} ) {
+        push @tmp, grep { /^$module/  } $gconf->get('modules');
     }
     else {
-        push @tmp, $obj_type;
+        push @tmp, $module;
     }
 }
 
-@object_types = sort uniq @tmp;
+@selected_modules = sort uniq @tmp;
 
 if ( !$out_dir ) {
     pod2usage('No output directory');
@@ -133,7 +135,7 @@ if ( !-d $out_dir ) {
 
 if ( !$force ) {
     my $yn = prompt -yn, sprintf "OK to process these?\n%s\n [yn] ",
-        join "\n", map { " - $_" } @object_types;
+        join "\n", map { " - $_" } @selected_modules;
 
     if ( !$yn ) {
         say 'OK, bye.';
@@ -154,12 +156,12 @@ my $odbh   = $odb->db->dbh;
 my ( %fh_cache, %object_results, %ontology_results );
 my $total_count = 0;
 
-for my $obj_type ( sort @object_types ) {
+for my $module ( sort @selected_modules ) {
     my $count    = 0;
     my $progress = sub { 
         my $msg  = shift || '';
         printf "%-70s\r", sprintf(
-            "Exporting %s ... %s", $obj_type, $msg || ++$count
+            "Exporting %s ... %s", $module, $msg || ++$count
         );
     };
     $progress->('working');
@@ -167,8 +169,8 @@ for my $obj_type ( sort @object_types ) {
     my $assocs;
     {
         no strict 'refs';
-        my $sub_name = $DISPATCH{ $obj_type }{'run'};
-        $assocs      = &$sub_name( $obj_type, $progress ); 
+        my $sub_name = $DISPATCH{ $module }{'run'};
+        $assocs      = &$sub_name( $module, $progress ); 
     }
 
     print "\n" if $count > 0;
@@ -201,7 +203,7 @@ for my $obj_type ( sort @object_types ) {
                 next ASSOC;
             }
 
-            my $fh = get_fh( $out_dir, $obj_type, $ont_type );
+            my $fh = get_fh( $out_dir, $module, $ont_type );
 
             $assoc->{'db'}          ||= $SOURCE_DB;
             $assoc->{'assigned_by'} ||= $SOURCE_DB;
@@ -219,7 +221,7 @@ for my $obj_type ( sort @object_types ) {
     
             say $fh join( "\t", map { $assoc->{ $_ } || '' } @OUT_FIELDS );
 
-            $object_results{ $obj_type }++;
+            $object_results{ $module }++;
             $ontology_results{ $ont_type }++;
             $total_count++;
         }
@@ -228,7 +230,7 @@ for my $obj_type ( sort @object_types ) {
 
         if ( @obsolete_terms ) {
             my $file = catfile $out_dir, 
-                       join('_', lc $obj_type, 'obsolete.tab');
+                       join('_', lc $module, 'obsolete.tab');
 
             printf "%-70s\n", sprintf("  %s obsolete terms to '%s'", 
                 commify(scalar @obsolete_terms), basename($file)
@@ -265,7 +267,7 @@ for my $obj_type ( sort @object_types ) {
         }
     }
     else {
-        $object_results{ $obj_type } = 0;
+        $object_results{ $module } = 0;
     }
 }
 
@@ -570,7 +572,7 @@ export-ontology-assocs.pl - a script
 
 =head1 SYNOPSIS
 
-  export-ontology-assocs.pl -d /tmp/assocs -t qtl
+  export-ontology-assocs.pl -d /tmp/assocs -m qtl
 
 Required arguments:
 
@@ -579,8 +581,8 @@ Required arguments:
 Options:
 
   -f|--force  Don't prompt for confirmation
-  -m|--module Comma-separated list of modules to export (default "all")
   -l|--list   Show list of valid export modules
+  -m|--module Comma-separated list of modules to export (default "all")
   --help      Show brief help and exit
   --man       Show full documentation
 

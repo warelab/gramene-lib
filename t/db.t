@@ -12,7 +12,7 @@ $ENV{'GrmConfPath'} = catfile( $Bin, 'data', 'gramene.yaml.test' );
 use_ok('Grm::DB');
 
 {
-    throws_ok( sub { Grm::DB->new }, qr/Attribute \(db_name\) is required/, 
+    throws_ok( sub { Grm::DB->new }, qr/No db name/,
         'Dies without arguments' );
 
     throws_ok( sub { Grm::DB->new( db_name => 'bad_db' ) }, 

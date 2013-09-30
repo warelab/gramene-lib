@@ -21,6 +21,8 @@ search:
 
     "genes": "gene_gene[accession:symbol:name:description:public_curation_comment]+gene_gene_synonyms[synonym_name],species[common_name:genus:species]"
 
+    "germplasm": "germplasm[germplasm_acc]+synonyms[name],species[name:gramene_taxonomy_id],phenotypes[to_accession:phenotype_value]"
+
     "literature": "reference[title:abstract]+source[source_name],source.source_synonyms[source_synonym]"
 
     "maps": "feature_type[feature_type];map_set[map_set_name:description]+species[species:common_name];map_type[map_type:description]"
@@ -29,7 +31,7 @@ search:
 
     "protein": "gene_product[gene_product_full_name]+species[ncbi_taxa_id:common_name:genus:species],gene_product_synonyms[gene_product_synonym_symbol],gene_product_helper[swissprot_acc:swissprot_id:gene_product_name:gene_product_gene_name:organism],gene_product_comment[public_comment]"
 
-    "qtl": "qtl[qtl_accession_id:published_symbol:comments]+qtl_trait[trait_symbol:trait_name:to_accession],qtl_trait.qtl_trait_synonym[trait_synonym],qtl_trait.qtl_trait_category[trait_category:to_accession],species[species:common_name:gramene_taxonomy_id:ncbi_taxonomy_id]"
+    "qtl": "qtl[qtl_accession_id:published_symbol:comments]+qtl_trait[trait_symbol:trait_name:to_accession],qtl_trait.qtl_trait_synonyms[trait_synonym],qtl_trait.qtl_trait_category[trait_category:to_accession],species[species:common_name:gramene_taxonomy_id:ncbi_taxonomy_id]"
 
   list_columns:
     "diversity_*.cdv_marker": "name"
@@ -155,6 +157,9 @@ search:
     pathway_arabidopsis.search: |
       select 'GR_tax:014503' as ontology_acc;
 
+    pathway_brachypodium.search: |
+      select 'GR_tax:012596' as ontology_acc;
+
     pathway_rice.search: |
       select 'GR_tax:013684' as ontology_acc;
 
@@ -164,8 +169,14 @@ search:
     pathway_coffea_canephora.search: |
       select 'GR_tax:052003' as ontology_acc;
 
+    pathway_maize.search: |
+      select 'GR_tax:014450' as ontology_acc;
+
     pathway_medicago_truncatula.search: |
       select 'GR_tax:018106' as ontology_acc;
+
+    pathway_poplar.search: |
+      select 'GR_tax:018122' as ontology_acc;
 
     pathway_solanum_lycopersicum.search: |
       select 'GR_tax:018113' as ontology_acc;
@@ -175,15 +186,6 @@ search:
 
     pathway_sorghum_bicolor.search: |
       select 'GR_tax:014159' as ontology_acc;
-
-    pathway_maize.search: |
-      select 'GR_tax:014450' as ontology_acc;
-
-    pathway_brachypodium.search: |
-      select 'GR_tax:012596' as ontology_acc;
-
-    pathway_poplar.search: |
-      select 'GR_tax:018122' as ontology_acc;
 
     protein.gene_product: |
       select distinct d.xref_key
@@ -212,6 +214,7 @@ search:
     - grm_search_diversity_rice
     - grm_search_diversity_sorghum
     - grm_search_diversity_wheat
+    - grm_search_ensembl_aegilops_tauschii
     - grm_search_ensembl_arabidopsis_lyrata
     - grm_search_ensembl_arabidopsis_thaliana
     - grm_search_ensembl_brachypodium_distachyon
@@ -246,12 +249,25 @@ search:
     - grm_search_ensembl_solanum_lycopersicum
     - grm_search_ensembl_solanum_tuberosum
     - grm_search_ensembl_sorghum_bicolor
+    - grm_search_ensembl_triticum_aestivum
+    - grm_search_ensembl_triticum_urartu
     - grm_search_ensembl_vitis_vinifera
     - grm_search_ensembl_zea_mays
     - grm_search_genes
+    - grm_search_germplasm
     - grm_search_literature
     - grm_search_maps
     - grm_search_ontology
+    - grm_search_pathway_arabidopsis
+    - grm_search_pathway_brachypodium
+    - grm_search_pathway_coffea_canephora
+    - grm_search_pathway_maize
+    - grm_search_pathway_medicago_truncatula
+    - grm_search_pathway_plant
+    - grm_search_pathway_poplar
+    - grm_search_pathway_rice
+    - grm_search_pathway_solanum_lycopersicum
+    - grm_search_pathway_solanum_tuberosum
+    - grm_search_pathway_sorghum_bicolor
     - grm_search_protein
     - grm_search_qtl
-
