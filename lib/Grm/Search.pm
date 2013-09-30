@@ -69,12 +69,12 @@ use Grm::Maps;
 use Grm::Utils qw( timer_calc commify extract_ontology camel_case );
 use Grm::Search::Indexer::MySQL;
 use List::MoreUtils qw( uniq );
-use Lucy::Search::IndexSearcher;
-use Lucy::Highlight::Highlighter;
-use Lucy::Search::QueryParser;
-use Lucy::Search::TermQuery;
-use Lucy::Search::ANDQuery;
-use LucyX::Search::WildcardQuery;
+#use Lucy::Search::IndexSearcher;
+#use Lucy::Highlight::Highlighter;
+#use Lucy::Search::QueryParser;
+#use Lucy::Search::TermQuery;
+#use Lucy::Search::ANDQuery;
+#use LucyX::Search::WildcardQuery;
 use Time::HiRes qw( gettimeofday tv_interval );
 use Readonly;
 
@@ -121,9 +121,9 @@ sub BUILD {
         $index_path = catdir( $base_dir, $index_path );
     }    
 
-    if ( !-d $index_path ) {
-        mkpath $index_path;
-    }
+#    if ( !-d $index_path ) {
+#        mkpath $index_path;
+#    }
 
     $self->index_path( $index_path );
 
@@ -211,15 +211,15 @@ tables and records indexed and the elapsed time.
         my $indexer;
         if ( $db_type eq 'lucy' ) {
             my $lucy_schema      = $self->schema;
-            my $module_index     = catdir( $self->index_path, $module );
-
-            # Create an Indexer object.
-            $indexer = Lucy::Index::Indexer->new(
-                index    => $module_index,
-                schema   => $lucy_schema,
-                create   => 1,
-                truncate => 1,
-            ) or die "No indexer\n";
+#            my $module_index     = catdir( $self->index_path, $module );
+#
+#            # Create an Indexer object.
+#            $indexer = Lucy::Index::Indexer->new(
+#                index    => $module_index,
+#                schema   => $lucy_schema,
+#                create   => 1,
+#                truncate => 1,
+#            ) or die "No indexer\n";
         }
         else {
             $indexer = Grm::Search::Indexer::MySQL->new(
