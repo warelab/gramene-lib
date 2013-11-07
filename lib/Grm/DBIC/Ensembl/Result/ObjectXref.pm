@@ -1,20 +1,24 @@
+use utf8;
 package Grm::DBIC::Ensembl::Result::ObjectXref;
 
 # Created by DBIx::Class::Schema::Loader
 # DO NOT MODIFY THE FIRST PART OF THIS FILE
+
+=head1 NAME
+
+Grm::DBIC::Ensembl::Result::ObjectXref
+
+=cut
 
 use strict;
 use warnings;
 
 use Moose;
 use MooseX::NonMoose;
-use namespace::autoclean;
+use MooseX::MarkAsMethods autoclean => 1;
 extends 'DBIx::Class::Core';
 
-
-=head1 NAME
-
-Grm::DBIC::Ensembl::Result::ObjectXref
+=head1 TABLE: C<object_xref>
 
 =cut
 
@@ -105,13 +109,63 @@ __PACKAGE__->add_columns(
     is_nullable => 1,
   },
 );
+
+=head1 PRIMARY KEY
+
+=over 4
+
+=item * L</object_xref_id>
+
+=back
+
+=cut
+
 __PACKAGE__->set_primary_key("object_xref_id");
+
+=head1 UNIQUE CONSTRAINTS
+
+=head2 C<xref_idx>
+
+=over 4
+
+=item * L</xref_id>
+
+=item * L</ensembl_object_type>
+
+=item * L</ensembl_id>
+
+=item * L</analysis_id>
+
+=back
+
+=cut
+
 __PACKAGE__->add_unique_constraint(
   "xref_idx",
   ["xref_id", "ensembl_object_type", "ensembl_id", "analysis_id"],
 );
 
 =head1 RELATIONS
+
+=head2 analysis
+
+Type: belongs_to
+
+Related object: L<Grm::DBIC::Ensembl::Result::Analysis>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "analysis",
+  "Grm::DBIC::Ensembl::Result::Analysis",
+  { analysis_id => "analysis_id" },
+  {
+    is_deferrable => 1,
+    join_type     => "LEFT",
+    on_delete     => "RESTRICT",
+    on_update     => "RESTRICT",
+  },
+);
 
 =head2 dependent_xref
 
@@ -143,41 +197,6 @@ __PACKAGE__->might_have(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
-=head2 xref
-
-Type: belongs_to
-
-Related object: L<Grm::DBIC::Ensembl::Result::Xref>
-
-=cut
-
-__PACKAGE__->belongs_to(
-  "xref",
-  "Grm::DBIC::Ensembl::Result::Xref",
-  { xref_id => "xref_id" },
-  { is_deferrable => 1, on_delete => "CASCADE", on_update => "CASCADE" },
-);
-
-=head2 analysis
-
-Type: belongs_to
-
-Related object: L<Grm::DBIC::Ensembl::Result::Analysis>
-
-=cut
-
-__PACKAGE__->belongs_to(
-  "analysis",
-  "Grm::DBIC::Ensembl::Result::Analysis",
-  { analysis_id => "analysis_id" },
-  {
-    is_deferrable => 1,
-    join_type     => "LEFT",
-    on_delete     => "CASCADE",
-    on_update     => "CASCADE",
-  },
-);
-
 =head2 ontology_xrefs
 
 Type: has_many
@@ -193,9 +212,24 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
+=head2 xref
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-17 13:45:43
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:v0RgVqBx5zhlHCBetQehRQ
+Type: belongs_to
+
+Related object: L<Grm::DBIC::Ensembl::Result::Xref>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "xref",
+  "Grm::DBIC::Ensembl::Result::Xref",
+  { xref_id => "xref_id" },
+  { is_deferrable => 1, on_delete => "RESTRICT", on_update => "RESTRICT" },
+);
+
+
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:mhwspsHo0MNUQkwuJwN9UA
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

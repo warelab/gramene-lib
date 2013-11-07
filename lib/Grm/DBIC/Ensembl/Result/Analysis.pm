@@ -1,20 +1,24 @@
+use utf8;
 package Grm::DBIC::Ensembl::Result::Analysis;
 
 # Created by DBIx::Class::Schema::Loader
 # DO NOT MODIFY THE FIRST PART OF THIS FILE
+
+=head1 NAME
+
+Grm::DBIC::Ensembl::Result::Analysis
+
+=cut
 
 use strict;
 use warnings;
 
 use Moose;
 use MooseX::NonMoose;
-use namespace::autoclean;
+use MooseX::MarkAsMethods autoclean => 1;
 extends 'DBIx::Class::Core';
 
-
-=head1 NAME
-
-Grm::DBIC::Ensembl::Result::Analysis
+=head1 TABLE: C<analysis>
 
 =cut
 
@@ -149,7 +153,31 @@ __PACKAGE__->add_columns(
   "gff_feature",
   { data_type => "varchar", is_nullable => 1, size => 40 },
 );
+
+=head1 PRIMARY KEY
+
+=over 4
+
+=item * L</analysis_id>
+
+=back
+
+=cut
+
 __PACKAGE__->set_primary_key("analysis_id");
+
+=head1 UNIQUE CONSTRAINTS
+
+=head2 C<logic_name_idx>
+
+=over 4
+
+=item * L</logic_name>
+
+=back
+
+=cut
+
 __PACKAGE__->add_unique_constraint("logic_name_idx", ["logic_name"]);
 
 =head1 RELATIONS
@@ -169,7 +197,7 @@ __PACKAGE__->might_have(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
-=head2 datas_file
+=head2 data_files
 
 Type: has_many
 
@@ -178,7 +206,7 @@ Related object: L<Grm::DBIC::Ensembl::Result::DataFile>
 =cut
 
 __PACKAGE__->has_many(
-  "datas_file",
+  "data_files",
   "Grm::DBIC::Ensembl::Result::DataFile",
   { "foreign.analysis_id" => "self.analysis_id" },
   { cascade_copy => 0, cascade_delete => 0 },
@@ -274,21 +302,6 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
-=head2 operons
-
-Type: has_many
-
-Related object: L<Grm::DBIC::Ensembl::Result::Operon>
-
-=cut
-
-__PACKAGE__->has_many(
-  "operons",
-  "Grm::DBIC::Ensembl::Result::Operon",
-  { "foreign.analysis_id" => "self.analysis_id" },
-  { cascade_copy => 0, cascade_delete => 0 },
-);
-
 =head2 operon_transcripts
 
 Type: has_many
@@ -300,6 +313,21 @@ Related object: L<Grm::DBIC::Ensembl::Result::OperonTranscript>
 __PACKAGE__->has_many(
   "operon_transcripts",
   "Grm::DBIC::Ensembl::Result::OperonTranscript",
+  { "foreign.analysis_id" => "self.analysis_id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
+=head2 operons
+
+Type: has_many
+
+Related object: L<Grm::DBIC::Ensembl::Result::Operon>
+
+=cut
+
+__PACKAGE__->has_many(
+  "operons",
+  "Grm::DBIC::Ensembl::Result::Operon",
   { "foreign.analysis_id" => "self.analysis_id" },
   { cascade_copy => 0, cascade_delete => 0 },
 );
@@ -425,8 +453,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-17 13:45:43
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:pWYLX9psx717+cN8pH0G1A
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:E+g5eQQ/JuZrK4WxueLwVA
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

@@ -1,20 +1,24 @@
+use utf8;
 package Grm::DBIC::Ensembl::Result::Xref;
 
 # Created by DBIx::Class::Schema::Loader
 # DO NOT MODIFY THE FIRST PART OF THIS FILE
+
+=head1 NAME
+
+Grm::DBIC::Ensembl::Result::Xref
+
+=cut
 
 use strict;
 use warnings;
 
 use Moose;
 use MooseX::NonMoose;
-use namespace::autoclean;
+use MooseX::MarkAsMethods autoclean => 1;
 extends 'DBIx::Class::Core';
 
-
-=head1 NAME
-
-Grm::DBIC::Ensembl::Result::Xref
+=head1 TABLE: C<xref>
 
 =cut
 
@@ -63,7 +67,7 @@ __PACKAGE__->table("xref");
 =head2 info_type
 
   data_type: 'enum'
-  extra: {list => ["PROJECTION","MISC","DEPENDENT","DIRECT","SEQUENCE_MATCH","INFERRED_PAIR","PROBE","UNMAPPED","COORDINATE_OVERLAP","CHECKSUM"]}
+  extra: {list => ["NONE","PROJECTION","MISC","DEPENDENT","DIRECT","SEQUENCE_MATCH","INFERRED_PAIR","PROBE","UNMAPPED","COORDINATE_OVERLAP","CHECKSUM"]}
   is_nullable: 1
 
 =head2 info_text
@@ -102,6 +106,7 @@ __PACKAGE__->add_columns(
     data_type => "enum",
     extra => {
       list => [
+        "NONE",
         "PROJECTION",
         "MISC",
         "DEPENDENT",
@@ -119,13 +124,58 @@ __PACKAGE__->add_columns(
   "info_text",
   { data_type => "varchar", is_nullable => 1, size => 255 },
 );
+
+=head1 PRIMARY KEY
+
+=over 4
+
+=item * L</xref_id>
+
+=back
+
+=cut
+
 __PACKAGE__->set_primary_key("xref_id");
+
+=head1 UNIQUE CONSTRAINTS
+
+=head2 C<id_index>
+
+=over 4
+
+=item * L</dbprimary_acc>
+
+=item * L</external_db_id>
+
+=item * L</info_type>
+
+=item * L</info_text>
+
+=back
+
+=cut
+
 __PACKAGE__->add_unique_constraint(
   "id_index",
   ["dbprimary_acc", "external_db_id", "info_type", "info_text"],
 );
 
 =head1 RELATIONS
+
+=head2 dependent_xref_dependent_xrefs
+
+Type: has_many
+
+Related object: L<Grm::DBIC::Ensembl::Result::DependentXref>
+
+=cut
+
+__PACKAGE__->has_many(
+  "dependent_xref_dependent_xrefs",
+  "Grm::DBIC::Ensembl::Result::DependentXref",
+  { "foreign.dependent_xref_id" => "self.xref_id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
 
 =head2 dependent_xref_master_xrefs
 
@@ -142,19 +192,19 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
-=head2 dependent_xref_dependent_xrefs
+=head2 external_db
 
-Type: has_many
+Type: belongs_to
 
-Related object: L<Grm::DBIC::Ensembl::Result::DependentXref>
+Related object: L<Grm::DBIC::Ensembl::Result::ExternalDb>
 
 =cut
 
-__PACKAGE__->has_many(
-  "dependent_xref_dependent_xrefs",
-  "Grm::DBIC::Ensembl::Result::DependentXref",
-  { "foreign.dependent_xref_id" => "self.xref_id" },
-  { cascade_copy => 0, cascade_delete => 0 },
+__PACKAGE__->belongs_to(
+  "external_db",
+  "Grm::DBIC::Ensembl::Result::ExternalDb",
+  { external_db_id => "external_db_id" },
+  { is_deferrable => 1, on_delete => "RESTRICT", on_update => "RESTRICT" },
 );
 
 =head2 external_synonyms
@@ -232,24 +282,9 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
-=head2 external_db
 
-Type: belongs_to
-
-Related object: L<Grm::DBIC::Ensembl::Result::ExternalDb>
-
-=cut
-
-__PACKAGE__->belongs_to(
-  "external_db",
-  "Grm::DBIC::Ensembl::Result::ExternalDb",
-  { external_db_id => "external_db_id" },
-  { is_deferrable => 1, on_delete => "CASCADE", on_update => "CASCADE" },
-);
-
-
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-17 13:45:43
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:4+PHG5gSrW9Mk8TE+H784w
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:Qoa/uyOq3Jtqvf7EZftiLQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

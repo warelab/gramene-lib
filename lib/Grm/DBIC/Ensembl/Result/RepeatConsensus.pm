@@ -1,20 +1,24 @@
+use utf8;
 package Grm::DBIC::Ensembl::Result::RepeatConsensus;
 
 # Created by DBIx::Class::Schema::Loader
 # DO NOT MODIFY THE FIRST PART OF THIS FILE
+
+=head1 NAME
+
+Grm::DBIC::Ensembl::Result::RepeatConsensus
+
+=cut
 
 use strict;
 use warnings;
 
 use Moose;
 use MooseX::NonMoose;
-use namespace::autoclean;
+use MooseX::MarkAsMethods autoclean => 1;
 extends 'DBIx::Class::Core';
 
-
-=head1 NAME
-
-Grm::DBIC::Ensembl::Result::RepeatConsensus
+=head1 TABLE: C<repeat_consensus>
 
 =cut
 
@@ -71,6 +75,17 @@ __PACKAGE__->add_columns(
   "repeat_consensus",
   { data_type => "text", is_nullable => 1 },
 );
+
+=head1 PRIMARY KEY
+
+=over 4
+
+=item * L</repeat_consensus_id>
+
+=back
+
+=cut
+
 __PACKAGE__->set_primary_key("repeat_consensus_id");
 
 =head1 RELATIONS
@@ -91,8 +106,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-17 13:45:43
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:v2MhmHKcR6Cbgje3Te31gg
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:W1HDMng1MBM9sETdEHF1IQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

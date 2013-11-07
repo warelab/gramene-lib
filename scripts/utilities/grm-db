@@ -100,6 +100,7 @@ grm-db - connect to a MySQL db using Gramene config info
 Options:
 
   -l|--list     List valid modules
+  --long        List db names with modules
   --help        Show brief help and exit
   --man         Show full documentation
 

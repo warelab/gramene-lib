@@ -1,20 +1,24 @@
+use utf8;
 package Grm::DBIC::Ensembl::Result::UnmappedObject;
 
 # Created by DBIx::Class::Schema::Loader
 # DO NOT MODIFY THE FIRST PART OF THIS FILE
+
+=head1 NAME
+
+Grm::DBIC::Ensembl::Result::UnmappedObject
+
+=cut
 
 use strict;
 use warnings;
 
 use Moose;
 use MooseX::NonMoose;
-use namespace::autoclean;
+use MooseX::MarkAsMethods autoclean => 1;
 extends 'DBIx::Class::Core';
 
-
-=head1 NAME
-
-Grm::DBIC::Ensembl::Result::UnmappedObject
+=head1 TABLE: C<unmapped_object>
 
 =cut
 
@@ -152,7 +156,41 @@ __PACKAGE__->add_columns(
   "parent",
   { data_type => "varchar", is_nullable => 1, size => 255 },
 );
+
+=head1 PRIMARY KEY
+
+=over 4
+
+=item * L</unmapped_object_id>
+
+=back
+
+=cut
+
 __PACKAGE__->set_primary_key("unmapped_object_id");
+
+=head1 UNIQUE CONSTRAINTS
+
+=head2 C<unique_unmapped_obj_idx>
+
+=over 4
+
+=item * L</ensembl_id>
+
+=item * L</ensembl_object_type>
+
+=item * L</identifier>
+
+=item * L</unmapped_reason_id>
+
+=item * L</parent>
+
+=item * L</external_db_id>
+
+=back
+
+=cut
+
 __PACKAGE__->add_unique_constraint(
   "unique_unmapped_obj_idx",
   [
@@ -179,7 +217,7 @@ __PACKAGE__->belongs_to(
   "analysis",
   "Grm::DBIC::Ensembl::Result::Analysis",
   { analysis_id => "analysis_id" },
-  { is_deferrable => 1, on_delete => "CASCADE", on_update => "CASCADE" },
+  { is_deferrable => 1, on_delete => "RESTRICT", on_update => "RESTRICT" },
 );
 
 =head2 external_db
@@ -197,8 +235,8 @@ __PACKAGE__->belongs_to(
   {
     is_deferrable => 1,
     join_type     => "LEFT",
-    on_delete     => "CASCADE",
-    on_update     => "CASCADE",
+    on_delete     => "RESTRICT",
+    on_update     => "RESTRICT",
   },
 );
 
@@ -214,12 +252,12 @@ __PACKAGE__->belongs_to(
   "unmapped_reason",
   "Grm::DBIC::Ensembl::Result::UnmappedReason",
   { unmapped_reason_id => "unmapped_reason_id" },
-  { is_deferrable => 1, on_delete => "CASCADE", on_update => "CASCADE" },
+  { is_deferrable => 1, on_delete => "RESTRICT", on_update => "RESTRICT" },
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-17 13:45:43
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:2lttf2ks4OkSO6W7aW7tVg
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:oB82UGmQsHgcvz1AUez2nA
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

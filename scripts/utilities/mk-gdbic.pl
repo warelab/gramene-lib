@@ -12,6 +12,7 @@ use File::Spec::Functions;
 use Getopt::Long;
 use Grm::Config;
 use Grm::DB;
+use List::MoreUtils qw( uniq );
 use IO::Prompt qw( prompt );
 use Pod::Usage;
 use Perl6::Slurp qw( slurp );
@@ -53,7 +54,10 @@ my @reusable = split( /\s*,\s*/, $sconf->{'reusable_schemas'} || '' );
 my @modules  = $config->get('modules');
 
 if ( $show_list ) {
-    say join "\n", 'Valid module:', map { " - $_" } sort @modules, @reusable;
+    say join "\n", 'Valid module:', 
+        map { " - $_" } 
+        uniq( sort @modules, @reusable );
+
     exit 0;
 }
 
@@ -68,7 +72,7 @@ if ( !$db_names && !$make_all ) {
 }
 
 my @dbs = $make_all ? @modules : split( /\s*,\s*/, $db_names );
-my %is_valid = map { $_, 1 } @modules;
+my %is_valid = map { $_, 1 } @modules, @reusable;
 
 if ( my @bad = grep { !$is_valid{ $_ } } @dbs ) {
     die sprintf( "Invalid modules: %s\n", join(', ', @bad) );
@@ -108,7 +112,9 @@ for my $db_name ( @dbs ) {
     my $host  = $db->host;
     my $class = '';
 
-    if ( $db_name =~ /^ensembl_/ && $db->real_name =~ /core/ ) {
+    if ( ( $db_name =~ /^ensembl_/ || $db_name eq 'ensembl' )
+        && $db->real_name =~ /core/ 
+    ) {
         next DB if $host eq 'ensembldb.ensembl.org'; 
 
         $db_name = 'ensembl';

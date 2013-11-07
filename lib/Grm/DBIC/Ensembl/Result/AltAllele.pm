@@ -1,20 +1,24 @@
+use utf8;
 package Grm::DBIC::Ensembl::Result::AltAllele;
 
 # Created by DBIx::Class::Schema::Loader
 # DO NOT MODIFY THE FIRST PART OF THIS FILE
+
+=head1 NAME
+
+Grm::DBIC::Ensembl::Result::AltAllele
+
+=cut
 
 use strict;
 use warnings;
 
 use Moose;
 use MooseX::NonMoose;
-use namespace::autoclean;
+use MooseX::MarkAsMethods autoclean => 1;
 extends 'DBIx::Class::Core';
 
-
-=head1 NAME
-
-Grm::DBIC::Ensembl::Result::AltAllele
+=head1 TABLE: C<alt_allele>
 
 =cut
 
@@ -68,8 +72,45 @@ __PACKAGE__->add_columns(
     is_nullable => 0,
   },
 );
+
+=head1 PRIMARY KEY
+
+=over 4
+
+=item * L</alt_allele_id>
+
+=back
+
+=cut
+
 __PACKAGE__->set_primary_key("alt_allele_id");
+
+=head1 UNIQUE CONSTRAINTS
+
+=head2 C<allele_idx>
+
+=over 4
+
+=item * L</alt_allele_id>
+
+=item * L</gene_id>
+
+=back
+
+=cut
+
 __PACKAGE__->add_unique_constraint("allele_idx", ["alt_allele_id", "gene_id"]);
+
+=head2 C<gene_idx>
+
+=over 4
+
+=item * L</gene_id>
+
+=back
+
+=cut
+
 __PACKAGE__->add_unique_constraint("gene_idx", ["gene_id"]);
 
 =head1 RELATIONS
@@ -86,12 +127,12 @@ __PACKAGE__->belongs_to(
   "gene",
   "Grm::DBIC::Ensembl::Result::Gene",
   { gene_id => "gene_id" },
-  { is_deferrable => 1, on_delete => "CASCADE", on_update => "CASCADE" },
+  { is_deferrable => 1, on_delete => "RESTRICT", on_update => "RESTRICT" },
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-17 13:45:43
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:whOfjY/qiYyKKf22AgK0RQ
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:8aOGzmrNYciRyI6YB8dZ1A
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

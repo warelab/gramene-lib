@@ -1,20 +1,24 @@
+use utf8;
 package Grm::DBIC::Ensembl::Result::Transcript;
 
 # Created by DBIx::Class::Schema::Loader
 # DO NOT MODIFY THE FIRST PART OF THIS FILE
+
+=head1 NAME
+
+Grm::DBIC::Ensembl::Result::Transcript
+
+=cut
 
 use strict;
 use warnings;
 
 use Moose;
 use MooseX::NonMoose;
-use namespace::autoclean;
+use MooseX::MarkAsMethods autoclean => 1;
 extends 'DBIx::Class::Core';
 
-
-=head1 NAME
-
-Grm::DBIC::Ensembl::Result::Transcript
+=head1 TABLE: C<transcript>
 
 =cut
 
@@ -234,10 +238,89 @@ __PACKAGE__->add_columns(
     is_nullable => 0,
   },
 );
+
+=head1 PRIMARY KEY
+
+=over 4
+
+=item * L</transcript_id>
+
+=back
+
+=cut
+
 __PACKAGE__->set_primary_key("transcript_id");
+
+=head1 UNIQUE CONSTRAINTS
+
+=head2 C<canonical_translation_idx>
+
+=over 4
+
+=item * L</canonical_translation_id>
+
+=back
+
+=cut
+
 __PACKAGE__->add_unique_constraint("canonical_translation_idx", ["canonical_translation_id"]);
 
 =head1 RELATIONS
+
+=head2 analysis
+
+Type: belongs_to
+
+Related object: L<Grm::DBIC::Ensembl::Result::Analysis>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "analysis",
+  "Grm::DBIC::Ensembl::Result::Analysis",
+  { analysis_id => "analysis_id" },
+  { is_deferrable => 1, on_delete => "RESTRICT", on_update => "RESTRICT" },
+);
+
+=head2 canonical_translation
+
+Type: belongs_to
+
+Related object: L<Grm::DBIC::Ensembl::Result::Translation>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "canonical_translation",
+  "Grm::DBIC::Ensembl::Result::Translation",
+  { translation_id => "canonical_translation_id" },
+  {
+    is_deferrable => 1,
+    join_type     => "LEFT",
+    on_delete     => "RESTRICT",
+    on_update     => "RESTRICT",
+  },
+);
+
+=head2 display_xref
+
+Type: belongs_to
+
+Related object: L<Grm::DBIC::Ensembl::Result::Xref>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "display_xref",
+  "Grm::DBIC::Ensembl::Result::Xref",
+  { xref_id => "display_xref_id" },
+  {
+    is_deferrable => 1,
+    join_type     => "LEFT",
+    on_delete     => "RESTRICT",
+    on_update     => "RESTRICT",
+  },
+);
 
 =head2 exon_transcripts
 
@@ -254,6 +337,26 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
+=head2 gene
+
+Type: belongs_to
+
+Related object: L<Grm::DBIC::Ensembl::Result::Gene>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "gene",
+  "Grm::DBIC::Ensembl::Result::Gene",
+  { gene_id => "gene_id" },
+  {
+    is_deferrable => 1,
+    join_type     => "LEFT",
+    on_delete     => "RESTRICT",
+    on_update     => "RESTRICT",
+  },
+);
+
 =head2 genes
 
 Type: has_many
@@ -267,6 +370,21 @@ __PACKAGE__->has_many(
   "Grm::DBIC::Ensembl::Result::Gene",
   { "foreign.canonical_transcript_id" => "self.transcript_id" },
   { cascade_copy => 0, cascade_delete => 0 },
+);
+
+=head2 seq_region
+
+Type: belongs_to
+
+Related object: L<Grm::DBIC::Ensembl::Result::SeqRegion>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "seq_region",
+  "Grm::DBIC::Ensembl::Result::SeqRegion",
+  { seq_region_id => "seq_region_id" },
+  { is_deferrable => 1, on_delete => "RESTRICT", on_update => "RESTRICT" },
 );
 
 =head2 splicing_event_features
@@ -312,96 +430,6 @@ __PACKAGE__->has_many(
   "Grm::DBIC::Ensembl::Result::SplicingTranscriptPair",
   { "foreign.transcript_id_2" => "self.transcript_id" },
   { cascade_copy => 0, cascade_delete => 0 },
-);
-
-=head2 analysis
-
-Type: belongs_to
-
-Related object: L<Grm::DBIC::Ensembl::Result::Analysis>
-
-=cut
-
-__PACKAGE__->belongs_to(
-  "analysis",
-  "Grm::DBIC::Ensembl::Result::Analysis",
-  { analysis_id => "analysis_id" },
-  { is_deferrable => 1, on_delete => "CASCADE", on_update => "CASCADE" },
-);
-
-=head2 display_xref
-
-Type: belongs_to
-
-Related object: L<Grm::DBIC::Ensembl::Result::Xref>
-
-=cut
-
-__PACKAGE__->belongs_to(
-  "display_xref",
-  "Grm::DBIC::Ensembl::Result::Xref",
-  { xref_id => "display_xref_id" },
-  {
-    is_deferrable => 1,
-    join_type     => "LEFT",
-    on_delete     => "CASCADE",
-    on_update     => "CASCADE",
-  },
-);
-
-=head2 gene
-
-Type: belongs_to
-
-Related object: L<Grm::DBIC::Ensembl::Result::Gene>
-
-=cut
-
-__PACKAGE__->belongs_to(
-  "gene",
-  "Grm::DBIC::Ensembl::Result::Gene",
-  { gene_id => "gene_id" },
-  {
-    is_deferrable => 1,
-    join_type     => "LEFT",
-    on_delete     => "CASCADE",
-    on_update     => "CASCADE",
-  },
-);
-
-=head2 seq_region
-
-Type: belongs_to
-
-Related object: L<Grm::DBIC::Ensembl::Result::SeqRegion>
-
-=cut
-
-__PACKAGE__->belongs_to(
-  "seq_region",
-  "Grm::DBIC::Ensembl::Result::SeqRegion",
-  { seq_region_id => "seq_region_id" },
-  { is_deferrable => 1, on_delete => "CASCADE", on_update => "CASCADE" },
-);
-
-=head2 canonical_translation
-
-Type: belongs_to
-
-Related object: L<Grm::DBIC::Ensembl::Result::Translation>
-
-=cut
-
-__PACKAGE__->belongs_to(
-  "canonical_translation",
-  "Grm::DBIC::Ensembl::Result::Translation",
-  { translation_id => "canonical_translation_id" },
-  {
-    is_deferrable => 1,
-    join_type     => "LEFT",
-    on_delete     => "CASCADE",
-    on_update     => "CASCADE",
-  },
 );
 
 =head2 transcript_attribs
@@ -465,8 +493,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-17 13:45:43
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:YlxEtZH5f8VwY+v+opHkYA
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:s5JCmJCp0aaItE9HRdeWXQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

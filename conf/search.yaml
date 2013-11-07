@@ -1,45 +1,26 @@
 search:
   database:
-    name: gramene_search38
-    user: gramene_web
-    password: gram3n3
-    host: cabot
+    host     : cabot
+    user     : gramene_web
+    password : gram3n3
 
   page_size: 10
 
   index_path: search-index
 
-  reusable_schemas: "diversity,pathway,amigo,ontology"
+  reusable_schemas: "ensembl,pathway,amigo,ontology"
 
   tables_to_index:
 
-    "diversity_*": "div_passport[div_passport_acc:accename:source:accenumb]+div_synonyms[synonym],div_taxonomy[genus:species:subspecies:common_name:term_accession],div_stocks[seed_lot:stock_source:comments];div_experiment[name:design:originator:comments];div_obs_unit_sample[name:producer];div_obs_unit[name];div_trait_uom[local_trait_name];div_stock[seed_lot:stock_source]"
-
     "compara": "member[stable_id:description]"
 
-    "ensembl_*": "gene[biotype:description:stable_id]+transcripts[stable_id],seq_region[name]"
-
-    "genes": "gene_gene[accession:symbol:name:description:public_curation_comment]+gene_gene_synonyms[synonym_name],species[common_name:genus:species]"
-
-    "germplasm": "germplasm[germplasm_acc]+synonyms[name],species[name:gramene_taxonomy_id],phenotypes[to_accession:phenotype_value]"
-
-    "literature": "reference[title:abstract]+source[source_name],source.source_synonyms[source_synonym]"
+    "ensembl_*": "gene[biotype:description:stable_id]+transcripts[stable_id],seq_region[name],display_xref[display_label],prediction_transcript[display_label]"
 
     "maps": "feature_type[feature_type];map_set[map_set_name:description]+species[species:common_name];map_type[map_type:description]"
 
     "ontology": "term[name:term_accession]+term_definition[definition],term_type[term_type],term_synonyms[term_synonym]"
 
-    "protein": "gene_product[gene_product_full_name]+species[ncbi_taxa_id:common_name:genus:species],gene_product_synonyms[gene_product_synonym_symbol],gene_product_helper[swissprot_acc:swissprot_id:gene_product_name:gene_product_gene_name:organism],gene_product_comment[public_comment]"
-
-    "qtl": "qtl[qtl_accession_id:published_symbol:comments]+qtl_trait[trait_symbol:trait_name:to_accession],qtl_trait.qtl_trait_synonyms[trait_synonym],qtl_trait.qtl_trait_category[trait_category:to_accession],species[species:common_name:gramene_taxonomy_id:ncbi_taxonomy_id]"
-
   list_columns:
-    "diversity_*.cdv_marker": "name"
-
-    "diversity_*.div_experiment": "name,design,originator,comments"
-
-    "diversity_*.div_passport": "accename,accenumb,div_synonyms.synonym,cdv_source_id.source"
-
     "ensembl_*.dna_align_feature": "hit_name,analysis.logic_name"
 
     "ensembl_*.gene": "biotype,display_xref.display_label,stable_id,description[sprintf('%s gene &quot;%s&quot; [%s]: %s')]"
@@ -50,16 +31,6 @@ search:
 
     "ensembl_*.seq_region": "name"
 
-    "genes.gene_gene": "species.genus,species.species,symbol,accession,name[sprintf('%s %s gene &quot;%s&quot; (%s): %s')]"
-
-    "genes.gene_germplasm": "species.genus,species.species,accession,wild_type"
-
-    "germplasm.germplasm": "species.name,germplasm_acc"
-
-    "help.question": "question,answer[sprintf('&quot;%s&quot;: %s')]"
-
-    "literature.reference": "authors.contributor.contributor_name,title,source.source_name,year,volume,start_page,end_page[sprintf('%s, &quot;%s&quot;, <u>%s</u>, %s, vol. %s, pp. %s-%s')]"
-    
     "maps.feature": "species.species,feature_type.feature_type,feature_synonyms.feature_name"
 
     "maps.feature_type": "feature_type,description"
@@ -70,44 +41,7 @@ search:
 
     "pathway_*.search": "gene_name,enzyme_name,reaction_id,reaction_name,ec,pathway_id,pathway_name"
 
-    "protein.gene_product": "gene_product_to_cultivars.cultivar.species.genus,gene_product_to_cultivars.cultivar.species.species,gene_product_helpers.swissprot_acc,gene_product_full_name[sprintf('%s %s protein &quot;%s&quot;: %s')]"
-
-    "qtl.qtl": "species.species,qtl_accession_id,published_symbol,qtl_trait.qtl_trait_category.trait_category,qtl_trait.trait_symbol,qtl_trait.trait_name,qtl_trait.to_accession"
-
-    "variation_*.variation": "name"
-
   sql_to_index:
-    gene.gene_gene: |
-      select o.term_accession
-      from   gene_ontology_association o
-      where  o.object_id=?
-      and    o.object_table='gene';
-
-      select g.accession, g.wild_type, s.common_name, s.genus, s.species
-      from   gene_object_to_germplasm o, gene_species s, gene_germplasm g
-      where  o.object_table='gene'
-      and    o.object_id=?
-      and    o.germplasm_id=g.germplasm_id
-      and    g.species_id=s.species_id;
-
-      select a.accession, a.symbol, a.name, a.description, 
-             a.allele_interaction_description, a.public_curation_comment
-      from   gene_gene_to_allele g2a, gene_allele a
-      where  g2a.gene_id=?
-      and    g2a.allele_id=a.allele_id;
-
-    literature.reference: |
-      select x.xref_value a
-      from   xref x, xref_type xt
-      where  x.record_id=?
-      and    x.xref_type_id=xt.xref_type_id
-      and    xt.xref_type='gramene.ontology';
-
-      select c.contributor_name
-      from   author a, contributor c
-      where  a.reference_id=?
-      and    a.contributor_id=c.contributor_id;
-
     ensembl_*.gene: |
       select x.dbprimary_acc, x.display_label, x.description, 
              e.db_name, e.db_display_name
@@ -150,6 +84,12 @@ search:
       and     pf.hit_name=i.id
       and     i.interpro_ac=x.dbprimary_acc;
 
+      select x.xref_id, x.display_label
+      from   gene g, transcript t, xref x
+      where  g.gene_id=?
+      and    g.canonical_transcript_id=t.transcript_id
+      and    t.display_xref_id=x.xref_id;
+
       select meta_value as ncbi_taxonomy_id
       from   meta 
       where  meta_key='species.taxonomy_id';
@@ -187,87 +127,56 @@ search:
     pathway_sorghum_bicolor.search: |
       select 'GR_tax:014159' as ontology_acc;
 
-    protein.gene_product: |
-      select distinct d.xref_key
-      from   objectxref o, dbxref d
-      where  d.dbxref_id=o.dbxref_id
-      and    o.row_id=?
-      and    o.table_name='gramene.protein'
-      and    d.xref_dbname not in 
-           ('gramene.literature', 'gramene.ontology.taxonomy', 'gramene.gene');
-
-      select distinct xref_key as gramene_taxonomy_id
-      from   objectxref ox, dbxref dx
-      where  ox.dbxref_id=dx.dbxref_id
-      and    row_id=?
-      and    table_name='gramene.protein'
-      and    xref_dbname='gramene.ontology.taxonomy';
-
-      select k.keyword
-      from   keyword k, gene_product_to_keyword g
-      where  k.keyword_id=g.keyword_id
-      and    g.gene_product_id=?
-
   search_dbs:
-    - grm_search_diversity_arabidopsis
-    - grm_search_diversity_maize
-    - grm_search_diversity_rice
-    - grm_search_diversity_sorghum
-    - grm_search_diversity_wheat
-    - grm_search_ensembl_aegilops_tauschii
-    - grm_search_ensembl_arabidopsis_lyrata
-    - grm_search_ensembl_arabidopsis_thaliana
-    - grm_search_ensembl_brachypodium_distachyon
-    - grm_search_ensembl_brassica_rapa
-    - grm_search_ensembl_chlamydomonas_reinhardtii
-    - grm_search_ensembl_cyanidioschyzon_merolae
-    - grm_search_ensembl_glycine_max
-    - grm_search_ensembl_hordeum_vulgare
-    - grm_search_ensembl_leersia_perrieri
-    - grm_search_ensembl_medicago_truncatula
-    - grm_search_ensembl_musa_acuminata
-    - grm_search_ensembl_oryza_barthii
-    - grm_search_ensembl_oryza_brachyantha
-    - grm_search_ensembl_oryza_glaberrima
-    - grm_search_ensembl_oryza_glumaepatula
-    - grm_search_ensembl_oryza_granulata
-    - grm_search_ensembl_oryza_longistaminata
-    - grm_search_ensembl_oryza_meridionalis
-    - grm_search_ensembl_oryza_minutabb
-    - grm_search_ensembl_oryza_minutacc
-    - grm_search_ensembl_oryza_nivara
-    - grm_search_ensembl_oryza_officinalis
-    - grm_search_ensembl_oryza_punctata
-    - grm_search_ensembl_oryza_rufipogon3s
-    - grm_search_ensembl_oryza_rufipogon_fpc
-    - grm_search_ensembl_oryza_sativa_indica
-    - grm_search_ensembl_oryza_sativa_japonica
-    - grm_search_ensembl_physcomitrella_patens
-    - grm_search_ensembl_populus_trichocarpa
-    - grm_search_ensembl_selaginella_moellendorffii
-    - grm_search_ensembl_setaria_italica
-    - grm_search_ensembl_solanum_lycopersicum
-    - grm_search_ensembl_solanum_tuberosum
-    - grm_search_ensembl_sorghum_bicolor
-    - grm_search_ensembl_triticum_aestivum
-    - grm_search_ensembl_triticum_urartu
-    - grm_search_ensembl_vitis_vinifera
-    - grm_search_ensembl_zea_mays
-    - grm_search_genes
-    - grm_search_germplasm
-    - grm_search_literature
-    - grm_search_maps
-    - grm_search_ontology
-    - grm_search_pathway_arabidopsis
-    - grm_search_pathway_brachypodium
-    - grm_search_pathway_coffea_canephora
-    - grm_search_pathway_maize
-    - grm_search_pathway_medicago_truncatula
-    - grm_search_pathway_plant
-    - grm_search_pathway_poplar
-    - grm_search_pathway_rice
-    - grm_search_pathway_solanum_lycopersicum
-    - grm_search_pathway_solanum_tuberosum
-    - grm_search_pathway_sorghum_bicolor
-    - grm_search_protein
-    - grm_search_qtl
+    - grm_search_ensembl_aegilops_tauschii40
+    - grm_search_ensembl_arabidopsis_lyrata40
+    - grm_search_ensembl_arabidopsis_thaliana40
+    - grm_search_ensembl_brachypodium_distachyon40
+    - grm_search_ensembl_brassica_rapa40
+    - grm_search_ensembl_chlamydomonas_reinhardtii40
+    - grm_search_ensembl_cyanidioschyzon_merolae40
+    - grm_search_ensembl_glycine_max40
+    - grm_search_ensembl_hordeum_vulgare40
+    - grm_search_ensembl_leersia_perrieri40
+    - grm_search_ensembl_medicago_truncatula40
+    - grm_search_ensembl_musa_acuminata40
+    - grm_search_ensembl_oryza_barthii40
+    - grm_search_ensembl_oryza_brachyantha40
+    - grm_search_ensembl_oryza_glaberrima40
+    - grm_search_ensembl_oryza_glumaepatula40
+    - grm_search_ensembl_oryza_granulata40
+    - grm_search_ensembl_oryza_longistaminata40
+    - grm_search_ensembl_oryza_meridionalis40
+    - grm_search_ensembl_oryza_minutabb40
+    - grm_search_ensembl_oryza_minutacc40
+    - grm_search_ensembl_oryza_nivara40
+    - grm_search_ensembl_oryza_officinalis40
+    - grm_search_ensembl_oryza_punctata40
+    - grm_search_ensembl_oryza_rufipogon3s40
+    - grm_search_ensembl_oryza_rufipogon_fpc40
+    - grm_search_ensembl_oryza_sativa_indica40
+    - grm_search_ensembl_oryza_sativa_japonica40
+    - grm_search_ensembl_physcomitrella_patens40
+    - grm_search_ensembl_populus_trichocarpa40
+    - grm_search_ensembl_selaginella_moellendorffii40
+    - grm_search_ensembl_setaria_italica40
+    - grm_search_ensembl_solanum_lycopersicum40
+    - grm_search_ensembl_solanum_tuberosum40
+    - grm_search_ensembl_sorghum_bicolor40
+    - grm_search_ensembl_triticum_aestivum40
+    - grm_search_ensembl_triticum_urartu40
+    - grm_search_ensembl_vitis_vinifera40
+    - grm_search_ensembl_zea_mays40
+    - grm_search_maps40
+    - grm_search_ontology40
+    - grm_search_pathway_arabidopsis40
+    - grm_search_pathway_brachypodium40
+    - grm_search_pathway_coffea_canephora40
+    - grm_search_pathway_maize40
+    - grm_search_pathway_medicago_truncatula40
+    - grm_search_pathway_plant40
+    - grm_search_pathway_poplar40
+    - grm_search_pathway_rice40
+    - grm_search_pathway_solanum_lycopersicum40
+    - grm_search_pathway_solanum_tuberosum40
+    - grm_search_pathway_sorghum_bicolor40

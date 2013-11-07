@@ -1,1 +1,86 @@
-gramene.yaml.brie
+---
+also_load: search.yaml,ontology.yaml
+
+base_dir: /usr/local/gramene-lib
+
+version: 40
+
+ensembl:
+  version: 73
+  install_dir: /usr/local/ensembl-live
+  registry_file: /usr/local/gramene-ensembl/conf/ensembl.registry
+  sql_file: /usr/local/ensembl-live/ensembl/sql/table.sql
+  foreign_key_file: /usr/local/ensembl-live/ensembl/sql/foreign_keys.sql
+
+mysql:
+  mysql: /usr/bin/mysql
+  mysqladmin: /usr/bin/mysqladmin
+  mysqlshow: /usr/bin/mysqlshow
+  host: cabot
+  admin_user: gramene_web
+  admin_password: gram3n3
+
+modules:
+  - amigo
+  - maps
+  - ontology
+  - pathway_arabidopsis
+  - pathway_brachypodium
+  - pathway_coffea_canephora
+  - pathway_maize
+  - pathway_medicago_truncatula
+  - pathway_plant
+  - pathway_poplar
+  - pathway_rice
+  - pathway_solanum_lycopersicum
+  - pathway_solanum_tuberosum
+  - pathway_sorghum_bicolor
+
+database:
+  default: 
+    host     : cabot
+    dbd      : mysql
+    user     : gramene_web
+    password : gram3n3
+
+  amigo:
+    name: amigo40
+
+  maps:
+    name: maps40
+
+  ontology:
+    name: ontology40
+
+  pathway_arabidopsis:
+    name: pathway_arabidopsis40
+
+  pathway_brachypodium:
+    name: pathway_brachypodium40
+
+  pathway_coffea_canephora:
+    name: pathway_coffea_canephora40
+
+  pathway_maize:
+    name: pathway_maize40
+
+  pathway_medicago_truncatula:
+    name: pathway_medicago_truncatula40
+
+  pathway_poplar:
+    name: pathway_poplar40
+
+  pathway_plant:
+    name: pathway_plant40
+
+  pathway_rice:
+    name: pathway_rice40
+
+  pathway_solanum_lycopersicum:
+    name: pathway_solanum_lycopersicum40
+
+  pathway_solanum_tuberosum:
+    name: pathway_solanum_tuberosum40
+
+  pathway_sorghum_bicolor:
+    name: pathway_sorghum_bicolor40

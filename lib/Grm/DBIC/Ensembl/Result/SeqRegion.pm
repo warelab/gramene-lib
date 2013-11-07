@@ -1,20 +1,24 @@
+use utf8;
 package Grm::DBIC::Ensembl::Result::SeqRegion;
 
 # Created by DBIx::Class::Schema::Loader
 # DO NOT MODIFY THE FIRST PART OF THIS FILE
+
+=head1 NAME
+
+Grm::DBIC::Ensembl::Result::SeqRegion
+
+=cut
 
 use strict;
 use warnings;
 
 use Moose;
 use MooseX::NonMoose;
-use namespace::autoclean;
+use MooseX::MarkAsMethods autoclean => 1;
 extends 'DBIx::Class::Core';
 
-
-=head1 NAME
-
-Grm::DBIC::Ensembl::Result::SeqRegion
+=head1 TABLE: C<seq_region>
 
 =cut
 
@@ -70,7 +74,33 @@ __PACKAGE__->add_columns(
   "length",
   { data_type => "integer", extra => { unsigned => 1 }, is_nullable => 0 },
 );
+
+=head1 PRIMARY KEY
+
+=over 4
+
+=item * L</seq_region_id>
+
+=back
+
+=cut
+
 __PACKAGE__->set_primary_key("seq_region_id");
+
+=head1 UNIQUE CONSTRAINTS
+
+=head2 C<name_cs_idx>
+
+=over 4
+
+=item * L</name>
+
+=item * L</coord_system_id>
+
+=back
+
+=cut
+
 __PACKAGE__->add_unique_constraint("name_cs_idx", ["name", "coord_system_id"]);
 
 =head1 RELATIONS
@@ -133,6 +163,21 @@ __PACKAGE__->has_many(
   "Grm::DBIC::Ensembl::Result::AssemblyException",
   { "foreign.seq_region_id" => "self.seq_region_id" },
   { cascade_copy => 0, cascade_delete => 0 },
+);
+
+=head2 coord_system
+
+Type: belongs_to
+
+Related object: L<Grm::DBIC::Ensembl::Result::CoordSystem>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "coord_system",
+  "Grm::DBIC::Ensembl::Result::CoordSystem",
+  { coord_system_id => "coord_system_id" },
+  { is_deferrable => 1, on_delete => "RESTRICT", on_update => "RESTRICT" },
 );
 
 =head2 density_features
@@ -285,21 +330,6 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
-=head2 operons
-
-Type: has_many
-
-Related object: L<Grm::DBIC::Ensembl::Result::Operon>
-
-=cut
-
-__PACKAGE__->has_many(
-  "operons",
-  "Grm::DBIC::Ensembl::Result::Operon",
-  { "foreign.seq_region_id" => "self.seq_region_id" },
-  { cascade_copy => 0, cascade_delete => 0 },
-);
-
 =head2 operon_transcripts
 
 Type: has_many
@@ -311,6 +341,21 @@ Related object: L<Grm::DBIC::Ensembl::Result::OperonTranscript>
 __PACKAGE__->has_many(
   "operon_transcripts",
   "Grm::DBIC::Ensembl::Result::OperonTranscript",
+  { "foreign.seq_region_id" => "self.seq_region_id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
+=head2 operons
+
+Type: has_many
+
+Related object: L<Grm::DBIC::Ensembl::Result::Operon>
+
+=cut
+
+__PACKAGE__->has_many(
+  "operons",
+  "Grm::DBIC::Ensembl::Result::Operon",
   { "foreign.seq_region_id" => "self.seq_region_id" },
   { cascade_copy => 0, cascade_delete => 0 },
 );
@@ -390,21 +435,6 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
-=head2 coord_system
-
-Type: belongs_to
-
-Related object: L<Grm::DBIC::Ensembl::Result::CoordSystem>
-
-=cut
-
-__PACKAGE__->belongs_to(
-  "coord_system",
-  "Grm::DBIC::Ensembl::Result::CoordSystem",
-  { coord_system_id => "coord_system_id" },
-  { is_deferrable => 1, on_delete => "CASCADE", on_update => "CASCADE" },
-);
-
 =head2 seq_region_attribs
 
 Type: has_many
@@ -481,8 +511,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-17 13:45:43
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:+qguTKo2PulIKOOiagQTtw
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:1b+ZzwNlVYO2Vdyi9g9x/A
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

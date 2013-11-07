@@ -83,7 +83,7 @@ sub BUILD {
     my ( $self, $args ) = @_;
 
     my $module       = $self->module( $args->{'module'} ) or croak 'No module';
-    my $db_name      = 'grm_search_' . $module;
+    my $db_name      = 'grm_search_' . $module . $self->config->get('version');
     my $mysql_config = $self->config->get('mysql');
     my $mysqlshow    = $mysql_config->{'mysqlshow'};
     my $mysql_args   = join( ' ',

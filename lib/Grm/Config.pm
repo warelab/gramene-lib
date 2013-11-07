@@ -130,10 +130,13 @@ sub _build_config {
                 if ( $species =~ /compara/ ) {
                     $species = 'compara';
                 }
+                elsif ( $db->group =~ /functgen/ ) {
+                    $species = 'functgen_' . $species;
+                }
                 elsif ( $db->group eq 'variation' ) {
                     $species = 'variation_' . $species;
                 }
-                else {
+                elsif ( $db->group eq 'core' ) {
                     $species = 'ensembl_' . $species; 
                 }
 

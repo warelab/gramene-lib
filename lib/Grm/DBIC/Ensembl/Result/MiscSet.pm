@@ -1,20 +1,24 @@
+use utf8;
 package Grm::DBIC::Ensembl::Result::MiscSet;
 
 # Created by DBIx::Class::Schema::Loader
 # DO NOT MODIFY THE FIRST PART OF THIS FILE
+
+=head1 NAME
+
+Grm::DBIC::Ensembl::Result::MiscSet
+
+=cut
 
 use strict;
 use warnings;
 
 use Moose;
 use MooseX::NonMoose;
-use namespace::autoclean;
+use MooseX::MarkAsMethods autoclean => 1;
 extends 'DBIx::Class::Core';
 
-
-=head1 NAME
-
-Grm::DBIC::Ensembl::Result::MiscSet
+=head1 TABLE: C<misc_set>
 
 =cut
 
@@ -73,7 +77,31 @@ __PACKAGE__->add_columns(
   "max_length",
   { data_type => "integer", extra => { unsigned => 1 }, is_nullable => 0 },
 );
+
+=head1 PRIMARY KEY
+
+=over 4
+
+=item * L</misc_set_id>
+
+=back
+
+=cut
+
 __PACKAGE__->set_primary_key("misc_set_id");
+
+=head1 UNIQUE CONSTRAINTS
+
+=head2 C<code_idx>
+
+=over 4
+
+=item * L</code>
+
+=back
+
+=cut
+
 __PACKAGE__->add_unique_constraint("code_idx", ["code"]);
 
 =head1 RELATIONS
@@ -93,9 +121,19 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
+=head2 misc_features
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-17 13:45:43
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:ZyL0fZfQ/+KJ+yi0f8V81Q
+Type: many_to_many
+
+Composing rels: L</misc_feature_misc_sets> -> misc_feature
+
+=cut
+
+__PACKAGE__->many_to_many("misc_features", "misc_feature_misc_sets", "misc_feature");
+
+
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:hCyZJFpD0ggaftj/6oXB6A
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

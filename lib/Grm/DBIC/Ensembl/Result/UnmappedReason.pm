@@ -1,20 +1,24 @@
+use utf8;
 package Grm::DBIC::Ensembl::Result::UnmappedReason;
 
 # Created by DBIx::Class::Schema::Loader
 # DO NOT MODIFY THE FIRST PART OF THIS FILE
+
+=head1 NAME
+
+Grm::DBIC::Ensembl::Result::UnmappedReason
+
+=cut
 
 use strict;
 use warnings;
 
 use Moose;
 use MooseX::NonMoose;
-use namespace::autoclean;
+use MooseX::MarkAsMethods autoclean => 1;
 extends 'DBIx::Class::Core';
 
-
-=head1 NAME
-
-Grm::DBIC::Ensembl::Result::UnmappedReason
+=head1 TABLE: C<unmapped_reason>
 
 =cut
 
@@ -56,6 +60,17 @@ __PACKAGE__->add_columns(
   "full_description",
   { data_type => "varchar", is_nullable => 1, size => 255 },
 );
+
+=head1 PRIMARY KEY
+
+=over 4
+
+=item * L</unmapped_reason_id>
+
+=back
+
+=cut
+
 __PACKAGE__->set_primary_key("unmapped_reason_id");
 
 =head1 RELATIONS
@@ -76,8 +91,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-17 13:45:43
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:Xnd+dj9z1bFaX+IOX7GF9A
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:pl3NH6Qa6IH8JNuGyOyWEg
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

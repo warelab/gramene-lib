@@ -1,20 +1,24 @@
+use utf8;
 package Grm::DBIC::Ensembl::Result::OperonTranscriptGene;
 
 # Created by DBIx::Class::Schema::Loader
 # DO NOT MODIFY THE FIRST PART OF THIS FILE
+
+=head1 NAME
+
+Grm::DBIC::Ensembl::Result::OperonTranscriptGene
+
+=cut
 
 use strict;
 use warnings;
 
 use Moose;
 use MooseX::NonMoose;
-use namespace::autoclean;
+use MooseX::MarkAsMethods autoclean => 1;
 extends 'DBIx::Class::Core';
 
-
-=head1 NAME
-
-Grm::DBIC::Ensembl::Result::OperonTranscriptGene
+=head1 TABLE: C<operon_transcript_gene>
 
 =cut
 
@@ -68,29 +72,20 @@ __PACKAGE__->add_columns(
     is_nullable => 1,
   },
 );
-__PACKAGE__->set_primary_key("operon_transcript_gene_id");
 
-=head1 RELATIONS
+=head1 PRIMARY KEY
 
-=head2 operon_transcript
+=over 4
 
-Type: belongs_to
+=item * L</operon_transcript_gene_id>
 
-Related object: L<Grm::DBIC::Ensembl::Result::OperonTranscript>
+=back
 
 =cut
 
-__PACKAGE__->belongs_to(
-  "operon_transcript",
-  "Grm::DBIC::Ensembl::Result::OperonTranscript",
-  { operon_transcript_id => "operon_transcript_id" },
-  {
-    is_deferrable => 1,
-    join_type     => "LEFT",
-    on_delete     => "CASCADE",
-    on_update     => "CASCADE",
-  },
-);
+__PACKAGE__->set_primary_key("operon_transcript_gene_id");
+
+=head1 RELATIONS
 
 =head2 gene
 
@@ -107,14 +102,34 @@ __PACKAGE__->belongs_to(
   {
     is_deferrable => 1,
     join_type     => "LEFT",
-    on_delete     => "CASCADE",
-    on_update     => "CASCADE",
+    on_delete     => "RESTRICT",
+    on_update     => "RESTRICT",
+  },
+);
+
+=head2 operon_transcript
+
+Type: belongs_to
+
+Related object: L<Grm::DBIC::Ensembl::Result::OperonTranscript>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "operon_transcript",
+  "Grm::DBIC::Ensembl::Result::OperonTranscript",
+  { operon_transcript_id => "operon_transcript_id" },
+  {
+    is_deferrable => 1,
+    join_type     => "LEFT",
+    on_delete     => "RESTRICT",
+    on_update     => "RESTRICT",
   },
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-17 13:45:43
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:lnqdqQRF3uDXrKdnA5V8JA
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:qJmxKyJWcaUt3bwCuj/PGg
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

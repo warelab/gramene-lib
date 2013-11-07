@@ -1,20 +1,24 @@
+use utf8;
 package Grm::DBIC::Ensembl::Result::SeqRegionSynonym;
 
 # Created by DBIx::Class::Schema::Loader
 # DO NOT MODIFY THE FIRST PART OF THIS FILE
+
+=head1 NAME
+
+Grm::DBIC::Ensembl::Result::SeqRegionSynonym
+
+=cut
 
 use strict;
 use warnings;
 
 use Moose;
 use MooseX::NonMoose;
-use namespace::autoclean;
+use MooseX::MarkAsMethods autoclean => 1;
 extends 'DBIx::Class::Core';
 
-
-=head1 NAME
-
-Grm::DBIC::Ensembl::Result::SeqRegionSynonym
+=head1 TABLE: C<seq_region_synonym>
 
 =cut
 
@@ -64,12 +68,36 @@ __PACKAGE__->add_columns(
   "external_db_id",
   { data_type => "integer", extra => { unsigned => 1 }, is_nullable => 1 },
 );
+
+=head1 PRIMARY KEY
+
+=over 4
+
+=item * L</seq_region_synonym_id>
+
+=back
+
+=cut
+
 __PACKAGE__->set_primary_key("seq_region_synonym_id");
+
+=head1 UNIQUE CONSTRAINTS
+
+=head2 C<syn_idx>
+
+=over 4
+
+=item * L</synonym>
+
+=back
+
+=cut
+
 __PACKAGE__->add_unique_constraint("syn_idx", ["synonym"]);
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2012-10-17 12:22:06
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:oEutGNbLoPT5rsbp62gXDA
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:NALaZNQNg8lmT5RJ2RqmAg
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
