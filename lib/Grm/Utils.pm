@@ -77,6 +77,7 @@ Grm::DBIC::Ontology::Term objects.
     my $odb      = Grm::Ontology->new;
     my $dbic     = $odb->db->dbic;
     my $term_rs  = $dbic->resultset('Term');
+    my $syn_rs   = $dbic->resultset('TermSynonym');
     my $ont_pref = join '|', $odb->get_ontology_accession_prefixes;
     my ( @Terms, %seen );
 
@@ -84,6 +85,10 @@ Grm::DBIC::Ontology::Term objects.
        my $acc = $1; 
         if ( !$seen{ $acc }++ ) {
             push @Terms, $term_rs->search({ term_accession => $acc });
+
+            if ( !@Terms ) {
+                push @Terms, $syn_rs->search({ term_synonym => $acc });
+            }
         }
     }
 
@@ -191,11 +196,7 @@ sub module_name_to_gdbic_class {
 
 # ----------------------------------------------------
 sub pager {
-    if ( scalar(@_) % 2 ) {
-        carp("odd number of args to pager");
-    }
-
-    my %args             =  @_;
+    my %args             =  ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
     my $entries_per      =  $args{'entries_per_page'} || 25; 
     my $current_page     =  $args{'current_page'}     ||  1;
     my $url              =  $args{'url'}              || '';
@@ -210,44 +211,65 @@ sub pager {
         current_page     => $current_page,
     });
 
-    my $text = qq[<form method="get">&nbsp;&nbsp;$object_name ] . 
-        commify( $pager->first ) .
-        ' to ' . commify( $pager->last ) . 
-        ' of ' . commify( $pager->total_entries );
-
+    my $text = '';
     if ( $pager->last_page > 1 ) {
-        $text .= '.' . '&nbsp;' x 15;
-        $url  =~ s/[;&]?page_no=\d+//;          # get rid of page_no arg
-        $url  =~ s!^http://.*?(?=/)!!;          # remove host
-        (my $query_string = $url) =~ s/^.*\?//; # isolate the query string
-        my $q =  CGI->new( $query_string );
+        my $form_action = $args{'form_action'} || '';
+        $text = sprintf('<form%s>', 
+            $form_action ? "action='$form_action' " : ''
+        );
 
+        $text .= qq[&nbsp;&nbsp;$object_name ] . 
+            commify( $pager->first ) .
+            ' to ' . commify( $pager->last ) . 
+            ' of ' . commify( $pager->total_entries );
+
+        $text .= '.' . '&nbsp;' x 5;
+        my $click_action = $args{'click_action'} || '';
+#        if ( !$click_action ) {
+            $url  =~ s/[;&]?page_num=\d+//;         # get rid of page_num arg
+            $url  =~ s!^http://.*?(?=/)!!;          # remove host
+
+            (my $query_string = $url) =~ s/^.*\?//; # isolate the query string
+#        }
+
+        my $q = CGI->new( $query_string );
         if ( my $prev = $pager->previous_page ) {
             $text .= $q->a( 
-                { href=> "$url&page_no=${prev}" }, 'Previous' 
+                { href=> "$url&page_num=${prev}" }, 'Previous' 
             ) . ' | ';
         }
 
         for my $param ( $q->param ) {
-            next if $param eq 'page_no';
+            next if $param eq 'page_num';
             for my $value ( $q->param( $param ) ) {
                 $text .= qq[<input type="hidden" name="$param" value="$value">];
             }
         }
 
         $text .= '<input type="submit" value="Page">' .
-            '<input name="page_no" size="4" value="' . 
+            '<input name="page_num" size="4" value="' . 
             $pager->current_page . '">' . 
             ' of ' . commify($pager->last_page) . '.';
 
         if ( my $next = $pager->next_page ) {
-            $text .= ' | ' . $q->a( 
-                { href=> "$url&page_no=${next}" }, 'Next'
-            );
+#            if ( $click_action ) {
+                $text .= ' | ' . $q->a( 
+                    { href=> "get_page('foo', $next)" }, 'Next'
+                );
+#            }
+#            else {
+#                $text .= ' | ' . $q->a( 
+#                    { href=> "$url&page_num=${next}" }, 'Next'
+#                );
+#            }
         }
+
+        $text .= '&nbsp;&nbsp;</form>';
+    }
+    else {
+        $text = sprintf('Found %s results.', commify($count));
     }
 
-    $text .= '&nbsp;&nbsp;</form>';
     $data  = [ $pager->splice( $data ) ] if @{ $data || [] };
     return wantarray ? ( $text, $data ) : $text;
 }
@@ -449,7 +471,7 @@ E.g.:
 
   my ( $pager, $data ) = pager(
       data             => $data, # or "count => 504"
-      current_page     => $cgi->param('page_no'),
+      current_page     => $cgi->param('page_num'),
       url              => 'myscript.cgi?foo=bar&baz=quux',
       entries_per_page => 25,
       object_name      => 'Markers', # instead of default "Items"

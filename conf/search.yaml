@@ -1,4 +1,19 @@
 search:
+  solr:
+    url: "http://brie.cshl.edu:8983/solr/grm-search"
+    schema: "/usr/local/solr/solr/gramene/solr/grm-search/conf/schema.xml"
+    port: "8983"
+    log_dir: "/var/opt/logs/solr"
+    load_fields:
+      - "id"
+      - "module"
+      - "object_type"
+      - "title"
+      - "taxonomy"
+      - "ontology"
+      - "species_name"
+      - "content"
+
   database:
     host     : cabot
     user     : gramene_web
@@ -14,18 +29,22 @@ search:
 
     "compara": "member[stable_id:description]"
 
-    "ensembl_*": "gene[biotype:description:stable_id]+transcripts[stable_id],seq_region[name],display_xref[display_label],prediction_transcript[display_label]"
+    "ensembl_*": "gene[biotype:description:stable_id]+transcripts[stable_id],seq_region[name],display_xref[display_label];prediction_transcript[display_label]"
 
     "maps": "feature_type[feature_type];map_set[map_set_name:description]+species[species:common_name];map_type[map_type:description]"
 
     "ontology": "term[name:term_accession]+term_definition[definition],term_type[term_type],term_synonyms[term_synonym]"
 
+    "pathway_*": "search#pathway[species:gene_name:enzyme_name:reaction_id:reaction_name:ec:pathway_id:pathway_name]"
+
   list_columns:
     "ensembl_*.dna_align_feature": "hit_name,analysis.logic_name"
 
-    "ensembl_*.gene": "biotype,display_xref.display_label,stable_id,description[sprintf('%s gene &quot;%s&quot; [%s]: %s')]"
+    "ensembl_*.gene": "TT:[% SET label=object.display_xref.display_label OR object.stable_id; SET biotype=object.biotype OR 'gene'; SET desc=object.description.remove('\s*\[.*'); \"$label ($biotype): $desc\"; %]" 
 
-    "ensembl_*.interpro": "id_field,interpro_ac[sprintf('Interpro accession &quot;%s&quot; in domain &quot;%s&quot;')]"
+    "ensembl_*.prediction_transcript": "display_label"
+
+    "ensembl_*.interpro": "id_field,interpro_ac('Interpro accession &quot;%s&quot; in domain &quot;%s&quot;')"
 
     "ensembl_*.marker": "type,display_marker_synonym.name"
 
@@ -84,7 +103,7 @@ search:
       and     pf.hit_name=i.id
       and     i.interpro_ac=x.dbprimary_acc;
 
-      select x.xref_id, x.display_label
+      select x.display_label as gene_name
       from   gene g, transcript t, xref x
       where  g.gene_id=?
       and    g.canonical_transcript_id=t.transcript_id

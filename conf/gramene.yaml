@@ -1,7 +1,7 @@
 ---
 also_load: search.yaml,ontology.yaml
 
-base_dir: /usr/local/gramene-lib
+base_dir: /usr/local/gramene/gramene-lib
 
 version: 40
 
@@ -29,7 +29,6 @@ modules:
   - pathway_coffea_canephora
   - pathway_maize
   - pathway_medicago_truncatula
-  - pathway_plant
   - pathway_poplar
   - pathway_rice
   - pathway_solanum_lycopersicum
@@ -50,7 +49,7 @@ database:
     name: maps40
 
   ontology:
-    name: ontology40
+    name: ontology39
 
   pathway_arabidopsis:
     name: pathway_arabidopsis40

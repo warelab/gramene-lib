@@ -29,7 +29,7 @@ use Time::Interval qw( parseInterval );
 Readonly my $COMMA_SPACE => qr/\s*,\s*/;
 
 my $force         =  0;
-my $indexer       = 'mysql';
+my $indexer       = 'solr';
 my $load_all      =  0;
 my $load_like     = '';
 my $load_not_like = '';

@@ -1,6 +1,6 @@
 To update ontologies
 
-1) on brie, "cd /usr/local/ontologies", check and run "update.sh" 
+1) on brie, "cd /usr/local/ontologies", check and run "fetch.sh" 
 
 2) Come back here, run "amigo-load-check.pl" to make sure that went OK
 

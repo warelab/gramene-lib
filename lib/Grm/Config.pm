@@ -127,17 +127,17 @@ sub _build_config {
                 #
                 next DB if $dbc->host =~ /^ensembl/ || $species =~ /multi/;
 
-                if ( $species =~ /compara/ ) {
-                    $species = 'compara';
+                if ( $species =~ /((pan)?compara)/ ) {
+                    $species = $1;
                 }
-                elsif ( $db->group =~ /functgen/ ) {
-                    $species = 'functgen_' . $species;
-                }
-                elsif ( $db->group eq 'variation' ) {
-                    $species = 'variation_' . $species;
+                elsif ( $db->group =~ /(funcgen|variation)/ ) {
+                    $species = join '_', $1, $species;
                 }
                 elsif ( $db->group eq 'core' ) {
                     $species = 'ensembl_' . $species; 
+                }
+                else {
+                    next DB;
                 }
 
                 $conf->{'database'}{ $species } = {

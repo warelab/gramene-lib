@@ -66,8 +66,10 @@ use File::Spec::Functions qw( catdir );
 use File::Path;
 use Grm::Config;
 use Grm::Maps;
+use Grm::Ontology;
 use Grm::Utils qw( timer_calc commify extract_ontology camel_case );
 use Grm::Search::Indexer::MySQL;
+use Grm::Search::Indexer::Solr;
 use List::MoreUtils qw( uniq );
 #use Lucy::Search::IndexSearcher;
 #use Lucy::Highlight::Highlighter;
@@ -199,6 +201,7 @@ tables and records indexed and the elapsed time.
     my $db_type = $args{'db_type'} || 'mysql';
     my $resume  = $args{'resume'}  ||       0;
     my $sconf   = $self->config->get('search');
+    my $odb     = Grm::Ontology->new;
     my %stats;
 
     my $total_timer = timer_calc();
@@ -220,6 +223,11 @@ tables and records indexed and the elapsed time.
 #                create   => 1,
 #                truncate => 1,
 #            ) or die "No indexer\n";
+        }
+        elsif ( $db_type eq 'solr' ) {
+            $indexer = Grm::Search::Indexer::Solr->new(
+                module => $module
+            );
         }
         else {
             $indexer = Grm::Search::Indexer::MySQL->new(
@@ -248,7 +256,8 @@ tables and records indexed and the elapsed time.
                 next TABLE;
             }
 
-            my @id_fields = $source->primary_columns;
+            my $object_type = $tables_to_index{ $table }{'object_type'};
+            my @id_fields   = $source->primary_columns;
 
             if ( scalar @id_fields > 1 ) {
                 print STDERR 
@@ -325,7 +334,8 @@ tables and records indexed and the elapsed time.
                     $count == 1 ? '' : 's',
                     $db->real_name,
                     $module,
-                    $table;
+                    $table,
+                ;
             }
 
             my $ids = $dbh->selectcol_arrayref("select $id_field from $table");
@@ -339,7 +349,9 @@ tables and records indexed and the elapsed time.
 
             $num_tables++;
 
-            $num_records = 0;
+            $num_records   = 0;
+            my $batch_size = 100;
+            my @batch;
 
             ID:
             for my $id ( @$ids ) {
@@ -451,19 +463,48 @@ tables and records indexed and the elapsed time.
                             = split /\./, $list_type;
 
                         my @title_vals;
-                        if ( 
-                            $module =~ /$list_module/ && $table eq $list_table
-                        ) {
+                        next unless $module =~ /$list_module/ 
+                            && $table eq $list_table;
+
+                        if ( $list_def =~ /^TT:(.*)/ ) {
+                            my $tmpl = $1;
+                            my $tt   = Template->new;
+                            $tt->process( \$tmpl, { object => $rec }, \$title ) 
+                                or $title = $tt->error;
+                        }
+                        else {
+                            my $format = ''; 
+                            if ( $list_def =~ s/ [(] (.*) [)]$ //xms ) {
+                                $format = $1;
+                            }
+
+                            my $method = '';
                             for my $list_fld ( split /\s*,\s*/, $list_def ) {
-                                if ( $rec->can( $list_fld ) ) {
-                                    if ( my $val = $rec->$list_fld() ) {
-                                        push @title_vals, $val;
+                                my $obj     = $rec;
+                                my @methods = split /\./, $list_fld;
+                                my $val     = '';
+                                while ( my $method = shift @methods ) {
+                                    if ( @methods ) {
+                                        $obj = $obj->$method() or last;
+                                    }
+                                    else {
+                                        $val = $obj->$method || '';
+                                        last;
                                     }
                                 }
+
+                                push @title_vals, $val || '';
+                            }
+
+                            if ( $format ) {
+                                $title = sprintf $format, @title_vals;
+                            }
+                            else {
+                                $title = join $SPACE, @title_vals;
                             }
                         }
 
-                        $title = join $SPACE, @title_vals;
+                        last;
                     }
                 }
 
@@ -471,27 +512,46 @@ tables and records indexed and the elapsed time.
 
                 push @ontologies, extract_ontology( $text );
                 my @ontology_accs 
-                    = map { $_->term_accession } uniq( @ontologies );
+                    = uniq( map { $_->term_accession } @ontologies );
+                my @taxonomy = 
+                    grep { $_->term_accession =~ /^gr_tax/i } @ontologies;
+
+                my $species_name = '';
+                if ( $module =~ /^ensembl_(\w+)/ ) {
+                    $species_name = ucfirst $1;
+                }
+                else {
+                    if ( @taxonomy == 1 ) {
+                        $species_name = $taxonomy[0]->name;
+                    }
+                }
 
                 my $doc = {
-                    url      => join( '/', $module, $table, $id ),
-                    title    => $title,
-                    content  => $text,
-                    taxonomy => 
-                        join( $SPACE, grep {  /^GR_tax/ } @ontology_accs ),
-                    ontology => 
-                        join( $SPACE, grep { !/^GR_tax/ } @ontology_accs ),
+                    id           => join( '/', $module, $table, $id ),
+                    module       => $module,
+                    object_type  => $object_type,
+                    title        => $title,
+                    content      => $text,
+                    taxonomy     => [ map { $_->term_accession } @taxonomy ],
+                    ontology     => [ grep { !/^GR_tax/ } @ontology_accs ],
+                    species_name => $species_name,
                 };
 
-                $indexer->add_doc( $doc );
+                push @batch, $doc;
+                if ( scalar @batch == $batch_size ) {
+                    $indexer->add( @batch );
+                    @batch = ();
+                }
             }
 
-            my $dt = DateTime->now;
-            $indexer->add_meta(
-                source_db    => $db->real_name,
-                last_indexed => $dt->ymd,
-                indexed_by   => (getpwuid($<))[0],
-            );
+            $indexer->add( \@batch );
+
+#            my $dt = DateTime->now;
+#            $indexer->add_meta(
+#                source_db    => $db->real_name,
+#                last_indexed => $dt->ymd,
+#                indexed_by   => (getpwuid($<))[0],
+#            );
 
             if ( $verbose ) {
                 printf "%-70s\n\n", sprintf(
@@ -1167,25 +1227,32 @@ Returns a hash(ref) of the tables to index for a given module.
         next if $module !~ /$mod_name/;
 
         my $tables = $tables_to_index{ $mod_name };
+        print "tables= $tables\n";
 
         for my $table ( split /;/, $tables ) {
             if ( $table =~ /
-                (\w+)  # table name
-                (      # capture a
-                \[     # left square
-                (.*?)  # list (optionally null) of fields
-                \]     # right square
-                )?     # optional
-                (?:    # non-capturing
-                \+     # literal plus sign
-                (.+)   # list of other tables
-                )?     # end optional non-capturing
+                ([\w#]+) # table name
+                (        # capture a
+                \[       # left square
+                (.*?)    # list (optionally null) of fields
+                \]       # right square
+                )?       # optional
+                (?:      # non-capturing
+                \+       # literal plus sign
+                (.+)     # list of other tables
+                )?       # end optional non-capturing
                 /xms
             ) {
                 my $index_table       = $1 || $EMPTY_STR;
                 my $index_field_group = $2 || $EMPTY_STR;
                 my $index_fields      = $3 || $EMPTY_STR;
                 my $other_tables      = $4 || $EMPTY_STR;
+
+                my $object_type = '';
+                if ( $index_table =~ /([^#]+) [#] ([^#]+)/xms ) {
+                    $index_table = $1;
+                    $object_type = $2;
+                }
 
                 my @index_fields;
                 if ( $index_field_group eq $EMPTY_STR ) {
@@ -1196,7 +1263,8 @@ Returns a hash(ref) of the tables to index for a given module.
                 }
 
                 $return{ $index_table } = {
-                    fields => \@index_fields
+                    fields      => \@index_fields,
+                    object_type => $object_type,
                 };
 
                 for my $table ( split /,/, $other_tables ) {

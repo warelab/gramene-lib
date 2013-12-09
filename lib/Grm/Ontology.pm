@@ -613,7 +613,10 @@ Returns an array(ref) of term_ids.
         }
     }
 
-    for my $qry ( split( /,\s*/, $query ) ) {
+    my $prefixes = lc join( '|', keys %valid_term_type );
+    for my $qry ( 
+        ref $query eq 'ARRAY' ? @$query : split( /,\s*/, $query ) 
+    ) {
         my $cmp = $qry =~ s/\*/%/g ? 'like' : '=';
 
         my $sql = q[
@@ -627,16 +630,19 @@ Returns an array(ref) of term_ids.
             on         t.term_type_id=tt.term_type_id
         ];
     
-        my $prefixes = join( '|', keys %valid_term_type );
         my @sql_args;
         if ( $search_field ) {
             $sql .= " where $search_field $cmp ? ";
             @sql_args = ( $qry );
         }
         elsif ( $qry =~ /^($prefixes):/i ) {
-            $sql .= qq[
-                where (
-                    t.term_accession $cmp '$qry' or s.term_synonym $cmp '$qry'
+            $sql = qq[
+                select  t.term_id
+                from    term t, term_synonym s
+                where   t.term_id=s.term_id
+                and     ( 
+                    t.term_accession $cmp '$qry' 
+                    or s.term_synonym $cmp '$qry'
                 )
             ];
         }
