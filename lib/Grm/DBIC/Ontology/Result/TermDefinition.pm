@@ -1,20 +1,24 @@
+use utf8;
 package Grm::DBIC::Ontology::Result::TermDefinition;
 
 # Created by DBIx::Class::Schema::Loader
 # DO NOT MODIFY THE FIRST PART OF THIS FILE
+
+=head1 NAME
+
+Grm::DBIC::Ontology::Result::TermDefinition
+
+=cut
 
 use strict;
 use warnings;
 
 use Moose;
 use MooseX::NonMoose;
-use namespace::autoclean;
+use MooseX::MarkAsMethods autoclean => 1;
 extends 'DBIx::Class::Core';
 
-
-=head1 NAME
-
-Grm::DBIC::Ontology::Result::TermDefinition
+=head1 TABLE: C<term_definition>
 
 =cut
 
@@ -78,25 +82,34 @@ __PACKAGE__->add_columns(
   "reference",
   { data_type => "varchar", is_nullable => 1, size => 255 },
 );
-__PACKAGE__->set_primary_key("term_definition_id");
-__PACKAGE__->add_unique_constraint("term_id", ["term_id"]);
 
-=head1 RELATIONS
+=head1 PRIMARY KEY
 
-=head2 term
+=over 4
 
-Type: belongs_to
+=item * L</term_definition_id>
 
-Related object: L<Grm::DBIC::Ontology::Result::Term>
+=back
 
 =cut
 
-__PACKAGE__->belongs_to(
-  "term",
-  "Grm::DBIC::Ontology::Result::Term",
-  { term_id => "term_id" },
-  { is_deferrable => 1, on_delete => "CASCADE", on_update => "CASCADE" },
-);
+__PACKAGE__->set_primary_key("term_definition_id");
+
+=head1 UNIQUE CONSTRAINTS
+
+=head2 C<term_id>
+
+=over 4
+
+=item * L</term_id>
+
+=back
+
+=cut
+
+__PACKAGE__->add_unique_constraint("term_id", ["term_id"]);
+
+=head1 RELATIONS
 
 =head2 dbxref
 
@@ -113,14 +126,29 @@ __PACKAGE__->belongs_to(
   {
     is_deferrable => 1,
     join_type     => "LEFT",
-    on_delete     => "CASCADE",
-    on_update     => "CASCADE",
+    on_delete     => "RESTRICT",
+    on_update     => "RESTRICT",
   },
 );
 
+=head2 term
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2013-08-05 15:22:22
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:lm9I9fcMqngLGXa+fz8tUg
+Type: belongs_to
+
+Related object: L<Grm::DBIC::Ontology::Result::Term>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "term",
+  "Grm::DBIC::Ontology::Result::Term",
+  { term_id => "term_id" },
+  { is_deferrable => 1, on_delete => "RESTRICT", on_update => "RESTRICT" },
+);
+
+
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 15:00:20
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:CiqjdAk2BF8M4kJP0EHMYQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

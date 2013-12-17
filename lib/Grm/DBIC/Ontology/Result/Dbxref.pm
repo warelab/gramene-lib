@@ -1,20 +1,24 @@
+use utf8;
 package Grm::DBIC::Ontology::Result::Dbxref;
 
 # Created by DBIx::Class::Schema::Loader
 # DO NOT MODIFY THE FIRST PART OF THIS FILE
+
+=head1 NAME
+
+Grm::DBIC::Ontology::Result::Dbxref
+
+=cut
 
 use strict;
 use warnings;
 
 use Moose;
 use MooseX::NonMoose;
-use namespace::autoclean;
+use MooseX::MarkAsMethods autoclean => 1;
 extends 'DBIx::Class::Core';
 
-
-=head1 NAME
-
-Grm::DBIC::Ontology::Result::Dbxref
+=head1 TABLE: C<dbxref>
 
 =cut
 
@@ -31,7 +35,6 @@ __PACKAGE__->table("dbxref");
 =head2 xref_key
 
   data_type: 'varchar'
-  default_value: (empty string)
   is_nullable: 0
   size: 255
 
@@ -44,7 +47,6 @@ __PACKAGE__->table("dbxref");
 =head2 xref_dbname
 
   data_type: 'varchar'
-  default_value: (empty string)
   is_nullable: 0
   size: 64
 
@@ -60,15 +62,43 @@ __PACKAGE__->add_columns(
   "dbxref_id",
   { data_type => "integer", is_auto_increment => 1, is_nullable => 0 },
   "xref_key",
-  { data_type => "varchar", default_value => "", is_nullable => 0, size => 255 },
+  { data_type => "varchar", is_nullable => 0, size => 255 },
   "xref_keytype",
   { data_type => "varchar", is_nullable => 1, size => 32 },
   "xref_dbname",
-  { data_type => "varchar", default_value => "", is_nullable => 0, size => 64 },
+  { data_type => "varchar", is_nullable => 0, size => 64 },
   "xref_desc",
   { data_type => "varchar", is_nullable => 1, size => 255 },
 );
+
+=head1 PRIMARY KEY
+
+=over 4
+
+=item * L</dbxref_id>
+
+=back
+
+=cut
+
 __PACKAGE__->set_primary_key("dbxref_id");
+
+=head1 UNIQUE CONSTRAINTS
+
+=head2 C<xref_key>
+
+=over 4
+
+=item * L</xref_key>
+
+=item * L</xref_keytype>
+
+=item * L</xref_dbname>
+
+=back
+
+=cut
+
 __PACKAGE__->add_unique_constraint("xref_key", ["xref_key", "xref_keytype", "xref_dbname"]);
 
 =head1 RELATIONS
@@ -104,8 +134,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2013-08-05 15:22:22
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:2t1qCi2x0LYnrNSK9pxnmw
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 15:00:20
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:XXRY1btd/HcOJHuZURGx/Q
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

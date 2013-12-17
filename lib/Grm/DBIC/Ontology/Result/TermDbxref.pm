@@ -1,20 +1,24 @@
+use utf8;
 package Grm::DBIC::Ontology::Result::TermDbxref;
 
 # Created by DBIx::Class::Schema::Loader
 # DO NOT MODIFY THE FIRST PART OF THIS FILE
+
+=head1 NAME
+
+Grm::DBIC::Ontology::Result::TermDbxref
+
+=cut
 
 use strict;
 use warnings;
 
 use Moose;
 use MooseX::NonMoose;
-use namespace::autoclean;
+use MooseX::MarkAsMethods autoclean => 1;
 extends 'DBIx::Class::Core';
 
-
-=head1 NAME
-
-Grm::DBIC::Ontology::Result::TermDbxref
+=head1 TABLE: C<term_dbxref>
 
 =cut
 
@@ -70,25 +74,38 @@ __PACKAGE__->add_columns(
   "is_for_definition",
   { data_type => "integer", default_value => 0, is_nullable => 0 },
 );
-__PACKAGE__->set_primary_key("term_dbxref_id");
-__PACKAGE__->add_unique_constraint("term_id", ["term_id", "dbxref_id", "is_for_definition"]);
 
-=head1 RELATIONS
+=head1 PRIMARY KEY
 
-=head2 term
+=over 4
 
-Type: belongs_to
+=item * L</term_dbxref_id>
 
-Related object: L<Grm::DBIC::Ontology::Result::Term>
+=back
 
 =cut
 
-__PACKAGE__->belongs_to(
-  "term",
-  "Grm::DBIC::Ontology::Result::Term",
-  { term_id => "term_id" },
-  { is_deferrable => 1, on_delete => "CASCADE", on_update => "CASCADE" },
-);
+__PACKAGE__->set_primary_key("term_dbxref_id");
+
+=head1 UNIQUE CONSTRAINTS
+
+=head2 C<term_id>
+
+=over 4
+
+=item * L</term_id>
+
+=item * L</dbxref_id>
+
+=item * L</is_for_definition>
+
+=back
+
+=cut
+
+__PACKAGE__->add_unique_constraint("term_id", ["term_id", "dbxref_id", "is_for_definition"]);
+
+=head1 RELATIONS
 
 =head2 dbxref
 
@@ -102,12 +119,27 @@ __PACKAGE__->belongs_to(
   "dbxref",
   "Grm::DBIC::Ontology::Result::Dbxref",
   { dbxref_id => "dbxref_id" },
-  { is_deferrable => 1, on_delete => "CASCADE", on_update => "CASCADE" },
+  { is_deferrable => 1, on_delete => "RESTRICT", on_update => "RESTRICT" },
+);
+
+=head2 term
+
+Type: belongs_to
+
+Related object: L<Grm::DBIC::Ontology::Result::Term>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "term",
+  "Grm::DBIC::Ontology::Result::Term",
+  { term_id => "term_id" },
+  { is_deferrable => 1, on_delete => "RESTRICT", on_update => "RESTRICT" },
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2013-08-05 15:22:22
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:UIryIhnSTVn3AySmYO4KDQ
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 15:00:20
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:IByi4S7hntg362MUvCg4xQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

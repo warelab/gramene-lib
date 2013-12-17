@@ -1,20 +1,24 @@
+use utf8;
 package Grm::DBIC::Ontology::Result::Association;
 
 # Created by DBIx::Class::Schema::Loader
 # DO NOT MODIFY THE FIRST PART OF THIS FILE
+
+=head1 NAME
+
+Grm::DBIC::Ontology::Result::Association
+
+=cut
 
 use strict;
 use warnings;
 
 use Moose;
 use MooseX::NonMoose;
-use namespace::autoclean;
+use MooseX::MarkAsMethods autoclean => 1;
 extends 'DBIx::Class::Core';
 
-
-=head1 NAME
-
-Grm::DBIC::Ontology::Result::Association
+=head1 TABLE: C<association>
 
 =cut
 
@@ -71,24 +75,20 @@ __PACKAGE__->add_columns(
   "evidence_code",
   { data_type => "char", default_value => "", is_nullable => 1, size => 10 },
 );
-__PACKAGE__->set_primary_key("association_id");
 
-=head1 RELATIONS
+=head1 PRIMARY KEY
 
-=head2 term
+=over 4
 
-Type: belongs_to
+=item * L</association_id>
 
-Related object: L<Grm::DBIC::Ontology::Result::Term>
+=back
 
 =cut
 
-__PACKAGE__->belongs_to(
-  "term",
-  "Grm::DBIC::Ontology::Result::Term",
-  { term_id => "term_id" },
-  { is_deferrable => 1, on_delete => "CASCADE", on_update => "CASCADE" },
-);
+__PACKAGE__->set_primary_key("association_id");
+
+=head1 RELATIONS
 
 =head2 association_object
 
@@ -102,12 +102,27 @@ __PACKAGE__->belongs_to(
   "association_object",
   "Grm::DBIC::Ontology::Result::AssociationObject",
   { association_object_id => "association_object_id" },
-  { is_deferrable => 1, on_delete => "CASCADE", on_update => "CASCADE" },
+  { is_deferrable => 1, on_delete => "RESTRICT", on_update => "RESTRICT" },
+);
+
+=head2 term
+
+Type: belongs_to
+
+Related object: L<Grm::DBIC::Ontology::Result::Term>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "term",
+  "Grm::DBIC::Ontology::Result::Term",
+  { term_id => "term_id" },
+  { is_deferrable => 1, on_delete => "RESTRICT", on_update => "RESTRICT" },
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2013-08-05 15:22:22
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:PCULtiTubDakf4QatTrpwg
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 15:00:20
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:rpPtCHO/R5IfFvBLcvcaSg
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

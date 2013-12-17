@@ -1,20 +1,24 @@
+use utf8;
 package Grm::DBIC::Ontology::Result::Species;
 
 # Created by DBIx::Class::Schema::Loader
 # DO NOT MODIFY THE FIRST PART OF THIS FILE
+
+=head1 NAME
+
+Grm::DBIC::Ontology::Result::Species
+
+=cut
 
 use strict;
 use warnings;
 
 use Moose;
 use MooseX::NonMoose;
-use namespace::autoclean;
+use MooseX::MarkAsMethods autoclean => 1;
 extends 'DBIx::Class::Core';
 
-
-=head1 NAME
-
-Grm::DBIC::Ontology::Result::Species
+=head1 TABLE: C<species>
 
 =cut
 
@@ -37,21 +41,18 @@ __PACKAGE__->table("species");
 =head2 common_name
 
   data_type: 'varchar'
-  default_value: (empty string)
   is_nullable: 1
   size: 255
 
 =head2 genus
 
   data_type: 'varchar'
-  default_value: (empty string)
   is_nullable: 1
   size: 32
 
 =head2 species
 
   data_type: 'varchar'
-  default_value: (empty string)
   is_nullable: 1
   size: 32
 
@@ -63,12 +64,23 @@ __PACKAGE__->add_columns(
   "ncbi_taxa_id",
   { data_type => "integer", default_value => 0, is_nullable => 1 },
   "common_name",
-  { data_type => "varchar", default_value => "", is_nullable => 1, size => 255 },
+  { data_type => "varchar", is_nullable => 1, size => 255 },
   "genus",
-  { data_type => "varchar", default_value => "", is_nullable => 1, size => 32 },
+  { data_type => "varchar", is_nullable => 1, size => 32 },
   "species",
-  { data_type => "varchar", default_value => "", is_nullable => 1, size => 32 },
+  { data_type => "varchar", is_nullable => 1, size => 32 },
 );
+
+=head1 PRIMARY KEY
+
+=over 4
+
+=item * L</species_id>
+
+=back
+
+=cut
+
 __PACKAGE__->set_primary_key("species_id");
 
 =head1 RELATIONS
@@ -89,8 +101,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2013-08-05 15:22:22
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:cr7CvaU7r9B3jjJ2HCzXSg
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 15:00:20
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:ZoHBdKHokhwQgtIkncANfg
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
