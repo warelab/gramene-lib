@@ -7,11 +7,11 @@ search:
     load_fields:
       - "id"
       - "module"
-      - "object_type"
+      - "object"
       - "title"
       - "taxonomy"
       - "ontology"
-      - "species_name"
+      - "species"
       - "content"
 
   database:
@@ -56,7 +56,7 @@ search:
 
     "maps.map_set": "species.species,map_type.map_type,map_set_name"
 
-    "ontology.term": "term_type.term_type,term_name,term_accession"
+    "ontology.term": "term_type.term_type,name,term_accession"
 
     "pathway_*.search": "gene_name,enzyme_name,reaction_id,reaction_name,ec,pathway_id,pathway_name"
 
@@ -114,7 +114,7 @@ search:
       where  meta_key='species.taxonomy_id';
 
     pathway_arabidopsis.search: |
-      select 'GR_tax:014503' as ontology_acc;
+      select 'GR_tax:078880' as ontology_acc;
 
     pathway_brachypodium.search: |
       select 'GR_tax:012596' as ontology_acc;

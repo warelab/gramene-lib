@@ -15,9 +15,9 @@ use Getopt::Long;
 use Grm::DB;
 use Grm::Ontology;
 use Grm::Utils qw( commify timer_calc );
-use Gramene::QTL::DB;
+#use Gramene::QTL::DB;
 use IO::Prompt 'prompt';
-use List::MoreUtils 'uniq';
+use List::MoreUtils qw( uniq );
 use Pod::Usage;
 use Readonly;
 use Text::TabularDisplay;
@@ -68,10 +68,10 @@ if ( $help || $man_page ) {
 
 my %DISPATCH  =  (
     all       => { expands => 1, run => undef },
-    diversity => { expands => 1, run => '_export_diversity' },
+    #diversity => { expands => 1, run => '_export_diversity' },
     ensembl   => { expands => 1, run => '_export_ensembl' },
-    qtl       => { expands => 0, run => '_export_qtl' },
-    genes     => { expands => 0, run => '_export_genes' },
+    #qtl       => { expands => 0, run => '_export_qtl' },
+    #genes     => { expands => 0, run => '_export_genes' },
 );
 
 my $gconf = Grm::Config->new;
@@ -101,7 +101,7 @@ if ( $list_modules ) {
     exit 0;
 }
 
-my @selected_modules = sort uniq split /\s*,\s*/, $selected_modules;
+my @selected_modules = sort uniq( split /\s*,\s*/, $selected_modules );
 
 if ( my @bad = grep { !defined $valid{ $_ } } @selected_modules ) {
     pod2usage( sprintf( "Invalid modules:\n  %s\n", join(', ', @bad) ) );
@@ -123,7 +123,7 @@ for my $module ( @selected_modules ) {
     }
 }
 
-@selected_modules = sort uniq @tmp;
+@selected_modules = uniq( @tmp );
 
 if ( !$out_dir ) {
     pod2usage('No output directory');
@@ -135,7 +135,7 @@ if ( !-d $out_dir ) {
 
 if ( !$force ) {
     my $yn = prompt -yn, sprintf "OK to process these?\n%s\n [yn] ",
-        join "\n", map { " - $_" } @selected_modules;
+        join "\n", map { " - $_" } sort @selected_modules;
 
     if ( !$yn ) {
         say 'OK, bye.';

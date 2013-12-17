@@ -190,14 +190,12 @@ for my $file ( @files ) {
             { type => $obj_type },
         );
 
-        my $Object = $schema->resultset('AssociationObject')->find_or_create(
-            { 
-                db_object_id               => $obj_id, 
-                db_object_name             => $obj_name, 
-                association_object_type_id => $Type->id,
-                species_id                 => $Species->id,
-            },
-        );
+        my $Object = $schema->resultset('AssociationObject')->find_or_create({ 
+            db_object_id               => $obj_id, 
+            db_object_name             => $obj_name, 
+            association_object_type_id => $Type->id,
+            species_id                 => $Species->id,
+        });
 
         if ( my $symbol = $rec{'db_object_symbol'} ) {
             $Object->db_object_symbol( $symbol );

@@ -41,9 +41,4 @@ for my $module ( @modules ) {
     }
 }
 
-my $sdb = Grm::Search->new;
-for my $db ( $sdb->search_dbs ) {
-    ok( my $db = $sdb->connect_mysql_search_db( $db ), "$db ok" );
-}
-
 done_testing();

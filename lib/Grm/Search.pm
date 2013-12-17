@@ -513,28 +513,30 @@ tables and records indexed and the elapsed time.
                 push @ontologies, extract_ontology( $text );
                 my @ontology_accs 
                     = uniq( map { $_->term_accession } @ontologies );
+
                 my @taxonomy = 
                     grep { $_->term_accession =~ /^gr_tax/i } @ontologies;
 
                 my $species_name = '';
                 if ( $module =~ /^ensembl_(\w+)/ ) {
-                    $species_name = ucfirst $1;
+                    $species_name = ucfirst lc $1;
                 }
-                else {
-                    if ( @taxonomy == 1 ) {
-                        $species_name = $taxonomy[0]->name;
-                    }
+                elsif ( @taxonomy == 1 ) {
+                    ( $species_name = lc $taxonomy[0]->name ) =~ s/ /_/g;
+                }
+                elsif ( $module =~ /^pathway_(\w+)/ ) {
+                    $species_name = ucfirst lc $1;
                 }
 
                 my $doc = {
-                    id           => join( '/', $module, $table, $id ),
-                    module       => $module,
-                    object_type  => $object_type,
-                    title        => $title,
-                    content      => $text,
-                    taxonomy     => [ map { $_->term_accession } @taxonomy ],
-                    ontology     => [ grep { !/^GR_tax/ } @ontology_accs ],
-                    species_name => $species_name,
+                    id       => join( '/', $module, $table, $id ),
+                    species  => $species_name,
+                    module   => $module,
+                    object   => $object_type,
+                    title    => $title,
+                    content  => $text,
+                    taxonomy => [ map { $_->term_accession } @taxonomy ],
+                    ontology => [ grep { !/^GR_tax/ } @ontology_accs ],
                 };
 
                 push @batch, $doc;
@@ -1227,7 +1229,6 @@ Returns a hash(ref) of the tables to index for a given module.
         next if $module !~ /$mod_name/;
 
         my $tables = $tables_to_index{ $mod_name };
-        print "tables= $tables\n";
 
         for my $table ( split /;/, $tables ) {
             if ( $table =~ /
@@ -1248,7 +1249,7 @@ Returns a hash(ref) of the tables to index for a given module.
                 my $index_fields      = $3 || $EMPTY_STR;
                 my $other_tables      = $4 || $EMPTY_STR;
 
-                my $object_type = '';
+                my $object_type = $index_table;
                 if ( $index_table =~ /([^#]+) [#] ([^#]+)/xms ) {
                     $index_table = $1;
                     $object_type = $2;

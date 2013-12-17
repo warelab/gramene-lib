@@ -78,21 +78,24 @@ Grm::DBIC::Ontology::Term objects.
     my $dbic     = $odb->db->dbic;
     my $term_rs  = $dbic->resultset('Term');
     my $syn_rs   = $dbic->resultset('TermSynonym');
-    my $ont_pref = join '|', $odb->get_ontology_accession_prefixes;
+    my $ont_pref = lc join '|', $odb->get_ontology_accession_prefixes;
+
     my ( @Terms, %seen );
-
     while ( $string =~ /(($ont_pref):\d+)/ig ) {
-       my $acc = $1; 
+        my $acc = $1; 
         if ( !$seen{ $acc }++ ) {
-            push @Terms, $term_rs->search({ term_accession => $acc });
+            my ($Term) = $term_rs->search({ term_accession => $acc });
 
-            if ( !@Terms ) {
-                push @Terms, $syn_rs->search({ term_synonym => $acc });
+            if ( !$Term ) {
+                my ($Syn) = $syn_rs->search({ term_synonym => $acc });
+                $Term = $Syn->term;
             }
+
+            push @Terms, $Term if $Term;
         }
     }
 
-    return uniq( @Terms );
+    return @Terms;
 }
 
 # ----------------------------------------------------

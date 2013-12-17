@@ -558,9 +558,16 @@ Returns an array(ref) of "term_type.prefix".
 
     my $self = shift;
     my $dbh  = $self->db->dbh;
-    my $prefixes = $dbh->selectcol_arrayref('select prefix from term_type');
+    my @prefixes = @{ $dbh->selectcol_arrayref(
+        q[
+            select distinct prefix 
+            from   term_type 
+            where  prefix is not null
+            and    length(prefix) > 0
+        ]
+    ) };
 
-    return wantarray ? @$prefixes : $prefixes;
+    return wantarray ? @prefixes : \@prefixes;
 }
 
 # ----------------------------------------------------

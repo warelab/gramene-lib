@@ -49,7 +49,7 @@ database:
     name: maps40
 
   ontology:
-    name: ontology39
+    name: ontology40
 
   pathway_arabidopsis:
     name: pathway_arabidopsis40
