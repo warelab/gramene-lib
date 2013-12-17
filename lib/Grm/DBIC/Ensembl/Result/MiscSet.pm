@@ -28,7 +28,7 @@ __PACKAGE__->table("misc_set");
 
 =head2 misc_set_id
 
-  data_type: 'integer'
+  data_type: 'smallint'
   extra: {unsigned => 1}
   is_auto_increment: 1
   is_nullable: 0
@@ -63,7 +63,7 @@ __PACKAGE__->table("misc_set");
 __PACKAGE__->add_columns(
   "misc_set_id",
   {
-    data_type => "integer",
+    data_type => "smallint",
     extra => { unsigned => 1 },
     is_auto_increment => 1,
     is_nullable => 0,
@@ -132,8 +132,8 @@ Composing rels: L</misc_feature_misc_sets> -> misc_feature
 __PACKAGE__->many_to_many("misc_features", "misc_feature_misc_sets", "misc_feature");
 
 
-# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:hCyZJFpD0ggaftj/6oXB6A
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 17:39:31
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:0RPu9QZIM+w8htian89eeQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

@@ -42,7 +42,7 @@ __PACKAGE__->table("prediction_exon");
 
 =head2 exon_rank
 
-  data_type: 'integer'
+  data_type: 'smallint'
   extra: {unsigned => 1}
   is_nullable: 0
 
@@ -103,7 +103,7 @@ __PACKAGE__->add_columns(
     is_nullable => 0,
   },
   "exon_rank",
-  { data_type => "integer", extra => { unsigned => 1 }, is_nullable => 0 },
+  { data_type => "smallint", extra => { unsigned => 1 }, is_nullable => 0 },
   "seq_region_id",
   {
     data_type => "integer",
@@ -170,8 +170,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:OV/urJFh+FBtp8Xt2KRHUw
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 17:39:31
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:zKsWTySnUpQYpgQmBFLRNw
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

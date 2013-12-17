@@ -110,10 +110,11 @@ for my $db_name ( @dbs ) {
     my $user  = $db->user;
     my $pass  = $db->password;
     my $host  = $db->host;
+    my $real_name = $db->real_name;
     my $class = '';
 
     if ( ( $db_name =~ /^ensembl_/ || $db_name eq 'ensembl' )
-        && $db->real_name =~ /core/ 
+        && $real_name =~ /core/ 
     ) {
         next DB if $host eq 'ensembldb.ensembl.org'; 
 
@@ -141,8 +142,9 @@ for my $db_name ( @dbs ) {
                            or die "No Ensembl config\n";;
 
             my $tmp = '';
-            for my $file ( qw[ sql_file ] ) { # foreign_key_file 
+            for my $file ( qw[ sql_file foreign_key_file ] ) { 
                 my $path = $ens_conf->{ $file } or next;
+                print "Reading $path\n";
 
                 if ( -e $path ) {
                     $tmp .= slurp( $path );
@@ -190,7 +192,7 @@ for my $db_name ( @dbs ) {
         join('', map { ucfirst } split( /_/, $db_name ))
     );
 
-    print "Exporting $db_name => $class\n";
+    printf "Exporting %s (%s) => %s\n", $db_name, $real_name, $class;
 
     make_schema_at(
         $class,

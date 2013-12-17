@@ -26,16 +26,9 @@ __PACKAGE__->table("analysis_description");
 
 =head1 ACCESSORS
 
-=head2 analysis_description
-
-  data_type: 'integer'
-  extra: {unsigned => 1}
-  is_auto_increment: 1
-  is_nullable: 0
-
 =head2 analysis_id
 
-  data_type: 'integer'
+  data_type: 'smallint'
   extra: {unsigned => 1}
   is_foreign_key: 1
   is_nullable: 0
@@ -66,16 +59,9 @@ __PACKAGE__->table("analysis_description");
 =cut
 
 __PACKAGE__->add_columns(
-  "analysis_description",
-  {
-    data_type => "integer",
-    extra => { unsigned => 1 },
-    is_auto_increment => 1,
-    is_nullable => 0,
-  },
   "analysis_id",
   {
-    data_type => "integer",
+    data_type => "smallint",
     extra => { unsigned => 1 },
     is_foreign_key => 1,
     is_nullable => 0,
@@ -94,18 +80,6 @@ __PACKAGE__->add_columns(
   "web_data",
   { data_type => "text", is_nullable => 1 },
 );
-
-=head1 PRIMARY KEY
-
-=over 4
-
-=item * L</analysis_description>
-
-=back
-
-=cut
-
-__PACKAGE__->set_primary_key("analysis_description");
 
 =head1 UNIQUE CONSTRAINTS
 
@@ -139,8 +113,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:FaURwDuyGJP/fl2jhT26pQ
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 17:39:31
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:7Alq9+MXskfKXoQoSgCQLA
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

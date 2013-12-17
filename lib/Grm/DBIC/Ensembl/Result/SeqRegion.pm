@@ -225,6 +225,21 @@ __PACKAGE__->might_have(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
+=head2 dna_2
+
+Type: might_have
+
+Related object: L<Grm::DBIC::Ensembl::Result::Dna>
+
+=cut
+
+__PACKAGE__->might_have(
+  "dna_2",
+  "Grm::DBIC::Ensembl::Result::Dna",
+  { "foreign.seq_region_id" => "self.seq_region_id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
 =head2 dna_align_features
 
 Type: has_many
@@ -236,21 +251,6 @@ Related object: L<Grm::DBIC::Ensembl::Result::DnaAlignFeature>
 __PACKAGE__->has_many(
   "dna_align_features",
   "Grm::DBIC::Ensembl::Result::DnaAlignFeature",
-  { "foreign.seq_region_id" => "self.seq_region_id" },
-  { cascade_copy => 0, cascade_delete => 0 },
-);
-
-=head2 dnac
-
-Type: might_have
-
-Related object: L<Grm::DBIC::Ensembl::Result::Dnac>
-
-=cut
-
-__PACKAGE__->might_have(
-  "dnac",
-  "Grm::DBIC::Ensembl::Result::Dnac",
   { "foreign.seq_region_id" => "self.seq_region_id" },
   { cascade_copy => 0, cascade_delete => 0 },
 );
@@ -281,6 +281,21 @@ Related object: L<Grm::DBIC::Ensembl::Result::Gene>
 __PACKAGE__->has_many(
   "genes",
   "Grm::DBIC::Ensembl::Result::Gene",
+  { "foreign.seq_region_id" => "self.seq_region_id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
+=head2 intron_supporting_evidences
+
+Type: has_many
+
+Related object: L<Grm::DBIC::Ensembl::Result::IntronSupportingEvidence>
+
+=cut
+
+__PACKAGE__->has_many(
+  "intron_supporting_evidences",
+  "Grm::DBIC::Ensembl::Result::IntronSupportingEvidence",
   { "foreign.seq_region_id" => "self.seq_region_id" },
   { cascade_copy => 0, cascade_delete => 0 },
 );
@@ -405,21 +420,6 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
-=head2 qtl_features
-
-Type: has_many
-
-Related object: L<Grm::DBIC::Ensembl::Result::QtlFeature>
-
-=cut
-
-__PACKAGE__->has_many(
-  "qtl_features",
-  "Grm::DBIC::Ensembl::Result::QtlFeature",
-  { "foreign.seq_region_id" => "self.seq_region_id" },
-  { cascade_copy => 0, cascade_delete => 0 },
-);
-
 =head2 repeat_features
 
 Type: has_many
@@ -511,8 +511,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:1b+ZzwNlVYO2Vdyi9g9x/A
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 17:39:31
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:aVqBOdH27JQJ6CXxCM4M+Q
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

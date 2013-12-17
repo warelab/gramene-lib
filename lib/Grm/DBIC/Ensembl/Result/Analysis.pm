@@ -28,7 +28,7 @@ __PACKAGE__->table("analysis");
 
 =head2 analysis_id
 
-  data_type: 'integer'
+  data_type: 'smallint'
   extra: {unsigned => 1}
   is_auto_increment: 1
   is_nullable: 0
@@ -116,7 +116,7 @@ __PACKAGE__->table("analysis");
 __PACKAGE__->add_columns(
   "analysis_id",
   {
-    data_type => "integer",
+    data_type => "smallint",
     extra => { unsigned => 1 },
     is_auto_increment => 1,
     is_nullable => 0,
@@ -272,6 +272,21 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
+=head2 intron_supporting_evidences
+
+Type: has_many
+
+Related object: L<Grm::DBIC::Ensembl::Result::IntronSupportingEvidence>
+
+=cut
+
+__PACKAGE__->has_many(
+  "intron_supporting_evidences",
+  "Grm::DBIC::Ensembl::Result::IntronSupportingEvidence",
+  { "foreign.analysis_id" => "self.analysis_id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
 =head2 marker_features
 
 Type: has_many
@@ -377,21 +392,6 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
-=head2 qtl_features
-
-Type: has_many
-
-Related object: L<Grm::DBIC::Ensembl::Result::QtlFeature>
-
-=cut
-
-__PACKAGE__->has_many(
-  "qtl_features",
-  "Grm::DBIC::Ensembl::Result::QtlFeature",
-  { "foreign.analysis_id" => "self.analysis_id" },
-  { cascade_copy => 0, cascade_delete => 0 },
-);
-
 =head2 repeat_features
 
 Type: has_many
@@ -453,8 +453,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:E+g5eQQ/JuZrK4WxueLwVA
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 17:39:31
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:2H6rcqR9t/mUPDyUShkiOg
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

@@ -167,8 +167,8 @@ Composing rels: L</misc_feature_misc_sets> -> misc_set
 __PACKAGE__->many_to_many("misc_sets", "misc_feature_misc_sets", "misc_set");
 
 
-# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:mAucKeK6o6EkyWypo/gMWg
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 16:58:04
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:qw7HEUVHwXMBbu6stBGVxQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

@@ -26,13 +26,6 @@ __PACKAGE__->table("operon_transcript_gene");
 
 =head1 ACCESSORS
 
-=head2 operon_transcript_gene_id
-
-  data_type: 'integer'
-  extra: {unsigned => 1}
-  is_auto_increment: 1
-  is_nullable: 0
-
 =head2 operon_transcript_id
 
   data_type: 'integer'
@@ -50,13 +43,6 @@ __PACKAGE__->table("operon_transcript_gene");
 =cut
 
 __PACKAGE__->add_columns(
-  "operon_transcript_gene_id",
-  {
-    data_type => "integer",
-    extra => { unsigned => 1 },
-    is_auto_increment => 1,
-    is_nullable => 0,
-  },
   "operon_transcript_id",
   {
     data_type => "integer",
@@ -72,18 +58,6 @@ __PACKAGE__->add_columns(
     is_nullable => 1,
   },
 );
-
-=head1 PRIMARY KEY
-
-=over 4
-
-=item * L</operon_transcript_gene_id>
-
-=back
-
-=cut
-
-__PACKAGE__->set_primary_key("operon_transcript_gene_id");
 
 =head1 RELATIONS
 
@@ -128,8 +102,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:qJmxKyJWcaUt3bwCuj/PGg
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 17:39:31
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:EL3esbZxxsdfIJSW+mXpHA
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

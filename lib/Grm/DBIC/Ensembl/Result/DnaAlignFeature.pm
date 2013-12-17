@@ -31,6 +31,7 @@ __PACKAGE__->table("dna_align_feature");
   data_type: 'integer'
   extra: {unsigned => 1}
   is_auto_increment: 1
+  is_foreign_key: 1
   is_nullable: 0
 
 =head2 seq_region_id
@@ -80,7 +81,7 @@ __PACKAGE__->table("dna_align_feature");
 
 =head2 analysis_id
 
-  data_type: 'integer'
+  data_type: 'smallint'
   extra: {unsigned => 1}
   is_foreign_key: 1
   is_nullable: 0
@@ -122,13 +123,6 @@ __PACKAGE__->table("dna_align_feature");
   data_type: 'text'
   is_nullable: 1
 
-=head2 pair_dna_align_feature_id
-
-  data_type: 'integer'
-  extra: {unsigned => 1}
-  is_foreign_key: 1
-  is_nullable: 1
-
 =cut
 
 __PACKAGE__->add_columns(
@@ -137,6 +131,7 @@ __PACKAGE__->add_columns(
     data_type => "integer",
     extra => { unsigned => 1 },
     is_auto_increment => 1,
+    is_foreign_key => 1,
     is_nullable => 0,
   },
   "seq_region_id",
@@ -162,7 +157,7 @@ __PACKAGE__->add_columns(
   { data_type => "varchar", is_nullable => 0, size => 40 },
   "analysis_id",
   {
-    data_type => "integer",
+    data_type => "smallint",
     extra => { unsigned => 1 },
     is_foreign_key => 1,
     is_nullable => 0,
@@ -186,13 +181,6 @@ __PACKAGE__->add_columns(
   { data_type => "double precision", is_nullable => 1 },
   "external_data",
   { data_type => "text", is_nullable => 1 },
-  "pair_dna_align_feature_id",
-  {
-    data_type => "integer",
-    extra => { unsigned => 1 },
-    is_foreign_key => 1,
-    is_nullable => 1,
-  },
 );
 
 =head1 PRIMARY KEY
@@ -209,6 +197,21 @@ __PACKAGE__->set_primary_key("dna_align_feature_id");
 
 =head1 RELATIONS
 
+=head2 active_dna_align_feature
+
+Type: might_have
+
+Related object: L<Grm::DBIC::Ensembl::Result::DnaAlignFeature>
+
+=cut
+
+__PACKAGE__->might_have(
+  "active_dna_align_feature",
+  "Grm::DBIC::Ensembl::Result::DnaAlignFeature",
+  { "foreign.dna_align_feature_id" => "self.dna_align_feature_id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
 =head2 analysis
 
 Type: belongs_to
@@ -224,21 +227,19 @@ __PACKAGE__->belongs_to(
   { is_deferrable => 1, on_delete => "RESTRICT", on_update => "RESTRICT" },
 );
 
-=head2 dna_align_features
+=head2 dna_align_feature
 
-Type: has_many
+Type: belongs_to
 
 Related object: L<Grm::DBIC::Ensembl::Result::DnaAlignFeature>
 
 =cut
 
-__PACKAGE__->has_many(
-  "dna_align_features",
+__PACKAGE__->belongs_to(
+  "dna_align_feature",
   "Grm::DBIC::Ensembl::Result::DnaAlignFeature",
-  {
-    "foreign.pair_dna_align_feature_id" => "self.dna_align_feature_id",
-  },
-  { cascade_copy => 0, cascade_delete => 0 },
+  { dna_align_feature_id => "dna_align_feature_id" },
+  { is_deferrable => 1, on_delete => "RESTRICT", on_update => "RESTRICT" },
 );
 
 =head2 external_db
@@ -253,26 +254,6 @@ __PACKAGE__->belongs_to(
   "external_db",
   "Grm::DBIC::Ensembl::Result::ExternalDb",
   { external_db_id => "external_db_id" },
-  {
-    is_deferrable => 1,
-    join_type     => "LEFT",
-    on_delete     => "RESTRICT",
-    on_update     => "RESTRICT",
-  },
-);
-
-=head2 pair_dna_align_feature
-
-Type: belongs_to
-
-Related object: L<Grm::DBIC::Ensembl::Result::DnaAlignFeature>
-
-=cut
-
-__PACKAGE__->belongs_to(
-  "pair_dna_align_feature",
-  "Grm::DBIC::Ensembl::Result::DnaAlignFeature",
-  { dna_align_feature_id => "pair_dna_align_feature_id" },
   {
     is_deferrable => 1,
     join_type     => "LEFT",
@@ -297,8 +278,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:g8wOYpgV87G5tfENCkUmKw
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 17:39:31
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:E655BudfZwYhjmUeo3omCQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

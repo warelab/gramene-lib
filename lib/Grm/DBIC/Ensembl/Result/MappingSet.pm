@@ -32,7 +32,13 @@ __PACKAGE__->table("mapping_set");
   extra: {unsigned => 1}
   is_nullable: 0
 
-=head2 schema_build
+=head2 internal_schema_build
+
+  data_type: 'varchar'
+  is_nullable: 0
+  size: 20
+
+=head2 external_schema_build
 
   data_type: 'varchar'
   is_nullable: 0
@@ -43,7 +49,9 @@ __PACKAGE__->table("mapping_set");
 __PACKAGE__->add_columns(
   "mapping_set_id",
   { data_type => "integer", extra => { unsigned => 1 }, is_nullable => 0 },
-  "schema_build",
+  "internal_schema_build",
+  { data_type => "varchar", is_nullable => 0, size => 20 },
+  "external_schema_build",
   { data_type => "varchar", is_nullable => 0, size => 20 },
 );
 
@@ -58,6 +66,25 @@ __PACKAGE__->add_columns(
 =cut
 
 __PACKAGE__->set_primary_key("mapping_set_id");
+
+=head1 UNIQUE CONSTRAINTS
+
+=head2 C<mapping_idx>
+
+=over 4
+
+=item * L</internal_schema_build>
+
+=item * L</external_schema_build>
+
+=back
+
+=cut
+
+__PACKAGE__->add_unique_constraint(
+  "mapping_idx",
+  ["internal_schema_build", "external_schema_build"],
+);
 
 =head1 RELATIONS
 
@@ -77,8 +104,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:57Na06PrKq1Y5x8+aghacA
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 17:39:31
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:MwfaBo31a+FZqsAhXCN1tQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

@@ -26,13 +26,6 @@ __PACKAGE__->table("interpro");
 
 =head1 ACCESSORS
 
-=head2 interpro_id
-
-  data_type: 'integer'
-  extra: {unsigned => 1}
-  is_auto_increment: 1
-  is_nullable: 0
-
 =head2 interpro_ac
 
   data_type: 'varchar'
@@ -48,30 +41,11 @@ __PACKAGE__->table("interpro");
 =cut
 
 __PACKAGE__->add_columns(
-  "interpro_id",
-  {
-    data_type => "integer",
-    extra => { unsigned => 1 },
-    is_auto_increment => 1,
-    is_nullable => 0,
-  },
   "interpro_ac",
   { data_type => "varchar", is_nullable => 0, size => 40 },
   "id",
   { data_type => "varchar", is_nullable => 0, size => 40 },
 );
-
-=head1 PRIMARY KEY
-
-=over 4
-
-=item * L</interpro_id>
-
-=back
-
-=cut
-
-__PACKAGE__->set_primary_key("interpro_id");
 
 =head1 UNIQUE CONSTRAINTS
 
@@ -90,8 +64,8 @@ __PACKAGE__->set_primary_key("interpro_id");
 __PACKAGE__->add_unique_constraint("accession_idx", ["interpro_ac", "id"]);
 
 
-# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:K5gzKpkzveWP0hNP0tiLbw
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 17:39:31
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:U2G8BWHnLbRh0RbdndbAsQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

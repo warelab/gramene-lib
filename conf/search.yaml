@@ -40,7 +40,7 @@ search:
   list_columns:
     "ensembl_*.dna_align_feature": "hit_name,analysis.logic_name"
 
-    "ensembl_*.gene": "TT:[% SET label=object.display_xref.display_label OR object.stable_id; SET biotype=object.biotype OR 'gene'; SET desc=object.description.remove('\s*\[.*'); \"$label ($biotype): $desc\"; %]" 
+    "ensembl_*.gene": "TT:[% SET label=object.display_xref.display_label OR object.stable_id; SET biotype=object.biotype OR 'gene'; SET desc=object.description.remove('\s*\[.*'); \"$species Gene &quot;$label&quot; ($biotype): $desc\"; %]" 
 
     "ensembl_*.prediction_transcript": "display_label"
 
@@ -56,7 +56,7 @@ search:
 
     "maps.map_set": "species.species,map_type.map_type,map_set_name"
 
-    "ontology.term": "term_type.term_type,name,term_accession"
+    "ontology.term": "TT:Ontology Term '[% object.term_accession %]' ([% object.name %]): [% object.definition | truncate(80) %]"
 
     "pathway_*.search": "gene_name,enzyme_name,reaction_id,reaction_name,ec,pathway_id,pathway_name"
 

@@ -68,7 +68,7 @@ __PACKAGE__->table("protein_feature");
 
 =head2 analysis_id
 
-  data_type: 'integer'
+  data_type: 'smallint'
   extra: {unsigned => 1}
   is_foreign_key: 1
   is_nullable: 0
@@ -89,6 +89,11 @@ __PACKAGE__->table("protein_feature");
   is_nullable: 1
 
 =head2 external_data
+
+  data_type: 'text'
+  is_nullable: 1
+
+=head2 hit_description
 
   data_type: 'text'
   is_nullable: 1
@@ -122,7 +127,7 @@ __PACKAGE__->add_columns(
   { data_type => "varchar", is_nullable => 0, size => 40 },
   "analysis_id",
   {
-    data_type => "integer",
+    data_type => "smallint",
     extra => { unsigned => 1 },
     is_foreign_key => 1,
     is_nullable => 0,
@@ -134,6 +139,8 @@ __PACKAGE__->add_columns(
   "perc_ident",
   { data_type => "float", is_nullable => 1 },
   "external_data",
+  { data_type => "text", is_nullable => 1 },
+  "hit_description",
   { data_type => "text", is_nullable => 1 },
 );
 
@@ -182,8 +189,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:qI8c9CPkrnB0AtvccgypJA
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 17:39:31
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:9v2jrlEM7yu85luV9VK1wg
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

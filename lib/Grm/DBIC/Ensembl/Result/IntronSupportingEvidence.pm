@@ -33,16 +33,35 @@ __PACKAGE__->table("intron_supporting_evidence");
   is_auto_increment: 1
   is_nullable: 0
 
-=head2 previous_exon_id
+=head2 analysis_id
+
+  data_type: 'smallint'
+  extra: {unsigned => 1}
+  is_foreign_key: 1
+  is_nullable: 0
+
+=head2 seq_region_id
+
+  data_type: 'integer'
+  extra: {unsigned => 1}
+  is_foreign_key: 1
+  is_nullable: 0
+
+=head2 seq_region_start
 
   data_type: 'integer'
   extra: {unsigned => 1}
   is_nullable: 0
 
-=head2 next_exon_id
+=head2 seq_region_end
 
   data_type: 'integer'
   extra: {unsigned => 1}
+  is_nullable: 0
+
+=head2 seq_region_strand
+
+  data_type: 'tinyint'
   is_nullable: 0
 
 =head2 hit_name
@@ -64,6 +83,13 @@ __PACKAGE__->table("intron_supporting_evidence");
   extra: {list => ["NONE","DEPTH"]}
   is_nullable: 1
 
+=head2 is_splice_canonical
+
+  data_type: 'enum'
+  default_value: 0
+  extra: {list => [0,1]}
+  is_nullable: 0
+
 =cut
 
 __PACKAGE__->add_columns(
@@ -74,10 +100,26 @@ __PACKAGE__->add_columns(
     is_auto_increment => 1,
     is_nullable => 0,
   },
-  "previous_exon_id",
+  "analysis_id",
+  {
+    data_type => "smallint",
+    extra => { unsigned => 1 },
+    is_foreign_key => 1,
+    is_nullable => 0,
+  },
+  "seq_region_id",
+  {
+    data_type => "integer",
+    extra => { unsigned => 1 },
+    is_foreign_key => 1,
+    is_nullable => 0,
+  },
+  "seq_region_start",
   { data_type => "integer", extra => { unsigned => 1 }, is_nullable => 0 },
-  "next_exon_id",
+  "seq_region_end",
   { data_type => "integer", extra => { unsigned => 1 }, is_nullable => 0 },
+  "seq_region_strand",
+  { data_type => "tinyint", is_nullable => 0 },
   "hit_name",
   { data_type => "varchar", is_nullable => 0, size => 100 },
   "score",
@@ -88,6 +130,13 @@ __PACKAGE__->add_columns(
     default_value => "NONE",
     extra => { list => ["NONE", "DEPTH"] },
     is_nullable => 1,
+  },
+  "is_splice_canonical",
+  {
+    data_type => "enum",
+    default_value => 0,
+    extra => { list => [0, 1] },
+    is_nullable => 0,
   },
 );
 
@@ -105,23 +154,73 @@ __PACKAGE__->set_primary_key("intron_supporting_evidence_id");
 
 =head1 UNIQUE CONSTRAINTS
 
-=head2 C<previous_exon_id>
+=head2 C<analysis_id_2>
 
 =over 4
 
-=item * L</previous_exon_id>
+=item * L</analysis_id>
 
-=item * L</next_exon_id>
+=item * L</seq_region_id>
+
+=item * L</seq_region_start>
+
+=item * L</seq_region_end>
+
+=item * L</seq_region_strand>
+
+=item * L</hit_name>
 
 =back
 
 =cut
 
-__PACKAGE__->add_unique_constraint("previous_exon_id", ["previous_exon_id", "next_exon_id"]);
+__PACKAGE__->add_unique_constraint(
+  "analysis_id_2",
+  [
+    "analysis_id",
+    "seq_region_id",
+    "seq_region_start",
+    "seq_region_end",
+    "seq_region_strand",
+    "hit_name",
+  ],
+);
+
+=head1 RELATIONS
+
+=head2 analysis
+
+Type: belongs_to
+
+Related object: L<Grm::DBIC::Ensembl::Result::Analysis>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "analysis",
+  "Grm::DBIC::Ensembl::Result::Analysis",
+  { analysis_id => "analysis_id" },
+  { is_deferrable => 1, on_delete => "RESTRICT", on_update => "RESTRICT" },
+);
+
+=head2 seq_region
+
+Type: belongs_to
+
+Related object: L<Grm::DBIC::Ensembl::Result::SeqRegion>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "seq_region",
+  "Grm::DBIC::Ensembl::Result::SeqRegion",
+  { seq_region_id => "seq_region_id" },
+  { is_deferrable => 1, on_delete => "RESTRICT", on_update => "RESTRICT" },
+);
 
 
-# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:+fFoJklJ/uVrCdZZZtq3+g
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 17:39:31
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:F58eUOYGT99/yJtqa4820g
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

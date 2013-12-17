@@ -26,13 +26,6 @@ __PACKAGE__->table("translation_attrib");
 
 =head1 ACCESSORS
 
-=head2 translation_attrib_id
-
-  data_type: 'integer'
-  extra: {unsigned => 1}
-  is_auto_increment: 1
-  is_nullable: 0
-
 =head2 translation_id
 
   data_type: 'integer'
@@ -43,7 +36,7 @@ __PACKAGE__->table("translation_attrib");
 
 =head2 attrib_type_id
 
-  data_type: 'integer'
+  data_type: 'smallint'
   default_value: 0
   extra: {unsigned => 1}
   is_foreign_key: 1
@@ -51,19 +44,13 @@ __PACKAGE__->table("translation_attrib");
 
 =head2 value
 
-  data_type: 'text'
+  data_type: 'varchar'
   is_nullable: 0
+  size: 255
 
 =cut
 
 __PACKAGE__->add_columns(
-  "translation_attrib_id",
-  {
-    data_type => "integer",
-    extra => { unsigned => 1 },
-    is_auto_increment => 1,
-    is_nullable => 0,
-  },
   "translation_id",
   {
     data_type => "integer",
@@ -74,27 +61,15 @@ __PACKAGE__->add_columns(
   },
   "attrib_type_id",
   {
-    data_type => "integer",
+    data_type => "smallint",
     default_value => 0,
     extra => { unsigned => 1 },
     is_foreign_key => 1,
     is_nullable => 0,
   },
   "value",
-  { data_type => "text", is_nullable => 0 },
+  { data_type => "varchar", is_nullable => 0, size => 255 },
 );
-
-=head1 PRIMARY KEY
-
-=over 4
-
-=item * L</translation_attrib_id>
-
-=back
-
-=cut
-
-__PACKAGE__->set_primary_key("translation_attrib_id");
 
 =head1 RELATIONS
 
@@ -129,8 +104,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:GzGYQ8xaYazuoYlPObhSWQ
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 17:39:31
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:/BAwZ3r1uXz+z90fXumxUw
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

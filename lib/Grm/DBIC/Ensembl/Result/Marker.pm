@@ -189,54 +189,9 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
-=head2 qtl_flank_marker_id_1s
 
-Type: has_many
-
-Related object: L<Grm::DBIC::Ensembl::Result::Qtl>
-
-=cut
-
-__PACKAGE__->has_many(
-  "qtl_flank_marker_id_1s",
-  "Grm::DBIC::Ensembl::Result::Qtl",
-  { "foreign.flank_marker_id_1" => "self.marker_id" },
-  { cascade_copy => 0, cascade_delete => 0 },
-);
-
-=head2 qtl_flank_marker_id_2s
-
-Type: has_many
-
-Related object: L<Grm::DBIC::Ensembl::Result::Qtl>
-
-=cut
-
-__PACKAGE__->has_many(
-  "qtl_flank_marker_id_2s",
-  "Grm::DBIC::Ensembl::Result::Qtl",
-  { "foreign.flank_marker_id_2" => "self.marker_id" },
-  { cascade_copy => 0, cascade_delete => 0 },
-);
-
-=head2 qtl_peak_markers
-
-Type: has_many
-
-Related object: L<Grm::DBIC::Ensembl::Result::Qtl>
-
-=cut
-
-__PACKAGE__->has_many(
-  "qtl_peak_markers",
-  "Grm::DBIC::Ensembl::Result::Qtl",
-  { "foreign.peak_marker_id" => "self.marker_id" },
-  { cascade_copy => 0, cascade_delete => 0 },
-);
-
-
-# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:92Un0Dy9Db+qKJxq0CI/IQ
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 17:39:31
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:8bBDwBfPuqe/BcIzyLrWcw
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

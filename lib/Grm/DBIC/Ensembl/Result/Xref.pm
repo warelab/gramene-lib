@@ -67,13 +67,15 @@ __PACKAGE__->table("xref");
 =head2 info_type
 
   data_type: 'enum'
+  default_value: 'NONE'
   extra: {list => ["NONE","PROJECTION","MISC","DEPENDENT","DIRECT","SEQUENCE_MATCH","INFERRED_PAIR","PROBE","UNMAPPED","COORDINATE_OVERLAP","CHECKSUM"]}
-  is_nullable: 1
+  is_nullable: 0
 
 =head2 info_text
 
   data_type: 'varchar'
-  is_nullable: 1
+  default_value: (empty string)
+  is_nullable: 0
   size: 255
 
 =cut
@@ -104,6 +106,7 @@ __PACKAGE__->add_columns(
   "info_type",
   {
     data_type => "enum",
+    default_value => "NONE",
     extra => {
       list => [
         "NONE",
@@ -119,10 +122,10 @@ __PACKAGE__->add_columns(
         "CHECKSUM",
       ],
     },
-    is_nullable => 1,
+    is_nullable => 0,
   },
   "info_text",
-  { data_type => "varchar", is_nullable => 1, size => 255 },
+  { data_type => "varchar", default_value => "", is_nullable => 0, size => 255 },
 );
 
 =head1 PRIMARY KEY
@@ -151,13 +154,21 @@ __PACKAGE__->set_primary_key("xref_id");
 
 =item * L</info_text>
 
+=item * L</version>
+
 =back
 
 =cut
 
 __PACKAGE__->add_unique_constraint(
   "id_index",
-  ["dbprimary_acc", "external_db_id", "info_type", "info_text"],
+  [
+    "dbprimary_acc",
+    "external_db_id",
+    "info_type",
+    "info_text",
+    "version",
+  ],
 );
 
 =head1 RELATIONS
@@ -283,8 +294,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:Qoa/uyOq3Jtqvf7EZftiLQ
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 17:39:31
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:FtTjTd/Nx/JQDpP76cI4Tg
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

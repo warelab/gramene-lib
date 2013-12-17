@@ -26,13 +26,6 @@ __PACKAGE__->table("meta_coord");
 
 =head1 ACCESSORS
 
-=head2 meta_coord_id
-
-  data_type: 'integer'
-  extra: {unsigned => 1}
-  is_auto_increment: 1
-  is_nullable: 0
-
 =head2 table_name
 
   data_type: 'varchar'
@@ -54,13 +47,6 @@ __PACKAGE__->table("meta_coord");
 =cut
 
 __PACKAGE__->add_columns(
-  "meta_coord_id",
-  {
-    data_type => "integer",
-    extra => { unsigned => 1 },
-    is_auto_increment => 1,
-    is_nullable => 0,
-  },
   "table_name",
   { data_type => "varchar", is_nullable => 0, size => 40 },
   "coord_system_id",
@@ -73,18 +59,6 @@ __PACKAGE__->add_columns(
   "max_length",
   { data_type => "integer", is_nullable => 1 },
 );
-
-=head1 PRIMARY KEY
-
-=over 4
-
-=item * L</meta_coord_id>
-
-=back
-
-=cut
-
-__PACKAGE__->set_primary_key("meta_coord_id");
 
 =head1 UNIQUE CONSTRAINTS
 
@@ -120,8 +94,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:a0izyUKtahIkZbUnxuaN/Q
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 17:39:31
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:I2Ov18HUoS5LxULRt13Dgw
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

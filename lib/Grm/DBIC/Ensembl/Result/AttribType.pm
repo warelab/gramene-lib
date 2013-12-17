@@ -28,7 +28,7 @@ __PACKAGE__->table("attrib_type");
 
 =head2 attrib_type_id
 
-  data_type: 'integer'
+  data_type: 'smallint'
   extra: {unsigned => 1}
   is_auto_increment: 1
   is_nullable: 0
@@ -57,7 +57,7 @@ __PACKAGE__->table("attrib_type");
 __PACKAGE__->add_columns(
   "attrib_type_id",
   {
-    data_type => "integer",
+    data_type => "smallint",
     extra => { unsigned => 1 },
     is_auto_increment => 1,
     is_nullable => 0,
@@ -174,8 +174,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:eV0TMTouezXXX4vhl/hpkQ
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 17:39:31
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:OYU8L4bsvLe8BV7U2XRxZA
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

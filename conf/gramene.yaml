@@ -7,10 +7,10 @@ version: 40
 
 ensembl:
   version: 73
-  install_dir: /usr/local/ensembl-live
+  install_dir: /usr/local/ensembl-74
   registry_file: /usr/local/gramene-ensembl/conf/ensembl.registry
-  sql_file: /usr/local/ensembl-live/ensembl/sql/table.sql
-  foreign_key_file: /usr/local/ensembl-live/ensembl/sql/foreign_keys.sql
+  sql_file: /usr/local/ensembl-74/ensembl/sql/table.sql
+  foreign_key_file: /usr/local/ensembl-74/ensembl/sql/foreign_keys.sql
 
 mysql:
   mysql: /usr/bin/mysql

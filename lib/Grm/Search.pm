@@ -209,22 +209,9 @@ tables and records indexed and the elapsed time.
     for my $module ( @modules ) {
         my %tables_to_index  = $self->tables_to_index( $module );
         my %sql_to_index     = $self->sql_to_index( $module );
-        my $extract_ontology = $module ne 'ontology';
 
         my $indexer;
-        if ( $db_type eq 'lucy' ) {
-            my $lucy_schema      = $self->schema;
-#            my $module_index     = catdir( $self->index_path, $module );
-#
-#            # Create an Indexer object.
-#            $indexer = Lucy::Index::Indexer->new(
-#                index    => $module_index,
-#                schema   => $lucy_schema,
-#                create   => 1,
-#                truncate => 1,
-#            ) or die "No indexer\n";
-        }
-        elsif ( $db_type eq 'solr' ) {
+        if ( $db_type eq 'solr' ) {
             $indexer = Grm::Search::Indexer::Solr->new(
                 module => $module
             );
@@ -456,6 +443,28 @@ tables and records indexed and the elapsed time.
 
                 next if !$text;
 
+                my ( @ontology_accs, @taxonomy );
+                if ( $module ne 'ontology' ) {
+                    push @ontologies, extract_ontology( $text );
+
+                    @ontology_accs 
+                        = uniq( map { $_->term_accession } @ontologies );
+
+                    @taxonomy = 
+                        grep { $_->term_accession =~ /^gr_tax/i } @ontologies;
+                }
+
+                my $species_name = '';
+                if ( $module =~ /^ensembl_(\w+)/ ) {
+                    $species_name = ucfirst lc $1;
+                }
+                elsif ( @taxonomy == 1 ) {
+                    ( $species_name = lc $taxonomy[0]->name ) =~ s/ /_/g;
+                }
+                elsif ( $module =~ /^pathway_(\w+)/ ) {
+                    $species_name = ucfirst lc $1;
+                }
+
                 my $title = '';
                 if ( my %list_columns = %{ $sconf->{'list_columns'} || {} } ) {
                     while ( my ($list_type, $list_def) = each %list_columns ) {
@@ -469,8 +478,16 @@ tables and records indexed and the elapsed time.
                         if ( $list_def =~ /^TT:(.*)/ ) {
                             my $tmpl = $1;
                             my $tt   = Template->new;
-                            $tt->process( \$tmpl, { object => $rec }, \$title ) 
-                                or $title = $tt->error;
+                            $tt->process( 
+                                \$tmpl, 
+                                { 
+                                    object  => $rec, 
+                                    module  => $module,
+                                    table   => $table,
+                                    species => $species_name,
+                                }, 
+                                \$title 
+                            ) or $title = $tt->error;
                         }
                         else {
                             my $format = ''; 
@@ -509,24 +526,6 @@ tables and records indexed and the elapsed time.
                 }
 
                 $title ||= substr $text, 0, 50;
-
-                push @ontologies, extract_ontology( $text );
-                my @ontology_accs 
-                    = uniq( map { $_->term_accession } @ontologies );
-
-                my @taxonomy = 
-                    grep { $_->term_accession =~ /^gr_tax/i } @ontologies;
-
-                my $species_name = '';
-                if ( $module =~ /^ensembl_(\w+)/ ) {
-                    $species_name = ucfirst lc $1;
-                }
-                elsif ( @taxonomy == 1 ) {
-                    ( $species_name = lc $taxonomy[0]->name ) =~ s/ /_/g;
-                }
-                elsif ( $module =~ /^pathway_(\w+)/ ) {
-                    $species_name = ucfirst lc $1;
-                }
 
                 my $doc = {
                     id       => join( '/', $module, $table, $id ),

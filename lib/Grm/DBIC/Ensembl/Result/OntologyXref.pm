@@ -26,13 +26,6 @@ __PACKAGE__->table("ontology_xref");
 
 =head1 ACCESSORS
 
-=head2 ontology_xref_id
-
-  data_type: 'integer'
-  extra: {unsigned => 1}
-  is_auto_increment: 1
-  is_nullable: 0
-
 =head2 object_xref_id
 
   data_type: 'integer'
@@ -57,13 +50,6 @@ __PACKAGE__->table("ontology_xref");
 =cut
 
 __PACKAGE__->add_columns(
-  "ontology_xref_id",
-  {
-    data_type => "integer",
-    extra => { unsigned => 1 },
-    is_auto_increment => 1,
-    is_nullable => 0,
-  },
   "object_xref_id",
   {
     data_type => "integer",
@@ -82,18 +68,6 @@ __PACKAGE__->add_columns(
   "linkage_type",
   { data_type => "varchar", is_nullable => 1, size => 3 },
 );
-
-=head1 PRIMARY KEY
-
-=over 4
-
-=item * L</ontology_xref_id>
-
-=back
-
-=cut
-
-__PACKAGE__->set_primary_key("ontology_xref_id");
 
 =head1 UNIQUE CONSTRAINTS
 
@@ -154,8 +128,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-11-06 17:35:08
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:RSeNNpCdNMqJEWmrcGsNug
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 17:39:31
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:b1RgqO/v6ulqndvDg5flgQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
