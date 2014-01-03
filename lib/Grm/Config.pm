@@ -91,8 +91,10 @@ sub _build_config {
     #
     # Add in Ensembl as modules, set their db info
     #
-    my $reg_file    = $conf->{'ensembl'}{'registry_file'} || '';
-    my $install_dir = $conf->{'ensembl'}{'install_dir'}   || '';
+    my $ens_conf    = $conf->{'ensembl'}           || {};
+    my $reg_file    = $ens_conf->{'registry_file'} || '';
+    my $install_dir = $ens_conf->{'install_dir'}   || '';
+    my $aliases     = $ens_conf->{'alias'}         || {};
 
     if ( $reg_file && $install_dir && -e $reg_file && -d $install_dir ) {
         my %inc = map { $_, 1 } @INC;
@@ -121,6 +123,7 @@ sub _build_config {
             for my $db ( @{ $reg_class->get_all_DBAdaptors() } ) {
                 my $dbc     = $db->dbc;
                 my $species = lc $db->species; 
+                my $alias   = $aliases->{ $species } || '';
 
                 #
                 # Skip those hosted at EBI and the "multi"
@@ -145,6 +148,7 @@ sub _build_config {
                     user     => $dbc->username,
                     password => $dbc->password,
                     host     => $dbc->host,
+                    alias    => $alias,
                 };
 
                 push @{ $conf->{'modules'} }, $species;

@@ -10,6 +10,12 @@ use Net::Ping;
 use Moose;
 use MooseX::Aliases;
 
+has alias      => (
+    is         => 'rw',
+    isa        => 'Str',
+    default    => '',
+);
+
 has db_name   => (
     is        => 'rw',
     isa       => 'Str',
@@ -117,6 +123,10 @@ sub BUILD {
     }
     else {
         croak('No db "name" defined in database config');
+    }
+
+    if ( my $alias = $db_conf->{'alias'} ) {
+        $self->alias( $alias );
     }
 
     if ( ! $self->has_user ) {

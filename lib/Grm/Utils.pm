@@ -183,9 +183,11 @@ sub iterative_search_values {
 
 # ----------------------------------------------------
 sub module_name_to_gdbic_class {
-    my $module = shift or croak 'No module name';
+    my $module   = shift or croak 'No module name';
+    my $config   = Grm::Config->new->get('search');
+    my $reusable = join( '|', @{ $config->{'reusable_schemas'} || [] } );
 
-    if ( $module =~ /^(ensembl|diversity|pathway)_/ ) {
+    if ( $module =~ /^($reusable)_/ ) {
         $module = $1;
     }
 

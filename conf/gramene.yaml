@@ -9,8 +9,16 @@ ensembl:
   version: 73
   install_dir: /usr/local/ensembl-74
   registry_file: /usr/local/gramene-ensembl/conf/ensembl.registry
-  sql_file: /usr/local/ensembl-74/ensembl/sql/table.sql
-  foreign_key_file: /usr/local/ensembl-74/ensembl/sql/foreign_keys.sql
+
+  innodb_sql_file:
+    core: ensembl-innodb.sql
+    variation: ensembl-variation-innodb.sql
+
+  alias:
+    "oryza_sativa_indica": "Oryza_indica"
+    "oryza_sativa_japonica": "Oryza_sativa"
+    "oryza_rufipogon": "Oryza_rufipogon3s"
+    "oryza_rufipogon_fpc": "Oryza_rufipogon"
 
 mysql:
   mysql: /usr/bin/mysql

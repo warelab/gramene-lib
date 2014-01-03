@@ -42,10 +42,6 @@ Returns or sets the integer value for the size of the pages of results.
 
 Returns the Lucy schema object.
 
-=head2 indexer
-
-Should return the Lucy indexer object.
-
 =cut
 
 # ----------------------------------------------------
@@ -104,12 +100,6 @@ has schema     => (
     lazy_build => 1,
 );
 
-has indexer    => (
-    is         => 'rw',
-#    isa        => 'Lucy::Index::Indexer',
-    lazy_build => 1,
-);
-
 # ----------------------------------------------------
 sub BUILD {
     my $self       = shift;
@@ -157,23 +147,6 @@ sub _build_schema {
 }
 
 # ----------------------------------------------------
-sub _build_indexer {
-    my $self   = shift;
-    my $module = shift || '';# or croak 'No module name';
-    my $path   = catdir $self->index_path, $module;
-
-    # Create an Indexer object.
-    my $indexer = Lucy::Index::Indexer->new(
-        schema   => $self->schema,
-        index    => $path,
-        create   => 1,
-        truncate => 1,
-    ) or croak "No indexer\n";
-
-    return $indexer;
-}
-
-# ----------------------------------------------------
 sub index {
 
 =pod
@@ -210,26 +183,11 @@ tables and records indexed and the elapsed time.
         my %tables_to_index  = $self->tables_to_index( $module );
         my %sql_to_index     = $self->sql_to_index( $module );
 
-        my $indexer;
-        if ( $db_type eq 'solr' ) {
-            $indexer = Grm::Search::Indexer::Solr->new(
-                module => $module
-            );
-        }
-        else {
-            $indexer = Grm::Search::Indexer::MySQL->new(
-                module => $module
-            );
-
-            if ( !$resume ) {
-                $indexer->truncate;
-            }
-        }
-
-        my $odb    = Grm::Ontology->new;
-        my $db     = Grm::DB->new( $module );
-        my $dbh    = $db->dbh;
-        my $schema = $db->dbic;
+        my $indexer = Grm::Search::Indexer::Solr->new( module => $module );
+        my $odb     = Grm::Ontology->new;
+        my $db      = Grm::DB->new( $module );
+        my $dbh     = $db->dbh;
+        my $schema  = $db->dbic;
 
         my @docs;
         TABLE:
@@ -455,7 +413,7 @@ tables and records indexed and the elapsed time.
                 }
 
                 my $species_name = '';
-                if ( $module =~ /^ensembl_(\w+)/ ) {
+                if ( $module =~ /^(ensembl|variation)_(\w+)/ ) {
                     $species_name = ucfirst lc $1;
                 }
                 elsif ( @taxonomy == 1 ) {
@@ -596,191 +554,6 @@ sub connect_mysql_search_db {
     );
 
     return $dbh;
-}
-
-# ----------------------------------------------------
-sub search_mysql {
-
-=pod
-
-=head2 search_mysql
-
-  my $results = $sdb->search_mysql('waxy');
-
-  my $results = $sdb->search( 
-      query     => 'waxy', # required
-      category  => 'genomes',
-      db        => 'maps',
-      limit     => 50,
-      nopage    => 1,
-      page_size => 50,
-      offset    => 100,
-  );
-
-Performs a search.  Only "query" is required, and if only one argument 
-is present, it is assumed to be "query."  
-
-Options include:
-
-=over 4
-
-=item offset
-
-[Integer] How far into the result set to go
-
-=item category
-
-[String] Gramene search category
-
-=item limit
-
-[Integer] Number of results
-
-=item nopage
-
-[Boolean] Don't bother paging the results, just return everything
-
-=item page_size
-
-[Integer] Size of the pages
-
-=back
-
-=cut
-
-    my $self       = shift;
-    my $timer      = timer_calc();
-    my %args       = ref $_[0] eq 'HASH' 
-                       ? %{ $_[0] } 
-                       : scalar @_ == 1 
-                         ? ( query => $_[0] ) : @_;
-    my $query      = $args{'query'}    or return;
-    my $qry_db     = $args{'db'}       || '';
-    my $taxonomy   = $args{'taxonomy'} || '';
-    my $offset     = $args{'offset'}   ||  0;
-    my $category   = $args{'category'} || '';
-    my $limit      = $args{'limit'}    ||  0;
-    my $page_size  = $args{'nopage'} 
-                   ? undef 
-                   : $args{'page_size'} || $self->page_size;
-
-    my $hit_count  = 0;
-    my $debug      = sub { $args{'debug'} && print STDERR @_, "\n" };
-
-    #
-    # Check if the query looks like an ontology accession
-    #
-    my $Term;
-    if ( $query =~ /^[A-Za-z_]+ : \d+$/xms ) {
-        my $ont_db   = Grm::Ontology->new;
-        my $schema   = $ont_db->db->schema;
-        my @term_ids = $ont_db->search( query => $query );
-        if ( scalar @term_ids == 1 ) {
-            my $term_id = shift @term_ids;
-            $Term = $schema->resultset('Term')->find($term_id);
-        }
-    }
-
-    my @dbs = $self->search_dbs;
-
-    if ( $qry_db ) {
-        @dbs = grep { /$qry_db/i } @dbs;
-    }
-
-    my @hits;
-
-    DB:
-    for my $db_name ( @dbs ) {
-        my ( $grm, $search, @rest ) = split /_/, $db_name;
-        my $this_category = $rest[0];
-
-        if ( $category ) {
-            next DB unless lc $this_category eq lc $category;
-        }
-
-        my $dbh = $self->connect_mysql_search_db( $db_name );
-
-        my ( $sql, @args );
-
-        if ( $db_name eq 'grm_search_ontology' && $Term ) {
-            $sql = qq[
-                select url, title, taxonomy, ontology, content,
-                       content as excerpt, '1' as score,
-                       'ontology' as category
-                from   search
-                where  url=?
-            ];
-
-            @args = ( sprintf 'ontology/term/%s', $Term->id );
-        }
-        else {
-            $sql = sprintf(
-                qq[
-                    select url, title, taxonomy, ontology, content,
-                           content as excerpt,
-                           match(content) against (%s) as score,
-                           '$this_category' as category
-                    from   search
-                    where
-                    match(content) against (%s in boolean mode)
-                ],
-                $dbh->quote($query),
-                $dbh->quote('%' . $query . '%'),
-            );
-
-            if ( $Term ) {
-                $sql .= sprintf( 
-                    " and ontology like '%%%s%%' ", $Term->term_accession
-                );
-            }
-
-            if ( $taxonomy ) {
-                my @tax = ref $taxonomy eq 'ARRAY' ? @$taxonomy : ( $taxonomy );
-
-                if ( my @valid = grep { /^GR_tax:\d+/ } @tax ) {
-                    if ( scalar @valid == 1 ) {
-                        $sql .= ' and taxonomy=? ';
-                        push @args, shift @valid;
-                    }
-                    else {
-                        $sql .= sprintf(
-                            ' and taxonomy in (%s) ',
-                            join( ', ', map { $dbh->quote($_) } @valid )
-                        );
-                    }
-                }
-            }
-        }
-
-        $sql    .= 'order by score desc';
-        my $hits = $dbh->selectall_arrayref( $sql, { Columns => {} }, @args );
-        my $num  = scalar @$hits;
-
-        $debug->(sprintf('Found %s for "%s" in %s', $num, $query, $db_name));
-
-        if ( $num ) {
-            $hit_count += $num;
-            push @hits, @$hits;
-        }
-    }
-
-    if ( !$category || ( $category && $category =~ /ensembl/ ) ) {
-        my @ens_hits = $self->_search_ensembl( $query, $qry_db, $debug );
-        push @hits, @ens_hits;
-        $hit_count += scalar @ens_hits;
-    }
-
-    if ( !$category || ( $category && $category =~ /maps/ ) ) {
-        my @maps_hits = $self->_search_maps( $query, $qry_db, $debug );
-        push @hits, @maps_hits;
-        $hit_count += scalar @maps_hits;
-    }
-
-    return { 
-        num_hits => $hit_count,
-        data     => \@hits, 
-        time     => $timer->(),
-    };
 }
 
 # ----------------------------------------------------
@@ -1229,9 +1002,14 @@ Returns a hash(ref) of the tables to index for a given module.
 
         my $tables = $tables_to_index{ $mod_name };
 
-        for my $table ( split /;/, $tables ) {
-            if ( $table =~ /
-                ([\w#]+) # table name
+        while ( my ( $index_table, $def ) = each %$tables ) {
+            my $object_type = $index_table;
+            if ( $index_table =~ /([^#]+) [#] ([^#]+)/xms ) {
+                $index_table = $1;
+                $object_type = $2;
+            }
+
+            if ( $def =~ /
                 (        # capture a
                 \[       # left square
                 (.*?)    # list (optionally null) of fields
@@ -1243,23 +1021,16 @@ Returns a hash(ref) of the tables to index for a given module.
                 )?       # end optional non-capturing
                 /xms
             ) {
-                my $index_table       = $1 || $EMPTY_STR;
-                my $index_field_group = $2 || $EMPTY_STR;
-                my $index_fields      = $3 || $EMPTY_STR;
-                my $other_tables      = $4 || $EMPTY_STR;
-
-                my $object_type = $index_table;
-                if ( $index_table =~ /([^#]+) [#] ([^#]+)/xms ) {
-                    $index_table = $1;
-                    $object_type = $2;
-                }
+                my $index_field_group = $1 || $EMPTY_STR;
+                my $index_fields      = $2 || $EMPTY_STR;
+                my $other_tables      = $3 || $EMPTY_STR;
 
                 my @index_fields;
                 if ( $index_field_group eq $EMPTY_STR ) {
                     @index_fields = ( $ALL );
                 }
                 else {
-                    @index_fields = ( split /:/, $index_fields );
+                    @index_fields = ( split /,/, $index_fields );
                 }
 
                 $return{ $index_table } = {
@@ -1267,7 +1038,7 @@ Returns a hash(ref) of the tables to index for a given module.
                     object_type => $object_type,
                 };
 
-                for my $table ( split /,/, $other_tables ) {
+                for my $table ( split /[+]/, $other_tables ) {
                     if ( $table =~ /
                         ([\w.]+) # table name
                         (     # start capture
@@ -1287,7 +1058,7 @@ Returns a hash(ref) of the tables to index for a given module.
                         }
                         else {
                             @other_index_fields 
-                                = ( split /:/, $other_table_fields );
+                                = ( split /,/, $other_table_fields );
                         }
 
                         push @{ 
@@ -1301,7 +1072,7 @@ Returns a hash(ref) of the tables to index for a given module.
                 }
             }
             else {
-                $return{ $table } = { fields => $ALL };
+                $return{ $index_table } = { fields => $ALL };
             }
         }
     }

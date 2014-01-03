@@ -12,15 +12,10 @@ use Getopt::Long;
 use Grm::Config;
 use Grm::DB;
 use Grm::Search;
-#use Grm::Ontology;
 use Grm::Utils qw( camel_case commify timer_calc );
 use HTML::Strip;
 use IO::Prompt qw( prompt );
 use List::MoreUtils qw( uniq );
-use Lucy::Analysis::PolyAnalyzer;
-use Lucy::Index::Indexer;
-use Lucy::Plan::FullTextType;
-use Lucy::Plan::Schema;
 use Pod::Usage;
 use Readonly;
 use Time::HiRes qw( gettimeofday tv_interval );
@@ -29,25 +24,21 @@ use Time::Interval qw( parseInterval );
 Readonly my $COMMA_SPACE => qr/\s*,\s*/;
 
 my $force         =  0;
-my $indexer       = 'solr';
 my $load_all      =  0;
 my $load_like     = '';
 my $load_not_like = '';
 my $modules       = '';
 my $resume        =  0;
 my $show_list     =  0;
-my $skip_done     =  0;
 my ( $help, $man_page );
 GetOptions(
     'a|all'       => \$load_all,
-    'i|indexer:s' => \$indexer,
     'l|list'      => \$show_list,
     'f|force'     => \$force,
     'like:s'      => \$load_like,
     'not-like:s'  => \$load_not_like,
     'm|module:s'  => \$modules,
     'r|resume'    => \$resume,
-    'skip-done'   => \$skip_done,
     'help'        => \$help,
     'man'         => \$man_page,
 ) or pod2usage(2);
@@ -96,23 +87,6 @@ elsif ( $load_all ) {
     @do_modules = @modules;
 }
 
-if ( $skip_done ) {
-    my %done = map { basename($_), 1 } 
-      File::Find::Rule->directory()->nonempty->maxdepth(1)->mindepth(1)
-        ->in($index_path);
-
-    @do_modules = grep { !$done{ $_ } } @do_modules;
-
-    if ( !@do_modules ) {
-        print join("\n",
-            'Looks all modules are up-to-date.',
-            'Either remove directories you want reprocessed ',
-            "or don't use --skip-done.",
-        );
-        exit 0;
-    }
-}
-
 my %valid = map { $_, 1 } @modules;
 if ( my @bad = grep { !$valid{ $_ } } @do_modules ) {
     printf "Bad modules:\n%s\nUse --list or --like?\n",
@@ -147,7 +121,7 @@ for my $module ( uniq( @do_modules ) ) {
     next MODULE if $module eq 'search';
 
     my $results = $search_db->index( 
-        db_type => $indexer,
+        db_type => 'solr',
         module  => $module,
         resume  => $resume,
         verbose => 1,
@@ -192,7 +166,6 @@ Options:
   --not-like   Comma-separated list of regexes to deselect modules
   -m|--module  Comma-separated list of modules to index
   -r|--resume  Resume indexing, don't truncate at the start
-  --skip-done  Skip previously indexed modules (useful w/other selectors)
 
   --help       Show brief help and exit
   --man        Show full documentation
@@ -201,18 +174,13 @@ Options:
 
 Processes the modules indicated, indexing them for the Gramene search.
 
-=head1 SEE ALSO
-
-Apache::Lucy.
-
 =head1 AUTHOR
 
-Adapted from "indexer.pl" from the Apache Lucy sample Perl script by
-Ken Youens-Clark E<lt>kclark@cshl.eduE<gt>.
+Ken Youens-Clark E<lt>kclark@cshl.eduE<gt>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2012 Cold Spring Harbor Laboratory
+Copyright (c) 2013 Cold Spring Harbor Laboratory
 
 This module is free software; you can redistribute it and/or
 modify it under the terms of the GPL (either version 1, or at

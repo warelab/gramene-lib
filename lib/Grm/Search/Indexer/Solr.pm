@@ -42,7 +42,6 @@ use HTTP::Request;
 use JSON::XS;
 use LWP::UserAgent;
 use Moose;
-#use Solr;
 use XML::Simple qw( XMLout );
 
 has config => (

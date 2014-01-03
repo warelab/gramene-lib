@@ -1,3 +1,5 @@
+# vim: set noai
+
 search:
   solr:
     url: "http://brie.cshl.edu:8983/solr/grm-search"
@@ -23,25 +25,40 @@ search:
 
   index_path: search-index
 
-  reusable_schemas: "ensembl,pathway,amigo,ontology"
+  reusable_schemas: 
+    - ensembl
+    - pathway
+    - amigo
+    - ontology
+    - variation
 
   tables_to_index:
+    "compara": 
+      "member": "[stable_id,description]"
 
-    "compara": "member[stable_id:description]"
+    "ensembl_*": 
+      "gene": "[biotype,description,stable_id]+transcripts[stable_id]+seq_region[name]+display_xref[display_label]"
+      "marker": "[type]+marker_synonyms[name]"
+      "prediction_transcript": "[display_label]"
 
-    "ensembl_*": "gene[biotype:description:stable_id]+transcripts[stable_id],seq_region[name],display_xref[display_label];prediction_transcript[display_label]"
+    "variation_*":
+      "variation": "[name]+variation_synonym[name]"
 
-    "maps": "feature_type[feature_type];map_set[map_set_name:description]+species[species:common_name];map_type[map_type:description]"
+    "maps": 
+       "feature_type": "[feature_type]"
+       "map_set": "[map_set_name,description]+species[species,common_name]"
+       "map_type": "[map_type,description]"
 
-    "ontology": "term[name:term_accession]+term_definition[definition],term_type[term_type],term_synonyms[term_synonym]"
+    "ontology": 
+      "term#ontology_term": "[name,term_accession]+term_definition[definition]+term_type[term_type]+term_synonyms[term_synonym]"
 
-    "pathway_*": "search#pathway[species:gene_name:enzyme_name:reaction_id:reaction_name:ec:pathway_id:pathway_name]"
+    "pathway_*": 
+      "search#pathway": "[species,gene_name,enzyme_name,reaction_id,reaction_name,ec,pathway_id,pathway_name]"
 
   list_columns:
     "ensembl_*.dna_align_feature": "hit_name,analysis.logic_name"
 
-    "ensembl_*.gene": "TT:[% SET label=object.display_xref.display_label OR object.stable_id; SET biotype=object.biotype OR 'gene'; SET desc=object.description.remove('\s*\[.*'); \"$species Gene &quot;$label&quot; ($biotype): $desc\"; %]" 
-
+    "ensembl_*.gene": "TT:[% SET label=object.display_xref.display_label OR object.stable_id; SET biotype=object.biotype OR 'gene'; SET desc=object.description.remove('\\s*\\[.*'); \"$species Gene &quot;$label&quot; ($biotype): $desc\"; %]" 
     "ensembl_*.prediction_transcript": "display_label"
 
     "ensembl_*.interpro": "id_field,interpro_ac('Interpro accession &quot;%s&quot; in domain &quot;%s&quot;')"
@@ -49,6 +66,8 @@ search:
     "ensembl_*.marker": "type,display_marker_synonym.name"
 
     "ensembl_*.seq_region": "name"
+
+    "variation_*.variation": "name"
 
     "maps.feature": "species.species,feature_type.feature_type,feature_synonyms.feature_name"
 
@@ -145,57 +164,3 @@ search:
 
     pathway_sorghum_bicolor.search: |
       select 'GR_tax:014159' as ontology_acc;
-
-  search_dbs:
-    - grm_search_ensembl_aegilops_tauschii40
-    - grm_search_ensembl_arabidopsis_lyrata40
-    - grm_search_ensembl_arabidopsis_thaliana40
-    - grm_search_ensembl_brachypodium_distachyon40
-    - grm_search_ensembl_brassica_rapa40
-    - grm_search_ensembl_chlamydomonas_reinhardtii40
-    - grm_search_ensembl_cyanidioschyzon_merolae40
-    - grm_search_ensembl_glycine_max40
-    - grm_search_ensembl_hordeum_vulgare40
-    - grm_search_ensembl_leersia_perrieri40
-    - grm_search_ensembl_medicago_truncatula40
-    - grm_search_ensembl_musa_acuminata40
-    - grm_search_ensembl_oryza_barthii40
-    - grm_search_ensembl_oryza_brachyantha40
-    - grm_search_ensembl_oryza_glaberrima40
-    - grm_search_ensembl_oryza_glumaepatula40
-    - grm_search_ensembl_oryza_granulata40
-    - grm_search_ensembl_oryza_longistaminata40
-    - grm_search_ensembl_oryza_meridionalis40
-    - grm_search_ensembl_oryza_minutabb40
-    - grm_search_ensembl_oryza_minutacc40
-    - grm_search_ensembl_oryza_nivara40
-    - grm_search_ensembl_oryza_officinalis40
-    - grm_search_ensembl_oryza_punctata40
-    - grm_search_ensembl_oryza_rufipogon3s40
-    - grm_search_ensembl_oryza_rufipogon_fpc40
-    - grm_search_ensembl_oryza_sativa_indica40
-    - grm_search_ensembl_oryza_sativa_japonica40
-    - grm_search_ensembl_physcomitrella_patens40
-    - grm_search_ensembl_populus_trichocarpa40
-    - grm_search_ensembl_selaginella_moellendorffii40
-    - grm_search_ensembl_setaria_italica40
-    - grm_search_ensembl_solanum_lycopersicum40
-    - grm_search_ensembl_solanum_tuberosum40
-    - grm_search_ensembl_sorghum_bicolor40
-    - grm_search_ensembl_triticum_aestivum40
-    - grm_search_ensembl_triticum_urartu40
-    - grm_search_ensembl_vitis_vinifera40
-    - grm_search_ensembl_zea_mays40
-    - grm_search_maps40
-    - grm_search_ontology40
-    - grm_search_pathway_arabidopsis40
-    - grm_search_pathway_brachypodium40
-    - grm_search_pathway_coffea_canephora40
-    - grm_search_pathway_maize40
-    - grm_search_pathway_medicago_truncatula40
-    - grm_search_pathway_plant40
-    - grm_search_pathway_poplar40
-    - grm_search_pathway_rice40
-    - grm_search_pathway_solanum_lycopersicum40
-    - grm_search_pathway_solanum_tuberosum40
-    - grm_search_pathway_sorghum_bicolor40

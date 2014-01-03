@@ -50,7 +50,7 @@ if ( $help || $man_page ) {
 
 my $config   = Grm::Config->new;
 my $sconf    = $config->get('search');
-my @reusable = split( /\s*,\s*/, $sconf->{'reusable_schemas'} || '' );
+my @reusable = @{ $sconf->{'reusable_schemas'} || [] };
 my @modules  = $config->get('modules');
 
 if ( $show_list ) {
@@ -113,10 +113,16 @@ for my $db_name ( @dbs ) {
     my $real_name = $db->real_name;
     my $class = '';
 
-    if ( ( $db_name =~ /^ensembl_/ || $db_name eq 'ensembl' )
-        && $real_name =~ /core/ 
-    ) {
+    if ( ( $db_name =~ /^ensembl_/ || $db_name eq 'ensembl' ) ) {
         next DB if $host eq 'ensembldb.ensembl.org'; 
+
+        my $group;
+        if ( $real_name =~ /(core|variation)/i ) {
+            $group = lc $1;
+        }
+        else {
+            next DB;
+        }
 
         $db_name = 'ensembl';
 
@@ -129,8 +135,11 @@ for my $db_name ( @dbs ) {
         $dsn = "dbi:mysql:host=$host;database=$tmp_db_name";
         my $build_db = DBI->connect( $dsn, $user, $pass, { RaiseError => 1 } );
 
+        my $ens_conf = $config->get('ensembl');
+        my $sql_file = $ens_conf->{'innodb_sql_file'}{ $group } || '';
+
         my $ensembl_sql = catfile( 
-            $config->get('base_dir'), 'schemas', 'ensembl', 'ensembl-innodb.sql'
+            $config->get('base_dir'), 'schemas', 'ensembl', $sql_file
         );
 
         my $sql = '';
