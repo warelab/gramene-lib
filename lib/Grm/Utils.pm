@@ -82,7 +82,8 @@ Grm::DBIC::Ontology::Term objects.
 
     my ( @Terms, %seen );
     while ( $string =~ /(($ont_pref):\d+)/ig ) {
-        my $acc = $1; 
+        my $acc = lc $1; 
+        print "Checking '$acc'\n";
         if ( !$seen{ $acc }++ ) {
             my ($Term) = $term_rs->search({ term_accession => $acc });
 

@@ -1,12 +1,15 @@
-package Grm::Search::Indexer::Solr;
+package Grm::Search::Indexer;
 
 =head1 NAME
 
-Grm::Search::Indexer::Solr - a Gramene module
+Grm::Search::Indexer - adds search records to the Solr index
 
 =head1 SYNOPSIS
 
-  use Grm::Search::Indexer::Solr;
+  use Grm::Search::Indexer;
+
+  my $indexer = Grm::Search::Indexer->new( module => 'ensembl_zea_mays' );
+  $indexer->add( [{}] );
 
 =head1 DESCRIPTION
 

@@ -486,7 +486,7 @@ sub get_term_associations {
     my $term_acc    = $args{'term_acc'} || '';
     my $obj_type    = $args{'type'}     || '';
     my $obj_species = $args{'species'}  || '';
-    my $sort_by     = $args{'order_by'} || 'object_symbol';
+    my $order_by    = $args{'order_by'} || 'object_type';
     my $dbh         = $self->db->dbh;
 
     my $sql = q[
@@ -499,8 +499,11 @@ sub get_term_associations {
                o.db_object_name as object_name,
                s.common_name as object_species,
                a.evidence_code
-        from   association a, association_object o, 
-               association_object_type ot, term t, term_type tt,
+        from   association a, 
+               association_object o, 
+               association_object_type ot, 
+               term t, 
+               term_type tt,
                species s
         where  a.term_id=t.term_id
         and    t.term_type_id=tt.term_type_id
@@ -518,29 +521,19 @@ sub get_term_associations {
     }
 
     if ( $obj_species ) {
+        $obj_species =~ s/_/ /g;
         $sql .= ' and s.common_name=?';
         push @params, $obj_species;
     }
 
     $sql .= qq[
         group by term_accession, object_accession_id, object_type 
-        order by $sort_by
+        order by $order_by
     ];
 
     my $associations = $dbh->selectall_arrayref( 
         $sql, { Columns => {} }, @params 
     );
-
-    my $t = Template->new;
-    my %obj_type_display;
-    for my $ot ( uniq( map { $_->{'object_type'} } @$associations ) ) {
-        $obj_type_display{ $ot } = $self->get_object_xref_type_display($ot);
-    }
-
-    for my $assoc ( @$associations ) {
-        $assoc->{'object_type_display'} 
-            = $obj_type_display{ $assoc->{'object_type'} };
-    }
 
     return wantarray ? @$associations : $associations;
 }
@@ -621,9 +614,11 @@ Returns an array(ref) of term_ids.
     }
 
     my $prefixes = lc join( '|', keys %valid_term_type );
-    for my $qry ( 
+    my @queries  = uniq(
         ref $query eq 'ARRAY' ? @$query : split( /,\s*/, $query ) 
-    ) {
+    );
+
+    for my $qry ( @queries ) {
         my $cmp = $qry =~ s/\*/%/g ? 'like' : '=';
 
         my $sql = q[
@@ -644,7 +639,7 @@ Returns an array(ref) of term_ids.
         }
         elsif ( $qry =~ /^($prefixes):/i ) {
             $sql = qq[
-                select  t.term_id
+                select  distinct t.term_id
                 from    term t, term_synonym s
                 where   t.term_id=s.term_id
                 and     ( 
@@ -691,7 +686,14 @@ Returns an array(ref) of term_ids.
             $sql .= " order by $order_by ";
         }
 
-        push @matches, @{ $dbh->selectcol_arrayref( $sql, {}, @sql_args ) };
+        my $data = $dbh->selectcol_arrayref( $sql, {}, @sql_args );
+
+        if ( @$data > 0 ) {
+            push @matches, @$data;
+        }
+        elsif ( $qry !~ /\*$/ ) {
+            push @queries, "$qry*";
+        }
     }
 
     return wantarray ? @matches : \@matches;

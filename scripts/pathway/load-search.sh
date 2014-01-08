@@ -1,8 +1,8 @@
 #!/bin/sh
 
 PERL=/usr/local/bin/perl
-SCRIPT=/home/kclark/gramene-lib/scripts/pathway/load-pathway-search.pl
-DIR=/scratch/kyc-tmp/pathways-38
+SCRIPT=/usr/local/gramene/gramene-lib/scripts/pathway/load-pathway-search.pl
+DIR=/scratch/kyc-tmp/pathways-40
 
 #$PERL $SCRIPT --force -s arabidopsis -f $DIR/aracyc.tab
 #$PERL $SCRIPT --force -s brachypodium -f $DIR/brachycyc.tab

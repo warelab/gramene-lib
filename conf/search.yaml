@@ -1,5 +1,6 @@
 # vim: set noai
 
+
 search:
   solr:
     url: "http://brie.cshl.edu:8983/solr/grm-search"
@@ -31,6 +32,10 @@ search:
     - amigo
     - ontology
     - variation
+    - reactome
+
+  table_data_test:
+    "ontology.term": "sub { my $obj = shift; return !$obj->is_obsolete }"
 
   tables_to_index:
     "compara": 
@@ -39,7 +44,6 @@ search:
     "ensembl_*": 
       "gene": "[biotype,description,stable_id]+transcripts[stable_id]+seq_region[name]+display_xref[display_label]"
       "marker": "[type]+marker_synonyms[name]"
-      "prediction_transcript": "[display_label]"
 
     "variation_*":
       "variation": "[name]+variation_synonym[name]"
@@ -54,6 +58,9 @@ search:
 
     "pathway_*": 
       "search#pathway": "[species,gene_name,enzyme_name,reaction_id,reaction_name,ec,pathway_id,pathway_name]"
+
+    "reactome_*": 
+      "reactome": "[search_term,pathway_id,object_id]"
 
   list_columns:
     "ensembl_*.dna_align_feature": "hit_name,analysis.logic_name"
@@ -77,7 +84,9 @@ search:
 
     "ontology.term": "TT:Ontology Term '[% object.term_accession %]' ([% object.name %]): [% object.definition | truncate(80) %]"
 
-    "pathway_*.search": "gene_name,enzyme_name,reaction_id,reaction_name,ec,pathway_id,pathway_name"
+    "pathway*.search": "TT:[% \"$species Pathway $object.pathway_id $object.pathway_name $object.gene_name $object.enzyme_name \"; %]" 
+
+    "reactome*.search": "TT:[% \"$species Reactome $object.search_term \"; %]" 
 
   sql_to_index:
     ensembl_*.gene: |
@@ -132,13 +141,13 @@ search:
       from   meta 
       where  meta_key='species.taxonomy_id';
 
-    pathway_arabidopsis.search: |
+    pathway_arabidopsis_thaliana.search: |
       select 'GR_tax:078880' as ontology_acc;
 
-    pathway_brachypodium.search: |
+    pathway_brachypodium_distachyon.search: |
       select 'GR_tax:012596' as ontology_acc;
 
-    pathway_rice.search: |
+    pathway_oyrza_sativa.search: |
       select 'GR_tax:013684' as ontology_acc;
 
     pathway_capsicum_anuum.search: |
@@ -147,13 +156,10 @@ search:
     pathway_coffea_canephora.search: |
       select 'GR_tax:052003' as ontology_acc;
 
-    pathway_maize.search: |
-      select 'GR_tax:014450' as ontology_acc;
-
     pathway_medicago_truncatula.search: |
       select 'GR_tax:018106' as ontology_acc;
 
-    pathway_poplar.search: |
+    pathway_populus_trichocarpa.search: |
       select 'GR_tax:018122' as ontology_acc;
 
     pathway_solanum_lycopersicum.search: |
@@ -164,3 +170,10 @@ search:
 
     pathway_sorghum_bicolor.search: |
       select 'GR_tax:014159' as ontology_acc;
+
+    pathway_zea_mays.search: |
+      select 'GR_tax:014450' as ontology_acc;
+
+    reactome_oyrza_sativa.search: |
+      select 'GR_tax:013684' as ontology_acc;
+

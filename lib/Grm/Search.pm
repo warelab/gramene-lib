@@ -2,45 +2,24 @@ package Grm::Search;
 
 =head1 NAME
 
-Grm::Search - search-related code for Gramene
+Grm::Search - handles indexing of search data into Solr
 
 =head1 SYNOPSIS
 
   use Grm::Search;
 
-  my $sdb = Grm::Search->new(
-      config     => ..., 
-      base_dir   => ...,
-      index_path => ...,
-      page_size  => ...,
-  );
+  my $sdb = Grm::Search->new();
+  $sdb->index( 'ensembl_zea_mays' );
 
 =head1 DESCRIPTION
 
-All the stuff for Gramene's Lucy-based searching.
+All the stuff for Gramene's Solr-based searching.
 
 =head1 METHODS
 
 =head2 config
 
 Returns or sets the Grm::Config object
-
-=head2 base_dir
-
-Returns or sets the root of the Gramene installation
-
-=head2 index_path
-
-Returns or sets the relative (from base_dir) or absolute path to 
-search index
-
-=head2 page_size
-
-Returns or sets the integer value for the size of the pages of results.
-
-=head2 schema
-
-Returns the Lucy schema object.
 
 =cut
 
@@ -64,15 +43,8 @@ use Grm::Config;
 use Grm::Maps;
 use Grm::Ontology;
 use Grm::Utils qw( timer_calc commify extract_ontology camel_case );
-use Grm::Search::Indexer::MySQL;
-use Grm::Search::Indexer::Solr;
+use Grm::Search::Indexer;
 use List::MoreUtils qw( uniq );
-#use Lucy::Search::IndexSearcher;
-#use Lucy::Highlight::Highlighter;
-#use Lucy::Search::QueryParser;
-#use Lucy::Search::TermQuery;
-#use Lucy::Search::ANDQuery;
-#use LucyX::Search::WildcardQuery;
 use Time::HiRes qw( gettimeofday tv_interval );
 use Readonly;
 
@@ -81,69 +53,18 @@ Readonly my $COMMA_SPACE => q{, };
 Readonly my $EMPTY_STR   => q{};
 Readonly my $SPACE       => q{ };
 
-has config     => (
-    is         => 'rw',
-    isa        => 'Grm::Config',
-);
-
-has index_path => (
-    is         => 'rw',
-);
-
-has page_size  => (
-    is         => 'rw',
-);
-
-has schema     => (
-    is         => 'rw',
-    isa        => 'Lucy::Plan::Schema', 
-    lazy_build => 1,
+has config => (
+    is     => 'rw',
+    isa    => 'Grm::Config',
 );
 
 # ----------------------------------------------------
 sub BUILD {
-    my $self       = shift;
-    my $args       = shift || {};
-    my $conf       = $args->{'config'} || Grm::Config->new;
-    my $sconf      = $conf->get('search');
-    my $index_path = $args->{'config'} || $sconf->{'index_path'};
-    my $base_dir   = $args->{'base_dir'} || $conf->get('base_dir');
-
-    if ( $index_path !~ m{^/} ) {
-        $index_path = catdir( $base_dir, $index_path );
-    }    
-
-#    if ( !-d $index_path ) {
-#        mkpath $index_path;
-#    }
-
-    $self->index_path( $index_path );
+    my $self = shift;
+    my $args = shift || {};
+    my $conf = $args->{'config'} || Grm::Config->new;
 
     $self->config( $conf );
-
-    $self->page_size( $args->{'page_size'} || $sconf->{'page_size'} || 10 );
-}
-
-# ----------------------------------------------------
-sub _build_schema {
-    my $self          = shift;
-    my $schema        = Lucy::Plan::Schema->new;
-    my $polyanalyzer  = Lucy::Analysis::PolyAnalyzer->new( language => 'en' );
-    my $non_indexed   = Lucy::Plan::StringType->new( indexed => 0 );
-    my $fulltext      = Lucy::Plan::FullTextType->new(
-        analyzer      => $polyanalyzer,
-        highlightable => 1,
-        sortable      => 1,
-    );
-
-    $schema->spec_field( name => 'url',      type => $non_indexed );
-    $schema->spec_field( name => 'title',    type => $non_indexed );
-    $schema->spec_field( name => 'category', type => $fulltext    );
-    $schema->spec_field( name => 'taxonomy', type => $fulltext    );
-    $schema->spec_field( name => 'ontology', type => $fulltext    );
-    $schema->spec_field( name => 'content',  type => $fulltext    );
-
-    return $schema;
 }
 
 # ----------------------------------------------------
@@ -163,31 +84,52 @@ tables and records indexed and the elapsed time.
 
 =cut
 
-    my $self    = shift;
-    my %args    = ref $_[0] eq 'HASH' 
-                  ? %{ $_[0] } : scalar @_ == 1 ? ( module => $_[0] )
-                  : @_;
-    my @modules = ref $args{'module'} eq 'ARRAY' 
-                  ? @{ $args{'module'} }
-                  : split( /\s*,\s*/, $args{'module'} );
-    my $verbose = defined $args{'verbose'} ? $args{'verbose'} : 1;
-    my $db_type = $args{'db_type'} || 'mysql';
-    my $resume  = $args{'resume'}  ||       0;
-    my $sconf   = $self->config->get('search');
-    my $odb     = Grm::Ontology->new;
-    my %stats;
-
+    my $self        = shift;
+    my @modules     = map { split /\s*,\s*/ } @_;
+    my $sconf       = $self->config->get('search');
+    my $odb         = Grm::Ontology->new;
+    my $ont_pref    = join '|', uniq( $odb->get_ontology_accession_prefixes );
     my $total_timer = timer_calc();
-    my ( $num_tables, $num_records ) = ( 0, 0 );
+
+    #
+    # Gather all the ontology accessions
+    #
+    print "Gathering ontology terms.\n";
+    my %ont_acc = ();
+    {
+        my $dbic    = $odb->db->dbic;
+        my $term_rs = $dbic->resultset('Term');
+        my $syn_rs  = $dbic->resultset('TermSynonym');
+        my $take    = sub { 
+            my $name = shift;
+            if ( $name =~ /^((?:$ont_pref):\d+)$/ig ) {
+                $ont_acc{ lc $name }++;
+            }
+        };
+        
+        while ( my $Term = $term_rs->next ) {
+            $take->( $Term->term_accession );
+        }
+
+        while ( my $Syn = $syn_rs->next ) {
+            $take->( $Syn->term_synonym );
+        }
+    }
+
+    my ( $num_modules, $num_skipped, $num_tables, $num_records ) 
+        = ( 0, 0, 0, 0 );
+
     for my $module ( @modules ) {
         my %tables_to_index  = $self->tables_to_index( $module );
         my %sql_to_index     = $self->sql_to_index( $module );
 
-        my $indexer = Grm::Search::Indexer::Solr->new( module => $module );
-        my $odb     = Grm::Ontology->new;
+        my $indexer = Grm::Search::Indexer->new( module => $module );
         my $db      = Grm::DB->new( $module );
         my $dbh     = $db->dbh;
         my $schema  = $db->dbic;
+
+        print "Removing all data for '$module'\n";
+        $indexer->truncate;
 
         my @docs;
         TABLE:
@@ -273,50 +215,51 @@ tables and records indexed and the elapsed time.
             my $count = $dbh->selectrow_array("select count(*) from $table") 
                 or next;
 
-            if ( $verbose ) {
-                printf "\rProcessing %s record%s in %s '%s.%s'\n",
-                    commify($count),
-                    $count == 1 ? '' : 's',
-                    $db->real_name,
-                    $module,
-                    $table,
-                ;
+            my $test_sub;
+            while ( 
+                my ( $key, $value ) = each %{ $sconf->{'table_data_test'} }
+            ) {
+                my ( $mod, $tbl ) = split /\./, $key;
+                if ( 
+                    ( $module eq $mod || $module =~ /$mod/ )
+                    && $table eq $tbl
+                ) {
+                    $test_sub = eval "$value";
+                }
             }
+
+            printf "\rProcessing %s record%s in %s '%s.%s'\n",
+                commify($count),
+                $count == 1 ? '' : 's',
+                $db->real_name,
+                $module,
+                $table,
+            ;
 
             my $ids = $dbh->selectcol_arrayref("select $id_field from $table");
 
-            my %done;
-            if ( $resume ) {
-                %done = map { $_, 1 } @{
-                    $indexer->dbh->selectcol_arrayref('select url from search')
-                };
-            }
-
             $num_tables++;
 
-            $num_records   = 0;
-            my $batch_size = 100;
+            my $i           = 0;
+            my $batch_size  = 100;
             my @batch;
 
             ID:
             for my $id ( @$ids ) {
-                $num_records++;
+                $i++;
 
-                if ( $verbose ) {
-                    printf "%-70s\r", sprintf( "%3s%%: %s", 
-                        int(100 * ( $num_records / $count )),
-                        commify($num_records), 
-                    );
-                }
-
-                if ( $resume ) {
-                    my $url = join '/', $module, $table, $id;
-
-                    next ID if $done{ $url };
-                }
+                printf "%-70s\r", sprintf( "%3s%%: %s", 
+                    int(100 * ( $i / $count )),
+                    commify($i), 
+                );
 
                 my $rec = $result->find( $id ) 
                     or die "Bad PK '$id' for $module $source_name\n";
+
+                if ( $test_sub && !$test_sub->( $rec ) ) {
+                    $num_skipped++;
+                    next ID;
+                }
 
                 my $text = @columns 
                     ? join $SPACE, 
@@ -393,31 +336,34 @@ tables and records indexed and the elapsed time.
                 $text = $hs->parse( $text );
                 $hs->eof;
 
-                $text = lc $text;
-                $text =~ s/^\s+|\s+$//g;       # trim
-                $text =~ s/, / /g;             # kill commas
-                $text =~ /\A(.+?)^\s+(.*)/ms ; # not sure, stolen
+                $text =~ s/^\s+//g; # trim
+                $text =~ s/, / /g;  # kill commas
                 $text = join( $SPACE, uniq( split( /\s+/, $text ) ) );
 
                 next if !$text;
 
                 my ( @ontology_accs, @taxonomy );
                 if ( $module ne 'ontology' ) {
-                    push @ontologies, extract_ontology( $text );
+                    my %tmp;
+                    while ( $text =~ /(($ont_pref):\d+)/ig ) {
+                        my $acc = $1;
+                        if ( $ont_acc{ lc $acc } ) {
+                            $tmp{ $acc }++;
+                        }
+                    }
 
-                    @ontology_accs 
-                        = uniq( map { $_->term_accession } @ontologies );
-
-                    @taxonomy = 
-                        grep { $_->term_accession =~ /^gr_tax/i } @ontologies;
+                    @ontology_accs = keys %tmp;
+                    @taxonomy      = grep { /^gr_tax:/i } @ontologies;
                 }
 
                 my $species_name = '';
-                if ( $module =~ /^(ensembl|variation)_(\w+)/ ) {
-                    $species_name = ucfirst lc $1;
+                if ( 
+                    $module =~ /^(ensembl|variation|pathway|reactome)_(\w+)/ 
+                ) {
+                    $species_name = ucfirst lc $2;
                 }
                 elsif ( @taxonomy == 1 ) {
-                    ( $species_name = lc $taxonomy[0]->name ) =~ s/ /_/g;
+                    ( $species_name = ucfirst lc $taxonomy[0] ) =~ s/ /_/g;
                 }
                 elsif ( $module =~ /^pathway_(\w+)/ ) {
                     $species_name = ucfirst lc $1;
@@ -436,13 +382,15 @@ tables and records indexed and the elapsed time.
                         if ( $list_def =~ /^TT:(.*)/ ) {
                             my $tmpl = $1;
                             my $tt   = Template->new;
+                            ( my $display_species = $species_name ) =~ s/_/ /g;
                             $tt->process( 
                                 \$tmpl, 
                                 { 
-                                    object  => $rec, 
-                                    module  => $module,
-                                    table   => $table,
-                                    species => $species_name,
+                                    object      => $rec, 
+                                    module      => $module,
+                                    table       => $table,
+                                    object_type => $object_type,
+                                    species     => $display_species,
                                 }, 
                                 \$title 
                             ) or $title = $tt->error;
@@ -487,13 +435,13 @@ tables and records indexed and the elapsed time.
 
                 my $doc = {
                     id       => join( '/', $module, $table, $id ),
-                    species  => $species_name,
+                    species  => lc $species_name,
                     module   => $module,
                     object   => $object_type,
                     title    => $title,
-                    content  => $text,
-                    taxonomy => [ map { $_->term_accession } @taxonomy ],
-                    ontology => [ grep { !/^GR_tax/ } @ontology_accs ],
+                    content  => lc $text,
+                    taxonomy => \@taxonomy,
+                    ontology => [ grep { !/^gr_tax/i } @ontology_accs ],
                 };
 
                 push @batch, $doc;
@@ -504,436 +452,27 @@ tables and records indexed and the elapsed time.
             }
 
             $indexer->add( \@batch );
+            $num_records += $i;
 
-#            my $dt = DateTime->now;
-#            $indexer->add_meta(
-#                source_db    => $db->real_name,
-#                last_indexed => $dt->ymd,
-#                indexed_by   => (getpwuid($<))[0],
-#            );
-
-            if ( $verbose ) {
-                printf "%-70s\n\n", sprintf(
-                    'Loaded %s record%s in %s',
-                    commify($num_records),
-                    $num_records == 1 ? '': 's',
-                    $timer->(),
-                );
-            }
+            printf "%-70s\n\n", sprintf(
+                'Loaded %s record%s in %s',
+                commify($i),
+                $num_records == 1 ? '': 's',
+                $timer->(),
+            );
         }
 
         $indexer->commit;
+        $num_modules++;
     }
 
     return { 
+        num_modules => $num_modules,
         num_tables  => $num_tables, 
         num_records => $num_records,
+        num_skipped => $num_skipped,
         time        => $total_timer->(),
     };
-}
-
-# ----------------------------------------------------
-sub connect_mysql_search_db {
-    my ( $self, $db_name ) = @_;
-    my $config = $self->config->get('search');
-
-    if ( $db_name !~ /^grm_search_/ ) {
-        $db_name = 'grm_search_' . $db_name;
-    }
-
-    my $dsn = sprintf('dbi:mysql:host=%s;database=%s',
-        $config->{'database'}{'host'},
-        $db_name
-    );
-
-    my $dbh = DBI->connect(
-        $dsn,
-        $config->{'database'}{'user'},
-        $config->{'database'}{'password'},
-        { RaiseError => 1 }
-    );
-
-    return $dbh;
-}
-
-# ----------------------------------------------------
-sub _search_ensembl {
-    my ( $self, $query, $qry_db, $debug ) = @_;
-    $query =~ s/\*/%/g;
-    my @ensembl_modules  
-        = grep { /^(variation|ensembl)_/ } $self->config->get('modules');
-
-    my @hits;
-    ENS_MODULE:
-    for my $ens_module ( @ensembl_modules ) {
-        next if $qry_db && $qry_db !~ /$ens_module/;
-
-        my $db = Grm::DB->new( $ens_module );
-        my $is_variation = ( $ens_module =~ /variation/ );
-
-        eval {
-            my $dba_class = sprintf( 
-                'Bio::EnsEMBL::%sDBSQL::DBAdaptor',
-                $is_variation ? 'Variation::' : '',
-            );
-
-            my $dba = $dba_class->new(
-                -user   => $db->user,
-                -pass   => $db->password,
-                -dbname => $db->real_name,
-                -host   => $db->host,
-                -driver => $db->dbd,
-            ); 
-
-            my @tmp;
-
-            if ( $ens_module =~ /variation/ ) {
-                if ( my $var_adaptor = $dba->get_adaptor('Variation') ) {
-                    my $db = $var_adaptor->db->dbc->db_handle;
-                    push @tmp, @{ $db->selectall_arrayref(
-                        qq[
-                            select concat_ws('/', 
-                                    '$ens_module', 'variation', variation_id 
-                                   ) as url,
-                                   name as title,
-                                   name as content,
-                                   name as excerpt,
-                                   'ensembl' as category,
-                                   '' as ontology
-                            from   variation 
-                            where  name=?
-                        ],
-                        { Columns => {} },
-                        $query,
-                    ) };
-                }
-            }
-            else {
-                if ( my $feat_adaptor = $dba->get_adaptor('DnaAlignFeature') ) {
-                    my @features = @{ 
-                        $feat_adaptor->fetch_all_by_hit_name( $query ) 
-                    };
-
-                    my %seen;
-                    for my $f ( @features ) {
-                        next if $seen{ $f->hseqname }++;
-
-                        push @tmp, {
-                            url => join('/', 
-                                $ens_module, 'dna_align_feature', $f->dbID
-                            ),
-                            title    => $f->hseqname,
-                            category => 'ensembl',
-                            ontology => '',
-                            content  => join( $SPACE, 
-                                $f->hseqname,
-                                $f->analysis->display_label 
-                                    || $f->analysis->logic_name,
-                                $f->feature_Slice->name
-                            ),
-                        };
-                    }
-                }
-
-                if ( my $marker_adaptor = $dba->get_adaptor('Marker') ) {
-                    my @markers = @{ 
-                        $marker_adaptor->fetch_all_by_synonym( $query ) 
-                    };
-
-                    for my $m ( @markers ) {
-                        my $content = join( $SPACE,
-                            map { $_->name() } 
-                            @{ $m->get_all_MarkerSynonyms }
-                        );
-
-                        push @tmp, {
-                            url => join('/', $ens_module, 'marker', $m->dbID),
-                            title    => $m->dbID,
-                            category => 'ensembl',
-                            ontology => '',
-                            content  => join( $SPACE,
-                                map { $_->name() } 
-                                @{ $m->get_all_MarkerSynonyms }
-                            ),
-                        };
-                    }
-                }
-            }
-
-            $debug->(sprintf('Found %s in %s', scalar @tmp, $ens_module));
-            push @hits, @tmp;
-        };
-    }
-
-    return @hits;
-}
-
-# ----------------------------------------------------
-sub _search_maps {
-    my ( $self, $query, $qry_db, $debug ) = @_;
-
-    return if $qry_db && $qry_db !~ /maps/;
-
-    my $maps = Grm::Maps->new;
-    my @hits;
-
-    for my $f ( $maps->feature_search( feature_name => $query ) ) {
-        my $title = join( ' ',
-            map { $f->{ $_ } } qw[ species feature_type feature_name ]
-        );
-
-        push @hits, {
-            url      => join('/', 'maps', 'feature', $f->{'feature_id'}),
-            title    => $title,
-            content  => $title,
-            taxonomy => $f->{'species'},
-            category => 'maps',
-        };
-    }
-
-    $debug->(sprintf('Found %s features in maps', scalar @hits));
-
-    return @hits;
-}
-
-# ----------------------------------------------------
-sub search_dbs {
-
-=pod
-
-=head2 search_dbs
-
-  my @dbs = $sdb->search_dbs;
-
-=cut
-
-    my $self   = shift;
-    my $config = $self->config->get('search');
-
-    return @{ $config->{'search_dbs'} };
-}
-
-# ----------------------------------------------------
-sub search {
-
-=pod
-
-=head2 search
-
-  my $results = $sdb->search('waxy');
-
-  my $results = $sdb->search( 
-      query     => 'waxy', # required
-      offset    => 100,
-      category  => 'genomes',
-      limit     => 50,
-      nopage    => 1,
-      page_size => 50,
-  );
-
-Performs a search.  Only "query" is required, and if only one argument 
-is present, it is assumed to be "query."  
-
-Options include:
-
-=over 4
-
-=item offset
-
-[Integer] How far into the result set to go
-
-=item category
-
-[String] Gramene search category
-
-=item limit
-
-[Integer] Number of results
-
-=item nopage
-
-[Boolean] Don't bother paging the results, just return everything
-
-=item page_size
-
-[Integer] Size of the pages
-
-=back
-
-=cut
-
-    my $self       = shift;
-    my $timer      = timer_calc();
-    my %args       = ref $_[0] eq 'HASH' 
-                       ? %{ $_[0] } 
-                       : scalar @_ == 1 
-                         ? ( query => $_[0] ) : @_;
-    my $q          = $args{'query'}    or return;
-    my $offset     = $args{'offset'}   ||  0;
-    my $category   = $args{'category'} || '';
-    my $limit      = $args{'limit'}    ||  0;
-    my $page_size  = $args{'nopage'} 
-                   ? undef 
-                   : $args{'page_size'} || $self->page_size;
-    my $index_path = $self->index_path;
-
-    my $hit_count = 0;
-    my @dirs      = 
-      File::Find::Rule->directory()->maxdepth(1)->mindepth(1)->in($index_path);
-
-    my @hits;
-    DIR:
-    for my $dir ( @dirs ) {
-        my $searcher;
-        eval {
-            $searcher = Lucy::Search::IndexSearcher->new( index => $dir );
-        };
-
-        if ( my $err = $@ ) {
-            warn ">>> $dir <<<\n$err\n";
-            next DIR;
-        }
-
-        my $qparser = Lucy::Search::QueryParser->new( 
-            schema => $searcher->get_schema,
-            fields => ['content'],
-        );
-
-        # Build up a Query.
-        my $query;
-        if ( $q =~ /\*/ ) {
-            $query = LucyX::Search::WildcardQuery->new(
-                field  => 'content',
-                term   => $q,
-            );
-        }
-        else {
-            $query = $qparser->parse($q);
-        }
-
-        if ($category) {
-            my $category_query = Lucy::Search::TermQuery->new(
-                field => 'category', 
-                term  => $category,
-            );
-
-            $query = Lucy::Search::ANDQuery->new(
-                children => [ $query, $category_query ]
-            );
-        }
-
-        # Execute the Query and get a Hits object.
-        my $hits = $searcher->hits(
-            query      => $query,
-            offset     => $offset,
-            num_wanted => $page_size,
-        );
-
-        next DIR if $hits->total_hits < 1;
-
-        $hit_count += $hits->total_hits;
-
-        # Arrange for highlighted excerpts to be created.
-        my $highlighter = Lucy::Highlight::Highlighter->new(
-            searcher => $searcher,
-            query    => $q,
-            field    => 'content'
-        );
-
-        my @flds = qw[ url title category content taxonomy ontology ];
-
-        # Create result list.
-        while ( my $hit = $hits->next ) {
-            push @hits, { 
-                score        => $hit->get_score,
-                pretty_score => sprintf( "%0.3f", $hit->get_score ),
-                excerpt      => $highlighter->create_excerpt($hit),
-                ( map { $_ => $hit->{ $_ } } @flds )
-            };
-        }
-    }
-
-    return { 
-        num_hits => scalar @hits,
-        data     => \@hits, 
-        time     => $timer->(),
-    };
-}
-
-# Create html fragment with links for paging through results n-at-a-time.
-# ----------------------------------------------------
-sub generate_paging_info {
-    my ( $query_string, $total_hits, $offset, $page_size ) = @_;
-    my $escaped_q = CGI::escapeHTML($query_string);
-    my $paging_info;
-    if ( !length $query_string ) {
-        # No query?  No display.
-        $paging_info = '';
-    }
-    elsif ( $total_hits == 0 ) {
-        # Alert the user that their search failed.
-        $paging_info
-            = qq|<p>No matches for <strong>$escaped_q</strong></p>|;
-    }
-    else {
-        # Calculate the nums for the first and last hit to display.
-        my $last_result = min( ( $offset + $page_size ), $total_hits );
-        my $first_result = min( ( $offset + 1 ), $last_result );
-
-        # Display the result nums, start paging info.
-        $paging_info = qq|
-            <p>
-                Results <strong>$first_result-$last_result</strong> 
-                of <strong>$total_hits</strong> 
-                for <strong>$escaped_q</strong>.
-            </p>
-            <p>
-                Results Page:
-            |;
-
-        # Calculate first and last hits pages to display / link to.
-        my $current_page = int( $first_result / $page_size ) + 1;
-        my $last_page    = ceil( $total_hits / $page_size );
-        my $first_page   = max( 1, ( $current_page - 9 ) );
-        $last_page = min( $last_page, ( $current_page + 10 ) );
-
-        # Create a url for use in paging links.
-#        my $href = $cgi->url( -relative => 1 );
-#        $href .= "?q=" . CGI::escape($query_string);
-#        $href .= ";category=" . CGI::escape($category);
-#        $href .= ";offset=" . CGI::escape($offset);
-#
-#        # Generate the "Prev" link.
-#        if ( $current_page > 1 ) {
-#            my $new_offset = ( $current_page - 2 ) * $page_size;
-#            $href =~ s/(?<=offset=)\d+/$new_offset/;
-#            $paging_info .= qq|<a href="$href">&lt;= Prev</a>\n|;
-#        }
-#
-#        # Generate paging links.
-#        for my $page_num ( $first_page .. $last_page ) {
-#            if ( $page_num == $current_page ) {
-#                $paging_info .= qq|$page_num \n|;
-#            }
-#            else {
-#                my $new_offset = ( $page_num - 1 ) * $page_size;
-#                $href =~ s/(?<=offset=)\d+/$new_offset/;
-#                $paging_info .= qq|<a href="$href">$page_num</a>\n|;
-#            }
-#        }
-#
-#        # Generate the "Next" link.
-#        if ( $current_page != $last_page ) {
-#            my $new_offset = $current_page * $page_size;
-#            $href =~ s/(?<=offset=)\d+/$new_offset/;
-#            $paging_info .= qq|<a href="$href">Next =&gt;</a>\n|;
-#        }
-
-        # Close tag.
-        $paging_info .= "</p>\n";
-    }
-
-    return $paging_info;
 }
 
 # ----------------------------------------------------
@@ -1086,21 +625,16 @@ __END__
 
 =pod
 
-=head1 SEE ALSO
-
-Apache::Lucy.
-
 =head1 AUTHOR
 
 Ken Youens-Clark E<lt>kclark@cshl.eduE<gt>.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2012 Cold Spring Harbor Laboratory
+Copyright (c) 2013 Cold Spring Harbor Laboratory
 
 This module is free software; you can redistribute it and/or
 modify it under the terms of the GPL (either version 1, or at
 your option, any later version) or the Artistic License 2.0.
 Refer to LICENSE for the full license text and to DISCLAIMER for
 additional warranty disclaimers.
-

@@ -28,7 +28,6 @@ my $load_all      =  0;
 my $load_like     = '';
 my $load_not_like = '';
 my $modules       = '';
-my $resume        =  0;
 my $show_list     =  0;
 my ( $help, $man_page );
 GetOptions(
@@ -38,7 +37,6 @@ GetOptions(
     'like:s'      => \$load_like,
     'not-like:s'  => \$load_not_like,
     'm|module:s'  => \$modules,
-    'r|resume'    => \$resume,
     'help'        => \$help,
     'man'         => \$man_page,
 ) or pod2usage(2);
@@ -52,7 +50,6 @@ if ( $help || $man_page ) {
 
 my $search_db  = Grm::Search->new;
 my $gconf      = Grm::Config->new;
-my $index_path = $search_db->index_path or die "No index_path\n";
 my @modules    = $gconf->get('modules');
 my $sconf      = $gconf->get('search');
 
@@ -87,6 +84,8 @@ elsif ( $load_all ) {
     @do_modules = @modules;
 }
 
+@do_modules = uniq( @do_modules );
+
 my %valid = map { $_, 1 } @modules;
 if ( my @bad = grep { !$valid{ $_ } } @do_modules ) {
     printf "Bad modules:\n%s\nUse --list or --like?\n",
@@ -101,8 +100,7 @@ if ( !@do_modules ) {
 
 unless ( $force ) {
     my $ok = prompt -yn, 
-        sprintf("OK to %s the following?\n%s\n[yn] ", 
-            $resume ? 'resume loading' : 'load',
+        sprintf("OK to load the following?\n%s\n[yn] ", 
             join("\n", map { " - $_" } @do_modules)
         )
     ;
@@ -113,27 +111,14 @@ unless ( $force ) {
     }
 }
 
-my ( $num_modules, $num_tables, $num_records ) = ( 0, 0, 0 );
 my $total_timer = timer_calc();
+my $results     = $search_db->index(@do_modules);
+my $num_modules = $results->{'num_modules'};
+my $num_tables  = $results->{'num_tables'};
+my $num_records = $results->{'num_records'};
 
-MODULE:
-for my $module ( uniq( @do_modules ) ) {
-    next MODULE if $module eq 'search';
-
-    my $results = $search_db->index( 
-        db_type => 'solr',
-        module  => $module,
-        resume  => $resume,
-        verbose => 1,
-    );
-
-    $num_modules++;
-
-    $num_tables  += $results->{'num_tables'};
-    $num_records += $results->{'num_records'};
-}
-
-printf "Done processing %s record%s in %s table%s in %s module%s in %s.\n",
+printf 
+    "Processed %s record%s in %s table%s in %s module%s in %s, skipped %s.\n",
     commify($num_records),
     $num_records == 1 ? '' : 's',
     commify($num_tables),
@@ -141,6 +126,7 @@ printf "Done processing %s record%s in %s table%s in %s module%s in %s.\n",
     commify($num_modules),
     $num_modules == 1 ? '' : 's',
     $total_timer->(),
+    commify($results->{'num_skipped'}),
 ;
 
 __END__
@@ -165,7 +151,6 @@ Options:
   --like       Comma-separated list of regexes to select modules
   --not-like   Comma-separated list of regexes to deselect modules
   -m|--module  Comma-separated list of modules to index
-  -r|--resume  Resume indexing, don't truncate at the start
 
   --help       Show brief help and exit
   --man        Show full documentation
