@@ -128,7 +128,9 @@ sub _build_config {
                 my $db_name = $dbc->dbname;
                 my $species = '';
 
-                if ( $db_name =~ /^([\w_]+)_(core|variation|funcgen)_/ ) {
+                if ( 
+                    $db_name =~ /^([\w_]+)(?:_fpc)?_(core|variation|funcgen)_/ 
+                ) {
                     my $group = $2 eq 'core' ? 'ensembl' : $2;
                     $species = join '_', $group, $1;
                 }
