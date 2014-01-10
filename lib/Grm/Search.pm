@@ -365,9 +365,6 @@ tables and records indexed and the elapsed time.
                 elsif ( @taxonomy == 1 ) {
                     ( $species_name = ucfirst lc $taxonomy[0] ) =~ s/ /_/g;
                 }
-                elsif ( $module =~ /^pathway_(\w+)/ ) {
-                    $species_name = ucfirst lc $1;
-                }
 
                 my $title = '';
                 if ( my %list_columns = %{ $sconf->{'list_columns'} || {} } ) {
