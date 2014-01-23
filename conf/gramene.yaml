@@ -8,7 +8,7 @@ version: 40
 ensembl:
   version: 73
   install_dir: /usr/local/ensembl-74
-  registry_file: /usr/local/gramene-ensembl/conf/ensembl.registry
+  registry_file: /usr/local/gramene/gramene-ensembl/conf/ensembl.registry
 
   innodb_sql_file:
     core: ensembl-innodb.sql
@@ -24,7 +24,7 @@ mysql:
   mysql: /usr/bin/mysql
   mysqladmin: /usr/bin/mysqladmin
   mysqlshow: /usr/bin/mysqlshow
-  host: cabot
+  host: colden
   admin_user: gramene_web
   admin_password: gram3n3
 
@@ -46,7 +46,7 @@ modules:
 
 database:
   default: 
-    host     : cabot
+    host     : colden
     dbd      : mysql
     user     : gramene_web
     password : gram3n3

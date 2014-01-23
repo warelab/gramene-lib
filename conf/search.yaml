@@ -3,7 +3,7 @@
 
 search:
   solr:
-    url: "http://brie.cshl.edu:8983/solr/grm-search"
+    url: "http://gorgonzola.cshl.edu:8983/solr/grm-search"
     schema: "/usr/local/solr/solr/gramene/solr/grm-search/conf/schema.xml"
     port: "8983"
     log_dir: "/var/opt/logs/solr"
@@ -18,7 +18,7 @@ search:
       - "content"
 
   database:
-    host     : cabot
+    host     : colden
     user     : gramene_web
     password : gram3n3
 
