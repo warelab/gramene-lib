@@ -128,6 +128,8 @@ tables and records indexed and the elapsed time.
         my $dbh     = $db->dbh;
         my $schema  = $db->dbic;
 
+        printf "Communicating with Solr at '%s'\n", $indexer->solr_url;
+
         print "Removing all data for '$module'\n";
         $indexer->truncate;
 
