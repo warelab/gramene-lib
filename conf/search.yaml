@@ -24,8 +24,6 @@ search:
 
   page_size: 10
 
-  index_path: search-index
-
   reusable_schemas: 
     - ensembl
     - pathway
