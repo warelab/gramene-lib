@@ -32,11 +32,9 @@ my $limit      =  0;
 my $query_file = '';
 my $taxonomy   = '';
 my $verbose    =  0;
-my $db         = 'mysql';
 my ( $help, $man_page );
 GetOptions(
     'c|category:s' => \$category,
-    'd|db:s'       => \$db,
     'debug'        => \$debug,
     'i|index:s'    => \$index_path,
     'f|format:s'   => \$format,
@@ -86,8 +84,7 @@ my $print = sub {
 my $timer    = timer_calc();
 my @tab_flds = qw[ url content ];
 my $tab      = Text::TabularDisplay->new( @tab_flds );
-my $search   = Grm::Search->new( index_path => $index_path );
-my $method   = $db eq 'lucy' ? 'search' : 'search_mysql';
+my $search   = Grm::Search->new;
 my ( @summary , %seen );
 my ( $query_num, $total_hits ) = ( 0, 0 );
 TERM:
@@ -97,11 +94,10 @@ for my $term ( @terms ) {
     my $res;
     for my $t ( iterative_search_values( $term ) ) {
         printf "%-70s\r", "Trying '$t'...";
-        $res         =  $search->$method( 
+        $res         =  $search->search( 
             query    => $t, 
             category => $category,
             taxonomy => $taxonomy,
-            db       => $db,
             debug    => $debug,
         );
 
@@ -211,7 +207,7 @@ Executes a Gramene search for each term given.
 
 =head1 SEE ALSO
 
-Grm::Search, Lucy.
+Grm::Search.
 
 =head1 AUTHOR
 

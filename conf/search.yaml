@@ -1,6 +1,5 @@
 # vim: set noai
 
-
 search:
   solr:
     url: "http://gorgonzola.cshl.edu:8983/solr/grm-search"
@@ -23,8 +22,6 @@ search:
     password : gram3n3
 
   page_size: 10
-
-  index_path: search-index
 
   reusable_schemas: 
     - ensembl

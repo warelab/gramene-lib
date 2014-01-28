@@ -1,0 +1,205 @@
+Gramene's Solr Search
+=====================
+
+Author
+------
+
+Ken Youens-Clark <kclark@cshl.edu>
+Jan 2014
+
+The data that goes into Solr is expected to be extracted from a
+relational database.  One must configure
+"gramene-lib/conf/gramene.yaml" to add/update the database in the
+"modules" section and it's accompanying "database" section. 
+
+Module Naming
+-------------
+
+The naming of the module is important.  In
+"gramene-lib/conf/search.yaml," you will see that some modules have
+"reusable_schemas" such as Ensembl.  This allows us to use a single
+DBIx::Class module for every Ensembl core/variation/funcgen/etc
+database.  Therefore, the module should be named "ensembl" + the
+species name as it appears in the
+"gramene-ensembl/conf/ensembl.registry" file, e.g.,
+"ensembl_oryza_sativa."  For these reusable schemas, the species name
+will be used for the "species" facet of the Solr search.  So, if you
+are adding a new Reactome module for A. thaliana, you should call it
+"reactome_arabidopsis_thaliana" (not "reactome_a_thaliana" or
+"reactome_arabidopsis") to match other instances of the species name
+(e.g., "ensembl_arabidopsis_thaliana").
+
+Ensembl
+-------
+
+Ensembl databases are added into the configuration automatically from
+the aforementioned registry file.  Simple ensure that this file is
+updated to reflect the proper EG/Gramene release numbers, database
+host, etc.  You can also run "gramene-lib/t/db-connect.t" to ensure
+that all the database connections are good.
+
+Pathways
+--------
+
+Data from the Pathways Tools is exported to text files by the pathway
+curators to be placed on the FTP site.  There will be multiple files,
+e.g., "pathways.dat," "reactions.dat," "enzrxns.dat."  You will use
+"gramene-lib/scripts/pathway/format-pathway-data.pl" to parse and
+combine these files into a single tab-delimited file to load into a
+simple MySQL database with the script
+"gramene-lib/scripts/pathway/load-pathway-search.pl."  This
+tab-delimited file is also used by the Ensembl Xref loader and should
+also be placed on the FTP site as it is a generally useful summary of
+the pathway data.  
+
+Here is a sample of the file:
+
+        gene_name: AT1G66030
+      enzyme_name: fatty acid (omega-1)-hydroxylase
+      reaction_id: RXN-7796
+    reaction_name:
+               ec: 2.1.1.-
+       pathway_id: PWY-5129
+     pathway_name: sphingolipid biosynthesis (plants)
+
+Reactome
+--------
+
+Data from the Plant Reactome project is exported to a text file by the
+curators, as well.  So far, it looks like this:
+
+    search_term: 10-formyl-THF
+     pathway_id: 1119265
+      object_id: 419151
+
+In "gramene-lib/scripts/reactome," you will find a simple bash script
+called "load-reactome.sh" to drop/create a "DB" on the specified
+"HOST" and load your "DATA."  You should edit these variables at the
+beginning of the script, then execute it.
+
+Configuring search tables/fields
+--------------------------------
+By default, every field in every table of a database will be indexed.
+It is unlikely that you would want this, so you should edit
+"gramene-lib/conf/search.yaml" to indicate the tables ("objects") and
+fields/relationships you want.  Go to the "tables_to_index" section of
+the config file and specify the module name (same name as in
+"gramene.yaml/modules") with the option of using wildcards, e.g.,
+"ensembl_*" to indicate "all Ensembl modules."
+
+The syntax here is a bit cumbersome and could be improved, perhaps
+through the use of basic YAML structures.  As it's stable now (Jan
+2014) and we're unlikely to add new modules anytime soon, I'll not
+fret over this.  Basically, you indicate a "table" with an optional
+"#alias" for the "object type" that shows up in the Solr facet (e.g.,
+the "search" table in the "pathway" modules should be called a
+"pathway").  The fields from the "table" are indicated in square
+brackets, and you can add in fields from other tables with a plus sign
+by indicating "table[field1,field2]."  The idea behind adding a table
+like this is to push the indexed data into the object that the user
+cares about.  For instance, we might like to index a gene's transcript
+names, but ultimately we don't want to direct the user to the
+transcript but to the gene itself.
+
+You can indicate simple relationships that will call Grm::DBIC
+methods, e.g.:
+
+  "ensembl_*":
+    "gene": "[biotype,description,stable_id]+transcripts[stable_id]+..."
+      
+Here we are indicating that we wish to call the "transcripts" method
+on the "gene" object to get at the "stable_id" values.  Check the
+Grm::DBIC class to see the methods you can call.  Sometimes the data
+you want is cumbersome to access with DBIx::Class methods, so one can
+indicate any number of SQL statements to run via the "sql_to_index"
+section.   
+
+The "list_columns" are used to construct the "title" that will be set
+in Solr and will be used as the link text in the search results.  If
+not specified, all fields from the table/object will be concatenated.
+If you specify "TT:" at the beginning of the string, then Perl's
+Template Toolkit will be used to process the string, allowing you to
+create arbitrarily complex titles.  The template will be passed the
+Grm::DBIC "object" and the current "module," "table," "object_type"
+(the "alias" mentioned above), and "species."  
+
+NB: The titles are set at index time, so it's necessary to reindex the
+data to change the link text.  This was originally conceived as a Good
+Idea (tm) as it would be one less thing to process after the data was
+retrieved from Solr.  It may have been a premature optimization as
+Solr retrieves data quite quickly, and it would only be necessary to
+process the subset of records actually retrieved for link text.  It
+would be a simple matter to not include the "title" in Solr and create
+it as needed at run time if more flexibility is desired.
+
+Selecting data to index
+-----------------------
+
+You can create a "table_data_test" to determine records you wish to
+select/skip.  For instance, we don't wish to index ontology terms that
+are obsolete, so we indicate that via a Perl callback that will be
+passed the Grm::DBIC object as it's sole argument:
+
+  "ontology.term": "sub { my $obj = shift; return !$obj->is_obsolete }"
+  
+Simply return a "true" value to include the record and otherwise to
+skip.
+
+Setting link URL
+----------------
+
+To indicate the URL template to use for each object, edit
+"gramene-web-tools/conf/grm-web.yaml."  The "link" section uses
+"module.table" (not "object_type" alias) with optional wildcards to
+indicate the URL.  All templates should use "TT:" to indicate a
+Template Toolkit template as the URLs often require access to
+differing fields.  The template will receive the "object," "module,"
+"table," "id" (primary key value), and "doc" (the Solr document), so
+you can use just about any known value associated with the object to
+construct the URL.
+
+The role of the ontology db
+---------------------------
+
+The text of each document added to Solr is scanned for valid ontology
+terms, i.e., anything that looks like an ontology term ("TO:000001")
+is looked up in the current "ontology" database.  If it's found, then
+it's added to the object's "ontology" Solr field (which is
+multi-valued).  If a valid "GR_tax" term is found associated with the
+object, then it can be used to identify the Solr attribute of
+"taxonomy" if the module is not one of the "reusable" schemas where it
+is expected to be "module" + "_" + "species_name."  Because of all
+this, one should probably rebuild the ontology db from the latest
+ontology sources before indexing.
+
+Adding to Solr
+--------------
+
+Use "gramene-lib/scripts/search/load-search.pl" to add data to Solr.
+You will need to configure "gramene-lib/conf/search.yaml" to indicate
+the Solr instance, and it must be running, of course.  The real effort
+is in preparing the data and configuring the objects, so now you just
+need to run this script to inject the data.  
+
+As I found that making the HTTP request to add the data for every
+single record seemed to be taking a while, I chose to batch them in
+groups of 100.  Much larger groups overwhelmed Solr.  This seems to
+work well enough as Ensembl dbs generally index in about 20 minutes.
+
+Deleting data
+-------------
+
+If you find you have a deprecated module or simply wish to remove
+something, you can use "gramene-lib/scripts/search/delete.sh" to issue
+a "<delete>" command to Solr.  This is irrevocable, so be careful!
+
+Deploying Solr
+--------------
+
+Thus far, the method of deploying Solr is to load it on brie, shut it
+down, copy the entire "gramene/solr" directory over to gorgonzola,
+shut down Solr there, symlink the new index, restart Solr.  As of
+build 40, Solr runs as a single-threaded Jetty app in Ken's
+foreground.  It should really be running in some multi-threaded
+daemon, e.g., maybe as a Tomcat app.  Ken really needs help with this.
+

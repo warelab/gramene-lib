@@ -1,0 +1,2 @@
+Edit the "load-reactome.sh" script and run it to import your Reactome data
+into a MySQL database for indexing with Solr.
