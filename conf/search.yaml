@@ -3,7 +3,7 @@
 search:
   solr:
     url: "http://gorgonzola.cshl.edu:8983/solr/grm-search"
-    schema: "/usr/local/solr/solr/gramene/solr/grm-search/conf/schema.xml"
+    schema: "/usr/local/gramene-40/solr/solr/gramene/solr/grm-search/conf/schema.xml"
     port: "8983"
     log_dir: "/var/opt/logs/solr"
     load_fields:

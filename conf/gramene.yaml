@@ -1,14 +1,14 @@
 ---
 also_load: search.yaml,ontology.yaml
 
-base_dir: /usr/local/gramene/gramene-lib
+base_dir: /usr/local/gramene-40/gramene-lib
 
 version: 40
 
 ensembl:
   version: 73
   install_dir: /usr/local/ensembl-74
-  registry_file: /usr/local/gramene/gramene-ensembl/conf/ensembl.registry
+  registry_file: /usr/local/gramene-40/gramene-ensembl/conf/ensembl.registry
 
   innodb_sql_file:
     core: ensembl-innodb.sql
@@ -30,7 +30,6 @@ mysql:
 
 modules:
   - amigo
-  - maps
   - ontology
   - pathway_arabidopsis_thaliana
   - pathway_brachypodium_distachyon
@@ -54,9 +53,6 @@ database:
 
   amigo:
     name: amigo40
-
-  maps:
-    name: maps40
 
   ontology:
     name: ontology40

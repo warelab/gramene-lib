@@ -17,7 +17,11 @@ subtype 'ExistingFile'
 
 has default_filename => (
     is      => 'ro',
+<<<<<<< Updated upstream
     default => '/usr/local/gramene/gramene-lib/conf/gramene.yaml',
+=======
+    default => '/usr/local/gramene-40/gramene-lib/conf/gramene.yaml',
+>>>>>>> Stashed changes
 );
 
 has config     => (
