@@ -43,6 +43,7 @@ modules:
   - pathway_sorghum_bicolor
   - pathway_zea_mays
   - reactome_oryza_sativa
+  - search
 
 database:
   default: 
@@ -92,3 +93,6 @@ database:
 
   reactome_oryza_sativa:
     name: reactome_oryza_sativa40
+        
+  search:
+    name: grm_search

@@ -268,16 +268,24 @@ sub timer_calc {
     my $start = shift || [ gettimeofday() ];
 
     return sub {
-        my $end     = shift || [ gettimeofday() ];
+        my %args    = ( scalar @_ > 1 ) ? @_ : ( end => shift(@_) );
+        my $end     = $args{'end'}    || [ gettimeofday() ];
+        my $format  = $args{'format'} || 'pretty';
         my $seconds = tv_interval( $start, $end );
-        return $seconds > 60
-            ? parseInterval(
-                seconds => int($seconds),
-                Small   => 1,
-            )
-            : sprintf("%s second%s", $seconds, $seconds == 1 ? '' : 's')
-        ;
-    };
+
+        if ( $format eq 'seconds' ) {
+            return $seconds;
+        }
+        else {
+            return $seconds > 60
+                ? parseInterval(
+                    seconds => int($seconds),
+                    Small   => 1,
+                )
+                : sprintf("%s second%s", $seconds, $seconds == 1 ? '' : 's')
+            ;
+        }
+    }
 }
 
 # ----------------------------------------------------

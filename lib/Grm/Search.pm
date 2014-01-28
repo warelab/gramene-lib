@@ -340,6 +340,12 @@ tables and records indexed and the elapsed time.
 
                 $text =~ s/^\s+//g; # trim
                 $text =~ s/, / /g;  # kill commas
+
+                #
+                # This takes care of transcript names, e.g., "LOC_Os01g01410.2"
+                #
+                $text =~ s/\b(([\w_-]+)\.\d+)\b/$1 $2/g;
+
                 $text = join( $SPACE, uniq( split( /\s+/, $text ) ) );
 
                 next if !$text;
