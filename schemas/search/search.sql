@@ -5,5 +5,6 @@ create table query_log (
   params text,
   ip text,
   user_id text,
-  time double
+  time double,
+  date timestamp
 );
