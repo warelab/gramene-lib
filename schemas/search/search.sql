@@ -8,12 +8,3 @@ create table query_log (
   time double,
   date timestamp
 );
-
-create table cart (
-  cart_id int unsigned not null auto_increment primary key,
-  user_id varchar(50),
-  value longtext,
-  last_accessed timestamp,
-  unique(user_id),
-  key(user_id)
-);
