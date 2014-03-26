@@ -17,7 +17,7 @@ subtype 'ExistingFile'
 
 has default_filename => (
     is      => 'ro',
-    default => '/usr/local/gramene-lib/conf/gramene.yaml',
+    default => '/usr/local/gramene/gramene-lib/conf/gramene.yaml',
 );
 
 has config     => (
@@ -121,23 +121,18 @@ sub _build_config {
 
             DB:
             for my $db ( @{ $reg_class->get_all_DBAdaptors() } ) {
-                my $dbc     = $db->dbc;
-                my $species = lc $db->species; 
-                my $alias   = $aliases->{ $species } || '';
+                my $dbc = $db->dbc;
 
-                #
-                # Skip those hosted at EBI and the "multi"
-                #
-                next DB if $dbc->host =~ /^ensembl/ || $species =~ /multi/;
+                next DB if $dbc->host =~ /^ensembl/i;
 
-                if ( $species =~ /((pan)?compara)/ ) {
-                    $species = $1;
-                }
-                elsif ( $db->group =~ /(funcgen|variation)/ ) {
-                    $species = join '_', $1, $species;
-                }
-                elsif ( $db->group eq 'core' ) {
-                    $species = 'ensembl_' . $species; 
+                my $db_name = $dbc->dbname;
+                my $species = '';
+
+                if ( 
+                    $db_name =~ /^([\w_]+)(?:_fpc)?_(core|variation|funcgen)_/ 
+                ) {
+                    my $group = $2 eq 'core' ? 'ensembl' : $2;
+                    $species = join '_', $group, $1;
                 }
                 else {
                     next DB;
@@ -148,7 +143,6 @@ sub _build_config {
                     user     => $dbc->username,
                     password => $dbc->password,
                     host     => $dbc->host,
-                    alias    => $alias,
                 };
 
                 push @{ $conf->{'modules'} }, $species;

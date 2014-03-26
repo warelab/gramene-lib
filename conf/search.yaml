@@ -4,7 +4,7 @@
 search:
   solr:
     url: "http://brie.cshl.edu:8983/solr/grm-search"
-    schema: "/usr/local/solr/solr/gramene/solr/grm-search/conf/schema.xml"
+    schema: "/usr/local/gramene/solr/gramene/solr/grm-search/conf/schema.xml"
     port: "8983"
     log_dir: "/var/opt/logs/solr"
     load_fields:
@@ -23,8 +23,6 @@ search:
     password : gram3n3
 
   page_size: 10
-
-  index_path: search-index
 
   reusable_schemas: 
     - ensembl

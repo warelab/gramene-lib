@@ -68,10 +68,7 @@ if ( $help || $man_page ) {
 
 my %DISPATCH  =  (
     all       => { expands => 1, run => undef },
-    #diversity => { expands => 1, run => '_export_diversity' },
     ensembl   => { expands => 1, run => '_export_ensembl' },
-    #qtl       => { expands => 0, run => '_export_qtl' },
-    #genes     => { expands => 0, run => '_export_genes' },
 );
 
 my $gconf = Grm::Config->new;
@@ -329,116 +326,6 @@ sub get_fh {
 }
 
 # ----------------------------------------------------
-sub _export_qtl {
-    my ( $module_name, $progress ) = @_;
-    my $qtl_db   = Grm::DB->new('qtl');
-    my $dbh      = $qtl_db->dbh;
-    my $schema   = $qtl_db->dbic;
-    my $qdb      = Gramene::QTL::DB->new;
-
-    my @assocs;
-    my $qtl_ids = $dbh->selectcol_arrayref('select qtl_id from qtl');
-    my $total   = scalar @$qtl_ids;
-
-    for my $qtl_id ( @$qtl_ids ) {
-        my $Qtl = $schema->resultset('Qtl')->find( $qtl_id );
-        $progress->();
-
-        for my $assoc ( $qdb->get_qtl_associations( qtl_id => $qtl_id ) ) {
-            next unless $assoc->{'association_type'} eq 'ontology';
-
-            my ( $evidence_code, $db_ref ) = ( '', '' );
-            if ( 
-                ref $assoc->{'evidence'} eq 'ARRAY' &&
-                @{ $assoc->{'evidence'} || [] }
-            ) {
-                my $ev         = $assoc->{'evidence'}[0];
-                $evidence_code = $ev->{'evidence_code'};
-                $db_ref        = 'GR_REF:' . $ev->{'gramene_reference_id'};
-            }
-
-            push @assocs, {
-                db                => 'GR_QTL',
-                db_object_id      => $Qtl->qtl_accession_id,
-                db_object_symbol  => $Qtl->qtl_trait->trait_symbol,
-                term_accession    => $assoc->{'term_accession'},
-                db_reference      => $db_ref,
-                evidence_code     => $evidence_code,
-                db_object_name    => $Qtl->qtl_trait->trait_name,
-                db_object_synonym => $Qtl->published_symbol,
-                db_object_type    => 'QTL',
-                taxon             => 'taxon:' . $Qtl->species->ncbi_taxonomy_id,
-            };
-        }
-    }
-
-    return \@assocs;
-}
-
-# ----------------------------------------------------
-sub _export_diversity {
-    my ( $module_name, $progress ) = @_;
-    my $config    = Grm::Config->new;
-    my $dconfig   = $config->get('diversity');
-    my $tax_ids   = $dconfig->{'tax_id'} or die 'No tax_id in diversity config';
-    ( my $species = $module_name ) =~ s/^diversity_//;
-    my $tax_id    = $tax_ids->{ $species } or die "No tax id for $species";
-
-    my @assocs;
-    my $db   = Grm::DB->new( $module_name );
-    my $dbh  = $db->dbh;
-    $tax_id  = 'GR_tax:' . $tax_id;
-
-    for my $type ( qw[ to eo ] ) {
-        my $traits = $dbh->selectall_arrayref(
-            qq[
-                select div_trait_uom_id, local_trait_name, 
-                       ${type}_accession as acc
-                from   div_trait_uom
-                where  ${type}_accession is not null
-            ],
-            { Columns => {} }
-        );
-
-        next unless @$traits;
-
-        my $object_type = $type eq 'to' ? 'trait' : 'environment';
-
-        TRAIT:
-        for my $trait ( @$traits ) {
-            my $term_acc = $trait->{'acc'} or next TRAIT;
-
-            if ( $trait->{'acc'} !~ /^[A-Z]{2,3}[:]\d+$/ ) {
-                next TRAIT;
-            }
-
-            my $trait_name = $trait->{'local_trait_name'} || $term_acc;
-
-            $progress->();
-
-            push @assocs, {
-                db_object_id      => $trait->{'div_trait_uom_id'}, 
-                db_object_symbol  => $trait_name,
-                term_accession    => $term_acc,
-                db_reference      => 'GR_REF:0',
-                evidence_code     => 'SM',
-                db_object_name    => $trait_name,
-                db_object_synonym => '',
-                taxon             => $tax_id,
-                db_object_type    => join(' ', 
-                    ucfirst( $species ), 'Diversity', ucfirst($object_type)
-                ),
-                db                => join('_', 
-                    'GR', 'diversity', $species, 'trait'
-                ),
-            };
-        }
-    }
-
-    return \@assocs;
-}
-
-# ----------------------------------------------------
 sub _export_ensembl {
     my ( $species, $progress ) = @_;
 
@@ -453,56 +340,68 @@ sub _export_ensembl {
         ]
     );
 
-    my $sql = q[
-        select g.stable_id     as gene, 
-               x.description   as term_name, 
-               x.dbprimary_acc as term_accession, 
-               gx.linkage_type as evidence_code
-        from   xref x,
-               object_xref ox,
-               ontology_xref gx,
-               gene g,
-               transcript t,
-               translation tr,
-               external_db db
-        where  t.transcript_id=tr.transcript_id
-        and    g.gene_id=t.gene_id
-        and    ox.xref_id=x.xref_id
-        and    ox.object_xref_id=gx.object_xref_id
-        and    x.external_db_id=db.external_db_id
-        and    db.db_name in ('EO', 'GO', 'PO', 'TO')
-    ];
-
-    my $sql_translation = q[ 
-        and    ox.ensembl_id=tr.translation_id
-        and    ox.ensembl_object_type='Translation'
-    ];
-
-    my $sql_transcript = q[ 
-        and    ox.ensembl_id=t.transcript_id
-        and    ox.ensembl_object_type='Transcript'
-    ];
-
-    my $data = $dbh->selectall_arrayref( 
-        $sql . $sql_translation,
-        { Columns => {} }
+    my @sql = (
+        q[ 
+            select g.stable_id     as gene,
+                   x.description   as term_name,
+                   x.dbprimary_acc as term_accession,
+                   gx.linkage_type as evidence_code
+            from   xref x,
+                   object_xref ox,
+                   ontology_xref gx,
+                   translation p,
+                   transcript t,
+                   gene g,
+                   external_db e
+            where  ox.ensembl_object_type='Translation'
+            and    ox.ensembl_id=p.translation_id
+            and    p.transcript_id=t.transcript_id
+            and    t.gene_id=g.gene_id
+            and    ox.object_xref_id=gx.object_xref_id
+            and    ox.xref_id=x.xref_id
+            and    x.external_db_id=e.external_db_id
+            and    e.db_name in ('GO', 'PO', 'TO', 'EO')
+        ],
+        q[
+            select g.stable_id     as gene,
+                   x.description   as term_name,
+                   x.dbprimary_acc as term_accession,
+                   gx.linkage_type as evidence_code
+            from   xref x,
+                   object_xref ox,
+                   ontology_xref gx,
+                   transcript t,
+                   gene g,
+                   external_db e
+            where  ox.ensembl_object_type='Transcript'
+            and    ox.ensembl_id=t.transcript_id
+            and    t.gene_id=g.gene_id
+            and    ox.object_xref_id=gx.object_xref_id
+            and    ox.xref_id=x.xref_id
+            and    x.external_db_id=e.external_db_id
+            and    e.db_name in ('GO', 'PO', 'TO', 'EO')
+        ],
     );
 
-    my $total = scalar @$data or return;
+    my @data;
+    for my $sql ( @sql ) { 
+        push @data, @{ $dbh->selectall_arrayref( $sql, { Columns => {} } ) };
+    }
+
+    my $total = scalar @data or return;
 
     my $type_check = 0;
     my ( %seen, @assocs );
-    for my $assoc ( @$data ) {
+    for my $assoc ( @data ) {
         my $term_acc = $assoc->{'term_accession'} or next;
         my $gene     = $assoc->{'gene'}           or next;
 
-        next if $seen{ "${term_acc}-${gene}" }++;
+        next if $seen{ $term_acc }{ $gene }++;
 
         $progress->();
-        ( my $obj_type = "$species gene" ) =~ s/_/ /g;
 
         push @assocs, {
-            db                => join('_', 'GR', $species, 'gene'),
+            db                => $species,
             db_object_id      => $gene,
             db_object_symbol  => '',
             term_accession    => $term_acc,
@@ -510,54 +409,12 @@ sub _export_ensembl {
             evidence_code     => $assoc->{'evidence_code'},
             db_object_name    => '',
             db_object_synonym => '',
-            db_object_type    => $obj_type,
+            db_object_type    => 'gene',
             taxon             => $taxon_id,
         };
     }
 
     return \@assocs;
-}
-
-# ----------------------------------------------------
-sub _export_genes {
-    my ( $module_name, $progress ) = @_;
-
-    my $dbh    = Grm::DB->new( $module_name )->dbh;
-    my $assocs = $dbh->selectall_arrayref(
-        q[
-            select g.gene_id,
-                   g.accession       as db_object_id, 
-                   g.symbol          as db_object_symbol, 
-                   g.name            as db_object_name,
-                   a.term_accession  as term_accession, 
-                   'GR_REF:0'        as db_reference,
-                   'SM'              as evidence_code,
-                   s.ncbi_taxa_id    as taxon,
-                   'GR_gene'         as db_object_type,
-                   'GR_gene'         as db
-            from   gene_ontology_association a, 
-                   gene_gene g,
-                   gene_species s
-            where  object_table='gene'
-            and    a.object_id=g.gene_id
-            and    g.species_id=s.species_id
-        ],
-        { Columns => {} }
-    );
-
-
-    for my $assoc ( @$assocs ) {
-        $progress->();
-        $assoc->{'db_object_synonym'} = join(',', @{
-            $dbh->selectcol_arrayref(
-                'select synonym_name from gene_gene_synonym where gene_id=?',
-                {},
-                $assoc->{'gene_id'}
-            )
-        });
-    }
-
-    return $assocs;
 }
 
 __END__

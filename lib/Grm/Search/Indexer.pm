@@ -64,10 +64,24 @@ has lwp => (
     lazy_build => 1,
 );
 
+has solr_url => (
+    is     => 'rw',
+    isa    => 'Str',
+    lazy_build => 1,
+);
+
 # ----------------------------------------------------
 sub BUILD {
     my ( $self, $args ) = @_;
     my $module = $self->module( $args->{'module'} ) or croak 'No module';
+}
+
+# ----------------------------------------------------
+sub _build_solr_url {
+    my $self     = shift;
+    my $config   = $self->config->get('search'); 
+    my $solr_url = $config->{'solr'}{'url'} or die 'No Solr URL';
+    return $solr_url;
 }
 
 # ----------------------------------------------------
@@ -101,8 +115,8 @@ sub add {
 
     return unless @data;
 
+    my $solr_url = $self->solr_url;
     my $config   = $self->config->get('search'); 
-    my $solr_url = $config->{'solr'}{'url'} or die 'No Solr URL';
     my @flds     = @{ $config->{'solr'}{'load_fields'} || [] } 
                    or croak 'No Solr load_fields';
 

@@ -29,24 +29,29 @@ use strict;
 use warnings;
 use namespace::autoclean;
 
-use DateTime;
-use Moose;
-use Carp;
 use CGI;
-use List::Util qw( max min );
-use POSIX qw( ceil );
+use Carp;
+use DateTime;
 use Encode qw( decode );
 use File::Find::Rule;
-use File::Spec::Functions qw( catdir );
 use File::Path;
+use File::Spec::Functions qw( catdir );
 use Grm::Config;
 use Grm::Maps;
 use Grm::Ontology;
-use Grm::Utils qw( timer_calc commify extract_ontology camel_case );
 use Grm::Search::Indexer;
+use Grm::Utils qw( 
+    timer_calc commify extract_ontology camel_case iterative_search_values 
+);
+use JSON qw( encode_json decode_json );
 use List::MoreUtils qw( uniq );
-use Time::HiRes qw( gettimeofday tv_interval );
+use List::Util qw( max min );
+use LWP::UserAgent;
+use Mojo::Util qw( trim unquote url_unescape );
+use Moose;
+use POSIX qw( ceil );
 use Readonly;
+use Time::HiRes qw( gettimeofday tv_interval );
 
 Readonly my $ALL         => '[[all]]';
 Readonly my $COMMA_SPACE => q{, };
@@ -127,6 +132,8 @@ tables and records indexed and the elapsed time.
         my $db      = Grm::DB->new( $module );
         my $dbh     = $db->dbh;
         my $schema  = $db->dbic;
+
+        printf "Communicating with Solr at '%s'\n", $indexer->solr_url;
 
         print "Removing all data for '$module'\n";
         $indexer->truncate;
@@ -338,6 +345,12 @@ tables and records indexed and the elapsed time.
 
                 $text =~ s/^\s+//g; # trim
                 $text =~ s/, / /g;  # kill commas
+
+                #
+                # This takes care of transcript names, e.g., "LOC_Os01g01410.2"
+                #
+                $text =~ s/\b(([\w_-]+)\.\d+)\b/$1 $2/g;
+
                 $text = join( $SPACE, uniq( split( /\s+/, $text ) ) );
 
                 next if !$text;
@@ -364,9 +377,6 @@ tables and records indexed and the elapsed time.
                 }
                 elsif ( @taxonomy == 1 ) {
                     ( $species_name = ucfirst lc $taxonomy[0] ) =~ s/ /_/g;
-                }
-                elsif ( $module =~ /^pathway_(\w+)/ ) {
-                    $species_name = ucfirst lc $1;
                 }
 
                 my $title = '';
@@ -617,6 +627,216 @@ Returns a hash(ref) of the tables to index for a given module.
     }
 
     return wantarray ? %return : \%return;;
+}
+
+# ----------------------------------------------------
+sub search {
+#
+# Search can be by "id" or "query"
+#
+    my ( $self, %args ) = @_;
+
+    my $params       = $args{'params'}    || {};
+    my $id           = $args{'id'}        || $params->{'id'}        || '';
+    my $query        = $args{'query'}     || $params->{'query'}     || '';
+    my $page_size    = $args{'page_size'} || $params->{'page_size'} || 10;
+    my $page_num     = $args{'page_num'}  || $params->{'page_num'}  ||  1;
+    my $do_highlight = $args{'hl'}        // 1;
+    my $do_facet     = $args{'facet'}     // 1;
+    my $gconfig      = $self->config;
+    my $odb          = Grm::Ontology->new;
+    my $timer        = timer_calc();
+    my $results      = {};
+
+    return {} unless $id or $query;
+
+    my $url_base = sprintf( 
+        '/select?q=%s&wt=json', 
+        $query ? 'text:%s' : "id:$id" 
+    );
+
+    #
+    # Parse out the request, figure out the "fq" facet queries
+    # Create a query string to tack onto the maing "query"
+    #
+    my $get_url_params = "&rows=$page_size";
+    if ( my $fl = $args{'fl'} ) {
+        $get_url_params .= "&fl=$fl";
+    }
+
+    if ( $do_highlight ) {
+        $get_url_params .= 
+          '&hl=true&hl.fl=content&hl.simple.pre=<em>&hl.simple.post=</em>';
+    }
+
+    if ( $do_facet ) {
+        $get_url_params .= '&facet=true&facet.mincount=1' 
+            . '&facet.field=species' 
+            . '&facet.field=ontology' 
+            . '&facet.field=object';
+    }
+
+    my %fq;
+    while ( my ( $key, $value ) = each %$params ) {
+        next if $key eq 'query' || $key eq 'id';
+        my @values = ref $value eq 'ARRAY' ? @$value : ( $value );
+        if ( $key eq 'fq' ) {
+            FQ_VAL:
+            for my $fq_val ( @values ) {
+                my ( $facet_name, $facet_val ) 
+                    = split( /:/, $fq_val, 2 );
+
+                if ( defined $facet_val && $facet_val =~ /\w+/ ) {
+                    if ( $facet_name eq 'species' ) {
+                        if ( lc $facet_val eq 'multi' ) {
+                            next FQ_VAL;
+                        }
+
+                        $facet_val = lc $facet_val;
+                        $facet_val =~ s/\s+/_/g;
+                    }
+
+                    push @{ $fq{ $facet_name } }, $facet_val;
+                }
+            }
+        }
+        else {
+            for my $v ( @values ) {
+                $get_url_params .= sprintf( '&%s=%s', $key, $v );
+            }
+        }
+    }
+
+    while ( my ( $facet_name, $values ) = each %fq ) {
+        for my $val ( @$values ) {
+            $get_url_params .= sprintf( 
+                '&fq=%s:%%22%s%%22', 
+                $facet_name, 
+                trim(unquote(url_unescape($val)))
+            );
+        }
+    }
+
+    if ( $page_num > 1 ) {
+        $get_url_params .= '&start=' . ($page_num - 1) * $page_size;
+    }
+
+    #
+    # See if query looks like "chr:start-stop," e.g., 
+    # "11 : 14375589-14373565"
+    # or
+    # "12:17360493...17361111"
+    #
+    if ( 
+        $query =~ /^
+            ([\w.-]+)        # seq_region name (chr, scaffold)
+            \s*              # maybe space
+            :                # literal colon
+            \s*              # maybe space
+            ([\d,]+)         # start
+            \s*              # maybe space
+            (?:\.{2,3}|[-])  # either ellipses (2 or 3) or dash
+            \s*              # maybe space
+            ([\d,]+)         # stop
+        $/xms 
+    ) {
+        my ( $chr, $start, $stop ) = ( $1, $2, $3 );
+        my $url_query  = $chr . '%3A' . $start . '-' . $stop;
+        my %fq_species = map { lc $_, 1 } @{ $fq{'species'} || [] };
+        my @suggestions = ();
+
+        SPECIES:
+        for my $ens_species (
+            grep { /^ensembl_/ } $gconfig->get('modules')
+        ) {
+            ( my $species = $ens_species ) =~ s/^ensembl_//;
+            if ( %fq_species && !$fq_species{ $species } ) {
+                next SPECIES;
+            }
+
+            my $db = Grm::DB->new( $ens_species );
+            my ($count) = $db->dbh->selectrow_array(
+                q[
+                    select count(*) 
+                    from   seq_region 
+                    where  name=?
+                    and    length>?
+                ],
+                {},
+                ( $chr, $stop )
+            );
+
+            next unless $count > 0;
+
+            my $url_species = $db->alias || $species;
+            ( my $display = $species ) =~ s/_/ /g;
+            push @suggestions, {
+                url => sprintf(
+                    'http://ensembl.gramene.org/%s/'.
+                    'Location/View?r=%s',
+                    ucfirst( $url_species ),
+                    $url_query,
+                ),
+                title => sprintf( 
+                    'Ensembl %s &quot;%s&quot;</a>',
+                    ucfirst( $display ),
+                    $query,
+                )
+            };
+        }
+
+        $results->{'suggestions'} = \@suggestions;
+    }
+    #
+    # Looks legit, so go search Solr
+    #
+    else {
+        if ( ref $page_num eq 'ARRAY' ) {
+            $page_num = max( $page_num );
+        }
+
+        my $sconfig  = $gconfig->get('search');
+        my $solr_url = $sconfig->{'solr'}{'url'} or die 'No Solr URL';
+        my $ua       = LWP::UserAgent->new;
+
+        $ua->agent('GrmSearch/0.1');
+
+        my @urls;
+        if ( $query ) {
+            for my $qry ( iterative_search_values( $query ) ) {
+                # quote the value if it has a colon as this (e.g., "GO:0001132")
+                # has special meaning to Solr (e.g., "species:Zea_mays")
+                $qry =~ s/\b(.*[:].*)/%22$1%22/g; 
+                $qry =~ s/ /+/g;
+
+                push @urls, 
+                    sprintf( $solr_url . $url_base, $qry ) . $get_url_params;
+            }
+        }
+        else {
+            @urls = ( $solr_url . $url_base . $get_url_params );
+        }
+
+        for my $url ( @urls ) {
+            my $res = $ua->request( HTTP::Request->new( GET => $url ) );
+
+            if ( $res->is_success ) {
+                $results = decode_json($res->content);
+            }
+            else {
+                $results = { 
+                    code  => $res->code,
+                    error => $res->message,
+                };
+            }
+
+            last if $results->{'response'}{'numFound'} > 0;
+        }
+
+        $results->{'time'} = $timer->( format => 'seconds' );
+    }
+
+    return $results;
 }
 
 1;

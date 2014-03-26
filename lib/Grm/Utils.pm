@@ -201,86 +201,6 @@ sub module_name_to_gdbic_class {
 }
 
 # ----------------------------------------------------
-sub pager {
-    my %args             =  ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
-    my $entries_per      =  $args{'entries_per_page'} || 25; 
-    my $current_page     =  $args{'current_page'}     ||  1;
-    my $url              =  $args{'url'}              || '';
-       $url             .=  '?' unless $url =~ /\?/;
-    my $data             =  $args{'data'};
-    my $count            =  $args{'count'};
-    my $object_name      =  $args{'object_name'} || 'Items';
-    my $total            =  $count || scalar @{ $data || [] } || return;
-    my $pager            =  Data::Pageset->new({
-        total_entries    => $total,
-        entries_per_page => $entries_per,
-        current_page     => $current_page,
-    });
-
-    my $text = '';
-    if ( $pager->last_page > 1 ) {
-        my $form_action = $args{'form_action'} || '';
-        $text = sprintf('<form%s>', 
-            $form_action ? "action='$form_action' " : ''
-        );
-
-        $text .= qq[&nbsp;&nbsp;$object_name ] . 
-            commify( $pager->first ) .
-            ' to ' . commify( $pager->last ) . 
-            ' of ' . commify( $pager->total_entries );
-
-        $text .= '.' . '&nbsp;' x 5;
-        my $click_action = $args{'click_action'} || '';
-#        if ( !$click_action ) {
-            $url  =~ s/[;&]?page_num=\d+//;         # get rid of page_num arg
-            $url  =~ s!^http://.*?(?=/)!!;          # remove host
-
-            (my $query_string = $url) =~ s/^.*\?//; # isolate the query string
-#        }
-
-        my $q = CGI->new( $query_string );
-        if ( my $prev = $pager->previous_page ) {
-            $text .= $q->a( 
-                { href=> "$url&page_num=${prev}" }, 'Previous' 
-            ) . ' | ';
-        }
-
-        for my $param ( $q->param ) {
-            next if $param eq 'page_num';
-            for my $value ( $q->param( $param ) ) {
-                $text .= qq[<input type="hidden" name="$param" value="$value">];
-            }
-        }
-
-        $text .= '<input type="submit" value="Page">' .
-            '<input name="page_num" size="4" value="' . 
-            $pager->current_page . '">' . 
-            ' of ' . commify($pager->last_page) . '.';
-
-        if ( my $next = $pager->next_page ) {
-#            if ( $click_action ) {
-                $text .= ' | ' . $q->a( 
-                    { href=> "get_page('foo', $next)" }, 'Next'
-                );
-#            }
-#            else {
-#                $text .= ' | ' . $q->a( 
-#                    { href=> "$url&page_num=${next}" }, 'Next'
-#                );
-#            }
-        }
-
-        $text .= '&nbsp;&nbsp;</form>';
-    }
-    else {
-        $text = sprintf('Found %s results.', commify($count));
-    }
-
-    $data  = [ $pager->splice( $data ) ] if @{ $data || [] };
-    return wantarray ? ( $text, $data ) : $text;
-}
-
-# ----------------------------------------------------
 sub parse_words {
     my $string    = shift;
     my @words     = ();
@@ -348,16 +268,24 @@ sub timer_calc {
     my $start = shift || [ gettimeofday() ];
 
     return sub {
-        my $end     = shift || [ gettimeofday() ];
+        my %args    = ( scalar @_ > 1 ) ? @_ : ( end => shift(@_) );
+        my $end     = $args{'end'}    || [ gettimeofday() ];
+        my $format  = $args{'format'} || 'pretty';
         my $seconds = tv_interval( $start, $end );
-        return $seconds > 60
-            ? parseInterval(
-                seconds => int($seconds),
-                Small   => 1,
-            )
-            : sprintf("%s second%s", $seconds, $seconds == 1 ? '' : 's')
-        ;
-    };
+
+        if ( $format eq 'seconds' ) {
+            return $seconds;
+        }
+        else {
+            return $seconds > 60
+                ? parseInterval(
+                    seconds => int($seconds),
+                    Small   => 1,
+                )
+                : sprintf("%s second%s", $seconds, $seconds == 1 ? '' : 's')
+            ;
+        }
+    }
 }
 
 # ----------------------------------------------------
@@ -425,10 +353,6 @@ Aids searches by iteratively adding wildcards, e.g., for "foo" then
   $logger->info("Setting db to '$db_name'");
 
 Returns a Log::Dispatch::File logger.
-
-=head2 pager
-
-Create a pager for data using Data::Pageset.
 
 =head3 Arguments
 

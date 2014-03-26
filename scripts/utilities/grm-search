@@ -21,8 +21,7 @@ use List::Util qw( max );
 Readonly my %VALID_OUTPUT => map { $_, 1 } qw[ perl json summary table ];
 Readonly my $SEPARATOR    => "************ Record %s ************\n";
 Readonly my $WIDTH        => 78;
-Readonly my @FIELDS       => 
-    qw[ category url title content taxonomy ontology score ];
+Readonly my @FIELDS       => qw[ species object id title ];
 
 my $category   = '';
 my $debug      =  0;
@@ -32,11 +31,9 @@ my $limit      =  0;
 my $query_file = '';
 my $taxonomy   = '';
 my $verbose    =  0;
-my $db         = 'mysql';
 my ( $help, $man_page );
 GetOptions(
     'c|category:s' => \$category,
-    'd|db:s'       => \$db,
     'debug'        => \$debug,
     'i|index:s'    => \$index_path,
     'f|format:s'   => \$format,
@@ -86,30 +83,26 @@ my $print = sub {
 my $timer    = timer_calc();
 my @tab_flds = qw[ url content ];
 my $tab      = Text::TabularDisplay->new( @tab_flds );
-my $search   = Grm::Search->new( index_path => $index_path );
-my $method   = $db eq 'lucy' ? 'search' : 'search_mysql';
+my $search   = Grm::Search->new;
 my ( @summary , %seen );
 my ( $query_num, $total_hits ) = ( 0, 0 );
 TERM:
 for my $term ( @terms ) {
     next if $seen{ $term }++;
 
-    my $res;
-    for my $t ( iterative_search_values( $term ) ) {
-        printf "%-70s\r", "Trying '$t'...";
-        $res         =  $search->$method( 
-            query    => $t, 
-            category => $category,
-            taxonomy => $taxonomy,
-            db       => $db,
-            debug    => $debug,
-        );
+    printf "%-70s\r", "Trying '$term'...";
+    my $results  =  $search->search( 
+        query    => $term, 
+        category => $category,
+        taxonomy => $taxonomy,
+        debug    => $debug,
+        facet    => 0,
+        hl       => 0,
+    );
 
-        last if $res->{'num_hits'} > 0;
-    }
     print "\n";
 
-    my $num = $res->{'num_hits'};
+    my $num = $results->{'response'}{'numFound'};
 
     $total_hits += $num;
 
@@ -120,7 +113,7 @@ for my $term ( @terms ) {
             commify($num), 
             $num == 1 ? '' : 's',
             $term, 
-            $res->{'time'}
+            $results->{'time'}
         )
     );
 
@@ -129,7 +122,7 @@ for my $term ( @terms ) {
     }   
 
     if ( $format eq 'summary' ) {
-        push @summary, [ $term, $num, $res->{'time'} ];
+        push @summary, [ $term, $num, $results->{'time'} ];
         next TERM;
     }
 
@@ -138,7 +131,7 @@ for my $term ( @terms ) {
             my $max     = max( map { length } @FIELDS );
             my $rec_num = 0;
 
-            for my $rec ( @{ $res->{'data'} } ) {
+            for my $rec ( @{ $results->{'response'}{'docs'} } ) {
                 printf $SEPARATOR, ++$rec_num;
 
                 for my $f ( @FIELDS ) {
@@ -155,10 +148,10 @@ for my $term ( @terms ) {
             }
         }
         elsif ( $format eq 'json' ) {
-            print encode_json( $res->{'data'} ), "\n"; 
+            print encode_json( $results->{'response'}{'docs'} ), "\n"; 
         }
         else {
-            print Dumper( $res->{'data'} ), "\n"; 
+            print Dumper( $results->{'response'}{'docs'} ), "\n"; 
         }
     }
 }
@@ -211,7 +204,7 @@ Executes a Gramene search for each term given.
 
 =head1 SEE ALSO
 
-Grm::Search, Lucy.
+Grm::Search.
 
 =head1 AUTHOR
 
