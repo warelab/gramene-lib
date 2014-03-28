@@ -691,7 +691,7 @@ Returns an array(ref) of term_ids.
         if ( @$data > 0 ) {
             push @matches, @$data;
         }
-        elsif ( $qry !~ /\*$/ ) {
+        elsif ( $qry !~ /[*%]$/ && $qry !~ /^[A-Za-z_]+:\d+$/ ) {
             push @queries, "$qry*";
         }
     }
