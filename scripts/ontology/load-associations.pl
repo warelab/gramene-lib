@@ -7,7 +7,7 @@ use warnings;
 use autodie;
 use feature 'say';
 use Cwd 'cwd';
-use Data::Dumper;
+use Data::Dump 'dump';
 use File::Basename;
 use Getopt::Long;
 use Grm::DB;
@@ -16,6 +16,7 @@ use Grm::Utils qw( commify timer_calc commify );
 use File::CountLines qw( count_lines );
 use File::Spec::Functions;
 use IO::Prompt qw( prompt );
+use List::MoreUtils qw( zip );
 use Pod::Usage;
 use Readonly;
 
@@ -124,7 +125,7 @@ for my $file ( @files ) {
         chomp $line;
 
         my @data = split /\t/, $line;
-        my %rec  = map { $FIELD_NAMES[$_], $data[$_] } 0..$#FIELD_NAMES;
+        my %rec  = zip @FIELD_NAMES, @data;
 
         my $term_acc = $rec{'term_accession'} || $rec{'go_id'};
 
@@ -133,10 +134,16 @@ for my $file ( @files ) {
             next REC;
         }
 
-        my @term_ids = $odb->search( 
-            query                  => $term_acc,
-            include_obsolete_terms => 1,
-        );
+        my @term_ids;
+        for my $r ( 
+            [ 'Term'       , 'term_accession' ], 
+            [ 'TermSynonym', 'term_synonym'   ] 
+        ) {
+            my ( $rs, $fld ) = @$r;
+            @term_ids = map { $_->term_id() }
+                $schema->resultset( $rs )->search({ $fld, $term_acc });
+            last if @term_ids;
+        }
 
         if ( @term_ids != 1 ) {
             printf STDERR "For '$term_acc', found %s terms\n", scalar @term_ids;
@@ -152,7 +159,7 @@ for my $file ( @files ) {
         }
 
         my $obj_id   = $rec{'db_object_id'}   or next;
-        my $obj_type = $rec{'db'}             || '';
+        my $obj_type = join('_', $rec{'db'}, $rec{'db_object_type'});
         my $obj_name = $rec{'db_object_name'} || '';
         my $taxon    = $rec{'taxon'}          || 'NA';
 
@@ -186,6 +193,7 @@ for my $file ( @files ) {
         }
 
         my $Species = get_species( $odb, $schema, $taxon );
+
         my $Type = $schema->resultset('AssociationObjectType')->find_or_create(
             { type => $obj_type },
         );
