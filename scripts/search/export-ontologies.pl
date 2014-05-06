@@ -10,22 +10,28 @@ use Cwd 'cwd';
 use File::Path 'mkpath';
 use File::Spec::Functions;
 use Getopt::Long;
+use Grm::Config;
 use Grm::DB;
 use Grm::Utils qw( timer_calc commify );
 use HTML::Entities 'decode_entities';
 use Pod::Usage;
 use Readonly;
+use Template;
 
-Readonly my @FLDS => qw( id name synonym description );
+Readonly my @FLDS => qw(
+    id title prefix term_type accession name synonym description
+);
 Readonly my $SOLR => 'http://brie.cshl.edu:8983/solr/ontologies/update?'
     . 'commit=true&f.synonym.split=true';
 
-my $out_dir = cwd();
+my $out_dir   = cwd();
+my $skip_file = '';
 my ( $help, $man_page );
 GetOptions(
-    'o|out:s' => \$out_dir,
-    'help'    => \$help,
-    'man'     => \$man_page,
+    'o|out:s'   => \$out_dir,
+    's|skips:s' => \$skip_file,
+    'help'      => \$help,
+    'man'       => \$man_page,
 ) or pod2usage(2);
 
 if ( $help || $man_page ) {
@@ -52,6 +58,27 @@ print "Gathering ontology terms ... ";
 my $count = $schema->resultset('Term')->count();
 printf "there are %s.\n", commify($count);
 
+my $skip_fn = sub {
+    if ( $skip_file ) {
+        open my $skips, '>', $skip_file;
+        return sub { say $skips @_ };
+    }
+    else {
+        return sub {}; # no-op
+    }
+}->();
+
+my $gconf       = Grm::Config->new();
+my $search_conf = $gconf->get('search');
+my $title_tmpl  = '';
+
+if ( my $title_def = $search_conf->{'title'}{'ontology.term'} ) {
+    if ( $title_def =~ /^TT:(.+)/ ) {
+        $title_tmpl = $1;
+    }
+}
+
+my $tt          = Template->new();
 my $num_skipped = 0;
 TERM:
 for my $Term ( $schema->resultset('Term')->all() ) {
@@ -69,6 +96,9 @@ for my $Term ( $schema->resultset('Term')->all() ) {
     if ( !$acc ) {
         $skip = 'no accession';
     }
+    elsif ( $acc !~ /^[A-Za-z_]+:\d+$/ ) {
+        $skip = 'not a term'
+    }
     elsif ( $Term->is_obsolete ) {
         $skip = 'is obsolete';
     }
@@ -80,7 +110,8 @@ for my $Term ( $schema->resultset('Term')->all() ) {
     }
 
     if ( $skip ) {
-        printf STDERR "%5s: Skipping %s (%s)\n", ++$num_skipped, $skip;
+        $num_skipped++;
+        $skip_fn->( join(': ', $skip, $acc) );
         next TERM;
     }
 
@@ -94,8 +125,19 @@ for my $Term ( $schema->resultset('Term')->all() ) {
         $def = $Def->definition;
     }
 
-    print $out join( ',', 
-        map { clean($_) }
+    my $title = make_title( 
+        tt       => $tt,
+        template => $title_tmpl,
+        module   => 'ontology',
+        table    => 'term',
+        object   => $Term,
+    );
+
+    print $out join( ',', map { clean($_) }
+        join( '/', qw[ ontology term ], $Term->id ),
+        $title,
+        $Term->term_type->prefix,
+        $Term->term_type->term_type,
         $acc,
         $Term->name,
         @syn ? join( ',', @syn ) : '',
@@ -106,7 +148,7 @@ for my $Term ( $schema->resultset('Term')->all() ) {
 close $out;
 
 printf "\nExported %s terms (skipped %s) in %s. Now do this:\n%s\n", 
-    commify($term_num), 
+    commify($term_num - $num_skipped), 
     commify($num_skipped), 
     $timer->(), 
     "curl '$SOLR' -H 'Content-type:application/csv' --data-binary \@" 
@@ -127,6 +169,39 @@ sub clean {
     return qq["$s"];
 }
 
+# ----------------------------------------------------
+sub make_title {
+    my %args     = @_;
+    my $tt       = $args{'tt'};
+    my $object   = $args{'object'};
+    my $template = $args{'template'} || '';
+    my $module   = $args{'module'}   || '';
+    my $table    = $args{'table'}    || '';
+
+    my $title = '';
+    if ( $template ) {
+        $tt->process(
+            \$template,
+            {
+                object      => $object,
+                module      => $module,
+                table       => $table,
+                object_type => $table,
+            },
+            \$title
+        ) or $title = $tt->error;
+    }
+    else {
+        $title = join(' ', map { $_ || () } 
+            $module, 
+            $table, 
+            $object->id,
+        );
+    }
+
+    return $title;
+}
+
 __END__
 
 # ----------------------------------------------------
@@ -143,9 +218,10 @@ load-ontologies.pl - creates a CSV file for Solr
 
 Options:
 
-  -o|--out   Output directory (default is "cwd")
-  --help     Show brief help and exit
-  --man      Show full documentation
+  -o|--out     Output directory (default is "cwd")
+  -s|--skips  File to write 
+  --help       Show brief help and exit
+  --man        Show full documentation
 
 =head1 DESCRIPTION
 

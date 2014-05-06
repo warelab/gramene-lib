@@ -3,7 +3,7 @@ also_load: search.yaml,ontology.yaml
 
 base_dir: /usr/local/gramene/gramene-lib
 
-version: 40
+version: 41
 
 ensembl:
   version: 73
@@ -53,13 +53,13 @@ database:
     password : gram3n3
 
   amigo:
-    name: amigo40
+    name: amigo41
 
   maps:
     name: maps40
 
   ontology:
-    name: ontology40
+    name: ontology41
 
   pathway_arabidopsis_thaliana:
     name: pathway_arabidopsis_thaliana40
