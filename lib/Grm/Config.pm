@@ -17,7 +17,7 @@ subtype 'ExistingFile'
 
 has default_filename => (
     is      => 'ro',
-    default => '/usr/local/gramene-40/gramene-lib/conf/gramene.yaml',
+    default => '/usr/local/gramene/gramene-lib/conf/gramene.yaml',
 );
 
 has config     => (
