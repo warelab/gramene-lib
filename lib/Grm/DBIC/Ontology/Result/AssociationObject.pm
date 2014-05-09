@@ -64,6 +64,12 @@ __PACKAGE__->table("association_object");
   is_foreign_key: 1
   is_nullable: 0
 
+=head2 url
+
+  data_type: 'varchar'
+  is_nullable: 1
+  size: 255
+
 =cut
 
 __PACKAGE__->add_columns(
@@ -89,6 +95,8 @@ __PACKAGE__->add_columns(
     is_foreign_key => 1,
     is_nullable    => 0,
   },
+  "url",
+  { data_type => "varchar", is_nullable => 1, size => 255 },
 );
 
 =head1 PRIMARY KEY
@@ -151,8 +159,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07036 @ 2013-12-17 15:00:20
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:bGwJz6smrGLTnIlkHTXIdA
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2014-04-18 15:24:40
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:PxsbjmV3k41AE8EsYviP1Q
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

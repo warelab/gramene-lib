@@ -21,7 +21,7 @@ use List::Util qw( max );
 Readonly my %VALID_OUTPUT => map { $_, 1 } qw[ perl json summary table ];
 Readonly my $SEPARATOR    => "************ Record %s ************\n";
 Readonly my $WIDTH        => 78;
-Readonly my @FIELDS       => qw[ species object id title ];
+Readonly my @FIELDS       => qw[ id name ];
 
 my $category   = '';
 my $debug      =  0;
@@ -102,7 +102,7 @@ for my $term ( @terms ) {
 
     print "\n";
 
-    my $num = $results->{'response'}{'numFound'};
+    my $num = $results->{'num_found'} || 0;
 
     $total_hits += $num;
 
@@ -131,27 +131,29 @@ for my $term ( @terms ) {
             my $max     = max( map { length } @FIELDS );
             my $rec_num = 0;
 
-            for my $rec ( @{ $results->{'response'}{'docs'} } ) {
-                printf $SEPARATOR, ++$rec_num;
+            while ( my ( $core, $response ) = each %{ $results->{'core'} } ) {
+                for my $rec ( @{ $response->{'response'}{'docs'} } ) {
+                    printf $SEPARATOR, ++$rec_num;
 
-                for my $f ( @FIELDS ) {
-                    my $v = defined $rec->{ $f } ? $rec->{ $f } : q{};
-                    if ( length $v > $WIDTH ) {
-                        ( $v = autoformat( $v, { left => $max + 3 } ) ) 
-                            =~ s/^\s+|\s+$//g;
+                    for my $f ( @FIELDS ) {
+                        my $v = defined $rec->{ $f } ? $rec->{ $f } : q{};
+                        if ( length $v > $WIDTH ) {
+                            ( $v = autoformat( $v, { left => $max + 3 } ) ) 
+                                =~ s/^\s+|\s+$//g;
+                        }
+
+                        printf "%${max}s: %s\n",
+                            $f, $v,
+                        ;
                     }
-
-                    printf "%${max}s: %s\n",
-                        $f, $v,
-                    ;
                 }
             }
         }
         elsif ( $format eq 'json' ) {
-            print encode_json( $results->{'response'}{'docs'} ), "\n"; 
+            print encode_json( $results ), "\n"; 
         }
         else {
-            print Dumper( $results->{'response'}{'docs'} ), "\n"; 
+            print Dumper( $results ), "\n"; 
         }
     }
 }

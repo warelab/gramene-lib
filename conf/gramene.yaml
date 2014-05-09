@@ -24,7 +24,7 @@ mysql:
   mysql: /usr/bin/mysql
   mysqladmin: /usr/bin/mysqladmin
   mysqlshow: /usr/bin/mysqlshow
-  host: colden
+  host: cabot
   admin_user: gramene_web
   admin_password: gram3n3
 
@@ -46,10 +46,10 @@ modules:
 
 database:
   default: 
-    host     : colden
+    host     : cabot
     dbd      : mysql
-    user     : gramene_web
-    password : gram3n3
+    user     : gramene_rw
+    password : ()ryz@
 
   amigo:
     name: amigo41
