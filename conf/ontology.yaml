@@ -13,18 +13,6 @@ ontology:
       url: "http://www.google.com/?q=[% db_object_id %]"
       object_display: "[% db_object_id %]"
       type_display:
-    "GR_QTL":
-      url: "/db/qtl/qtl_display?qtl_accession_id=[% db_object_id %]"
-      object_display: "Gramene QTL &quot;[% db_object_name %]&quot;"
-      type_display: Gramene QTL
-    "Gene":
-      url: "/db/genes/search_gene?acc=[% db_object_id %]"
-      object_display: "Gramene Gene &quot;[% db_object_name OR db_object_id %]&quot;"
-      type_display: Gramene Gene
-    "Protein":
-      url: "/db/protein/protein_search?acc=[% db_object_id %]"
-      object_display: "Gramene Protein &quot;[% db_object_name OR db_object_id %]&quot;"
-      type_display: Gramane Protein
     "evidence_codes":
       url: "/plant_ontology/evidence_codes.html#[% db_object_id %]"
       object_display: "Evidence Code"

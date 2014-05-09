@@ -7,8 +7,8 @@ version: 41
 
 ensembl:
   version: 73
-  install_dir: /usr/local/ensembl-74
-  registry_file: /usr/local/gramene-ensembl/conf/ensembl.registry
+  install_dir: /usr/local/ensembl-live
+  registry_file: /usr/local/gramene/gramene-ensembl/conf/ensembl.registry
 
   innodb_sql_file:
     core: ensembl-innodb.sql
@@ -30,7 +30,6 @@ mysql:
 
 modules:
   - amigo
-  - maps
   - ontology
   - pathway_arabidopsis_thaliana
   - pathway_brachypodium_distachyon
@@ -49,50 +48,47 @@ database:
   default: 
     host     : cabot
     dbd      : mysql
-    user     : gramene_web
-    password : gram3n3
+    user     : gramene_rw
+    password : ()ryz@
 
   amigo:
     name: amigo41
-
-  maps:
-    name: maps40
 
   ontology:
     name: ontology41
 
   pathway_arabidopsis_thaliana:
-    name: pathway_arabidopsis_thaliana40
+    name: pathway_arabidopsis_thaliana41
 
   pathway_brachypodium_distachyon:
-    name: pathway_brachypodium_distachyon40
+    name: pathway_brachypodium_distachyon41
 
   pathway_coffea_canephora:
-    name: pathway_coffea_canephora40
+    name: pathway_coffea_canephora41
 
   pathway_medicago_truncatula:
-    name: pathway_medicago_truncatula40
+    name: pathway_medicago_truncatula41
 
   pathway_populus_trichocarpa:
-    name: pathway_populus_trichocarpa40
+    name: pathway_populus_trichocarpa41
 
   pathway_oryza_sativa:
-    name: pathway_oryza_sativa40
+    name: pathway_oryza_sativa41
 
   pathway_solanum_lycopersicum:
-    name: pathway_solanum_lycopersicum40
+    name: pathway_solanum_lycopersicum41
 
   pathway_solanum_tuberosum:
-    name: pathway_solanum_tuberosum40
+    name: pathway_solanum_tuberosum41
 
   pathway_sorghum_bicolor:
-    name: pathway_sorghum_bicolor40
+    name: pathway_sorghum_bicolor41
 
   pathway_zea_mays:
-    name: pathway_zea_mays40
+    name: pathway_zea_mays41
 
   reactome_oryza_sativa:
-    name: reactome_oryza_sativa40
+    name: reactome_oryza_sativa41
         
   search:
     name: grm_search

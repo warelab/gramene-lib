@@ -1,21 +1,23 @@
 # vim: set noai
-#url: "http://brie.cshl.edu:8983/solr/"
 
 search:
   solr:
     url: "http://brie.cshl.edu:8983/solr/grm-search"
-    cores: 
-      genome_features:
-        facets:
-          - species
-          - biotype
-          - ontology
-      ontologies:
-        facets:
-          - term_type
+    schema: "/usr/local/gramene-41/solr/solr/gramene/solr/grm-search/conf/schema.xml"
+    port: "8983"
+    log_dir: "/var/opt/logs/solr"
+    load_fields:
+      - "id"
+      - "module"
+      - "object"
+      - "title"
+      - "taxonomy"
+      - "ontology"
+      - "species"
+      - "content"
 
   database:
-    host     : cabot
+    host     : colden
     user     : gramene_web
     password : gram3n3
 
