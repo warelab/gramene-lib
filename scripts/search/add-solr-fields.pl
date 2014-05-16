@@ -6,9 +6,9 @@ use strict;
 use warnings;
 use autodie;
 use feature 'say';
+use Cwd 'cwd';
 use Data::Dump 'dump';
 use File::Basename qw( basename fileparse );
-use File::CountLines 'count_lines';
 use File::Spec::Functions;
 use Getopt::Long;
 use Grm::Ontology;
@@ -19,13 +19,20 @@ use Pod::Usage;
 use Readonly;
 use List::MoreUtils 'uniq';
 
-Readonly my $SOLR => 'http://brie.cshl.edu:8983/solr/genome_features/update?'
+Readonly my $FS => chr(31);
+Readonly my $RS => chr(30);
+
+#Readonly my $SOLR => 'http://brie.cshl.edu:8983/solr/genome_features/update?'
+#    . 'commit=true&f.taxonomy.split=true&f.ontology.split=true';
+Readonly my $SOLR => 'http://brie.cshl.edu:8983/solr/grm-search/update?'
     . 'commit=true&f.taxonomy.split=true&f.ontology.split=true';
 
+my $out_dir = '';
 my ( $help, $man_page );
 GetOptions(
-    'help' => \$help,
-    'man'  => \$man_page,
+    'd|dir:s' => \$out_dir,
+    'help'    => \$help,
+    'man'     => \$man_page,
 ) or pod2usage(2);
 
 if ( $help || $man_page ) {
@@ -72,21 +79,21 @@ my $tax_lookup = sub {
     return $tax{ $tax_id };
 };
 
-my $shell_file = 'send-to-solr.sh';
+my $shell_file = catfile( $out_dir || cwd(), 'send-to-solr.sh' );
 open my $sh, '>', $shell_file;
 
 my $file_num = 0;
 for my $file ( @files ) {
-    my $lc = count_lines( $file ) - 1; # subtract header
+    local $/ = $RS;
 
     open my $in, '<', $file;
 
     my ( $base, $path, $suffix ) = fileparse( $file, qr/\.[^.]*/ );
-    my $new_file = catfile( $path, $base . '-ont.csv' );
+    my $new_file = catfile( $out_dir || $path, $base . '-ont.csv' );
 
     open my $out, '>', $new_file;
     chomp( my $header = <$in> );
-    my @cols = split /\t/, $header;
+    my @cols = split $FS, $header;
 
     $file_num++;
     print $sh "curl '$SOLR' -H 'Content-type:application/csv' --data-binary \@" 
@@ -99,29 +106,35 @@ for my $file ( @files ) {
     my $t = timer_calc();
     
     while ( my $line = <$in> ) {
-        $i++;
         chomp $line;
-        my @data = split /\t/, $line;
+        my @data = split $FS, $line;
         my %rec  = map { $cols[ $_ ], $data[ $_ ] } 0 .. $#cols;
 
-        printf "%-70s\r", sprintf( '%3d/%3d: %s (%3d%%)', 
+        printf "%-70s\r", sprintf( '%3d/%3d: %s (line %s)', 
             $file_num, 
             $num_files, 
-            $file, 
-            ( $i == $lc ) ? 100 : (($i/$lc) * 100)
+            basename($file), 
+            ++$i,
         );
 
         my ( %term, %new );
         for my $fld ( @cols ) {
             my $text = $rec{ $fld } // '';
 
-            while ( $text =~ s/\b(($ont_pref):\d+)\b//ig ) {
-                my $acc = $1;
-                if ( $ont_acc->{ lc $acc } ) {
-                    $term{ $acc }++;
+            my @new;
+            for my $word (split(/\s+/, $text)) {
+                if ( $word =~ m/(($ont_pref):\d+)/i ) {
+                    my $acc = $1;
+                    if ( $ont_acc->{ lc $acc } ) {
+                        $term{ $acc }++;
+                        next;
+                    }
                 }
+
+                push @new, $word;
             }
 
+            $text =  join ' ', @new;
             $text =~ s/["']//g;      # kill quotes
             $text =~ s/\s+/ /g;      # squish
             $text =~ s/^\s+|\s+$//g; # trim
@@ -142,10 +155,10 @@ for my $file ( @files ) {
             push @tax, $gr_tax;
         }
 
-        $new{'title'}  ||= make_title(\%rec, $sconf);
-        $new{'id'}       =~ s/-/\//g;
-        $new{'ontology'} = join( ',', @ont );
-        $new{'taxonomy'} = join( ',', @tax );
+        $new{'title'}    ||= make_title(\%rec, $sconf);
+        $new{'taxonomy'} ||= join( ',', @tax );
+        $new{'ontology'}   = join( ',', @ont );
+        $new{'id'}         =~ s/-/\//g;
 
         print $out join( ',', map { '"' . $new{ $_ } . '"' } @flds ), "\n";
     }
@@ -153,7 +166,7 @@ for my $file ( @files ) {
     close $in;
     close $out;
 
-    printf "\n  => %s (%s)\n", $new_file, $t->();
+    printf "\n => %s (%s)\n", $new_file, $t->();
 }
 
 close $sh;
@@ -287,12 +300,13 @@ add-solr-fields.pl - add title, ontology, taxonomy, etc., fields for Solr
 
 =head1 SYNOPSIS
 
-  add-ontology.pl file1 [file2 ...]
+  add-solr-fields.pl file1 [file2 ...]
 
 Options:
 
-  --help   Show brief help and exit
-  --man    Show full documentation
+  -d|--dir  Output directory (defaults to same dir as input files)
+  --help    Show brief help and exit
+  --man     Show full documentation
 
 =head1 DESCRIPTION
 

@@ -19,7 +19,7 @@ use Readonly;
 use Template;
 
 Readonly my @FLDS => qw(
-    id title prefix term_type accession name synonym description
+    id title module object species taxonomy content
 );
 Readonly my $SOLR => 'http://brie.cshl.edu:8983/solr/ontologies/update?'
     . 'commit=true&f.synonym.split=true';
@@ -28,7 +28,7 @@ my $out_dir   = cwd();
 my $skip_file = '';
 my ( $help, $man_page );
 GetOptions(
-    'o|out:s'   => \$out_dir,
+    'd|dir:s'   => \$out_dir,
     's|skips:s' => \$skip_file,
     'help'      => \$help,
     'man'       => \$man_page,
@@ -134,25 +134,36 @@ for my $Term ( $schema->resultset('Term')->all() ) {
     );
 
     print $out join( ',', map { clean($_) }
-        join( '/', qw[ ontology term ], $Term->id ),
-        $title,
-        $Term->term_type->prefix,
-        $Term->term_type->term_type,
-        $acc,
-        $Term->name,
-        @syn ? join( ',', @syn ) : '',
-        $def,
+        join( '/', qw[ ontology term ], $Term->id ), # id
+        $title,                                      # title
+        'ontology',                                  # module
+        'term',                                      # object
+        '',                                          # species
+        '',                                          # taxonomy
+        join(' ',                                    # content
+            $Term->term_type->prefix,
+            $Term->term_type->term_type,
+            $acc,
+            $Term->name,
+            @syn ? join( ',', @syn ) : '',
+            $def,
+        ),
     ), "\n";
 }
 
 close $out;
 
-printf "\nExported %s terms (skipped %s) in %s. Now do this:\n%s\n", 
+my $shell_file = catfile( $out_dir, 'send-ontologies-to-solr.sh' );
+open my $sh, '>', $shell_file;
+print $sh 
+    "curl '$SOLR' -H 'Content-type:application/csv' --data-binary \@$out_file";
+close $sh;
+
+printf "\nExported %s terms (skipped %s) in %s. Now do this:\nsh %s", 
     commify($term_num - $num_skipped), 
     commify($num_skipped), 
     $timer->(), 
-    "curl '$SOLR' -H 'Content-type:application/csv' --data-binary \@" 
-    . $out_file
+    $shell_file,
 ;
 
 # ----------------------------------------------------
@@ -163,7 +174,7 @@ sub clean {
     $s =~ s/["']//g;         # kill quotes
     $s =~ s/^\s+|\s+$//g;    # trim
     $s =~ s/\s+/ /g;         # squish spaces
-    $s =~ s/[[:^ascii:]]//g; # all non-ASCII text
+    $s =~ s/[^[:ascii:]]//g; # all non-ASCII text
     $s = decode_entities($s);
 
     return qq["$s"];
@@ -214,12 +225,12 @@ load-ontologies.pl - creates a CSV file for Solr
 
 =head1 SYNOPSIS
 
-  load-ontologies.pl [-o out_dir]
+  load-ontologies.pl [-d out_dir]
 
 Options:
 
-  -o|--out     Output directory (default is "cwd")
-  -s|--skips  File to write 
+  -d|--dir     Output directory (default is "cwd")
+  -s|--skips   File to write the skipped terms to
   --help       Show brief help and exit
   --man        Show full documentation
 

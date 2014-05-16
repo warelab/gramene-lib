@@ -47,7 +47,7 @@ for my $module ( @modules ) {
         q[
             select search_id, species, gene_name, enzyme_name, reaction_id, 
                    reaction_name, ec, pathway_id, pathway_name
-            from   search
+            from   pathway
         ],
         { Columns => {} }
     );
