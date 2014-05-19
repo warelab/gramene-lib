@@ -170,6 +170,10 @@ sub iterative_search_values {
     if ( $v ) {
         push @return, $v;
 
+        if ($v =~ s/\.\d+$//) {
+            push @return, $v;
+        }
+
         unless ( $v =~ /^\*.+\*$/ ) {
             push @return, "$v*" unless $v =~ /\*$/;
             push @return, "*$v*" unless $options->{'no_leading_wildcard'};
