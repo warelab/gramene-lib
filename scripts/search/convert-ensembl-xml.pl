@@ -73,6 +73,8 @@ for my $file (@files) {
         next FILE;
     }
 
+    (my $pretty_species = ucfirst $species) =~ s/_/ /g;
+
     my $module   = 'ensembl_' . $species;
     my $out_file = $name . '.adt';
 
@@ -102,14 +104,16 @@ for my $file (@files) {
             $desc = $entry->{'description'};
         }
 
-        my $title = sprintf('%s%s', 
-            $name, 
-            $desc ? ' (' . $desc . ')' : '',
-        );
-
         my $object = 
           lc $entry->{'additional_fields'}{'field'}{'featuretype'}{'content'} 
           || 'gene';
+
+        my $title = sprintf('%s %s %s%s', 
+            $pretty_species,
+            $object,
+            $name, 
+            $desc ? ' (' . $desc . ')' : '',
+        );
 
         (my $entry_species = 
           lc $entry->{'additional_fields'}{'field'}{'species'}{'content'} ||
