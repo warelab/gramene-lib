@@ -461,10 +461,9 @@ sub get_type_label {
 sub get_term_associations {
     my $self       = shift;
     my %args       = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
-    my $id         = $args{'term_id'}    || '';
-    my $term_acc   = $args{'term_acc'}   || '';
-    my $obj_type   = $args{'type'}       || '';
-    my $species_id = $args{'species_id'} || '';
+    my $id         = $args{'term_id'}    or die 'No term id';
+    my $term_acc   = $args{'term_acc'}   || $args{'term_accession'} || '';
+    my $obj_type   = $args{'type'}       || $args{'object_type'}    || '';
     my $order_by   = $args{'order_by'}   || 'species,object_type';
     my $dbh        = $self->db->dbh;
 
@@ -473,9 +472,10 @@ sub get_term_associations {
                t.name as term_name,
                tt.term_type,
                ot.type as object_type,
-               o.db_object_id as object_accession_id,
-               o.db_object_symbol as object_symbol,
-               o.db_object_name as object_name,
+               o.db_object_id,
+               o.db_object_symbol,
+               o.db_object_name,
+               o.url,
                concat_ws(' ', s.genus, s.species) as species,
                s.common_name,
                s.species_id,
@@ -492,7 +492,6 @@ sub get_term_associations {
         and    o.association_object_type_id=ot.association_object_type_id
         and    o.species_id=s.species_id
         and    a.term_id=?
-        
     ];
 
     my @params = ( $id );
@@ -501,13 +500,19 @@ sub get_term_associations {
         push @params, $obj_type;
     }
 
-    if ( $species_id ) {
+    if (my $species_id = $args{'species_id'}) {
         $sql .= ' and s.species_id=?';
         push @params, $species_id;
     }
 
+    if (my $full_species = $args{'species'}) {
+        my ($genus, $species) = split /\s+/, $full_species;
+        $sql .= ' and s.genus=? and s.species=?';
+        push @params, ($genus, $species);
+    }
+
     $sql .= qq[
-        group by term_accession, object_accession_id, object_type 
+        group by term_accession, db_object_id, object_type 
         order by $order_by
     ];
 

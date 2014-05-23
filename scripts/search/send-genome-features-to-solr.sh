@@ -4,9 +4,9 @@ if [ "$#" -eq 0 ];then
 fi
 
 CURL=/usr/bin/curl
-URL="'http://brie.cshl.edu:8983/solr/genome_features/update?commit=true&f.taxonomy.split=true&f.ontology.split=true'";
+URL="'http://brie.cshl.edu:8983/solr/grm-search/update?commit=true&f.taxonomy.split=true&f.ontology.split=true'";
 
 while (($#)); do
-    `$CURL $URL -H 'Content-type:application/csv' --data-binary @$1`
+    echo $CURL $URL -H 'Content-type:application/csv' --data-binary @$1
     shift;
 done;

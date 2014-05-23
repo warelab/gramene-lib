@@ -401,7 +401,7 @@ sub _export_ensembl {
         $_->{'taxon'}          = $taxon_id;
         $_->{'db_object_type'} = $obj_type;
         $_->{'url'}            = join(
-            '/', '', 'view', $species, $obj_type, $_->{'db_object_id'}
+            '/', '', 'view', $species, $obj_type, $_->{'db_object_symbol'}
         );
     } @data;
 

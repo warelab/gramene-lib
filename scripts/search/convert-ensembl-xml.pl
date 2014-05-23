@@ -148,7 +148,6 @@ for my $file (@files) {
         }
 
         print $out_fh join($FS,
-            map { clean($_) }
             join('/', $module, $object, $entry->{'id'}),
             $title,
             $module,
@@ -177,12 +176,16 @@ sub clean {
     $s =~ s/[^[:ascii:]]//g; # all non-ASCII text
     $s =~ s/[\n\r]//g;       # no CR/LF
     $s =~ s/["']//g;         # kill quotes
-    $s =~ s/(\.\d+)\b//g;    # kill ".1" suffixes
     $s =~ s/^\s+|\s+$//g;    # trim
     $s =~ s/\s+/ /g;         # squish spaces
     $s = decode_entities($s);
 
-    return $s;
+    my @roots;
+    while ($s =~ /\b(\S+)(\.\d+)\b/g) {
+        push @roots, $1;
+    }
+
+    return join(' ', $s, @roots);
 }
 
 __END__

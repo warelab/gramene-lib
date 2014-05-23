@@ -158,7 +158,6 @@ for my $file ( @files ) {
         $new{'title'}    ||= make_title(\%rec, $sconf);
         $new{'taxonomy'} ||= join( ',', @tax );
         $new{'ontology'}   = join( ',', @ont );
-        $new{'id'}         =~ s/-/\//g;
 
         print $out join( ',', map { '"' . $new{ $_ } . '"' } @flds ), "\n";
     }

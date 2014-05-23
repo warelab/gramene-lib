@@ -18,11 +18,9 @@ use Pod::Usage;
 use Readonly;
 use Template;
 
-Readonly my @FLDS => qw(
-    id title module object species taxonomy content
-);
-Readonly my $SOLR => 'http://brie.cshl.edu:8983/solr/ontologies/update?'
-    . 'commit=true&f.synonym.split=true';
+Readonly my @FLDS => qw(id title module object species taxonomy content);
+Readonly my $SOLR => 
+    'http://brie.cshl.edu:8983/solr/grm-search/update?commit=true';
 
 my $out_dir   = cwd();
 my $skip_file = '';

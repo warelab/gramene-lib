@@ -11,6 +11,7 @@ use File::Path 'mkpath';
 use Getopt::Long;
 use Grm::Config;
 use Grm::Utils 'timer_calc';
+use HTML::Entities 'decode_entities';
 use Pod::Usage;
 use Readonly;
 
@@ -45,7 +46,7 @@ for my $module ( @modules ) {
     my $dbh   = $db->dbh;
     my $data  = $dbh->selectall_arrayref(
         q[
-            select search_id, species, gene_name, enzyme_name, reaction_id, 
+            select gene_name, enzyme_name, reaction_id, 
                    reaction_name, ec, pathway_id, pathway_name
             from   pathway
         ],
@@ -53,6 +54,7 @@ for my $module ( @modules ) {
     );
 
     (my $species = $module) =~ s/^pathway_//;
+    (my $pretty_species = ucfirst $species) =~ s/_/ /g;
 
     printf "%s: Exporting %s records\n", $module, scalar @$data;
     my $file = catfile($out_dir, $module . '.adt');
@@ -62,18 +64,33 @@ for my $module ( @modules ) {
 
     for my $rec ( @$data ) {
         print $fh join($FS,
-            join('/', $module, 'pathway', $rec->{'search_id'}),
-            'Pathway ' . $rec->{'pathway_name'},
+            join('/', $module, 'pathway', $rec->{'pathway_id'}),
+            join(' ', $pretty_species, 'Pathway', $rec->{'pathway_name'}),
             $module,
             'pathway',
             $species,
             join(' ', 
-                map { defined $rec->{$_} ? $rec->{$_} : () } 
+                map { defined $rec->{$_} ? clean($rec->{$_}) : () } 
                 qw[ gene_name enzyme_name reaction_name ec pathway_id ]
             ),
         ), $RS;
     }
     printf "Finished in %s\n", $timer->();
+}
+
+# ----------------------------------------------------
+sub clean {
+    my $s = shift || '';
+
+    $s = decode_entities($s);
+    $s =~ s/[\n\r]//g;       # no CR/LF
+    $s =~ s/["']//g;         # kill quotes
+    $s =~ s/[|]/ /g;         # kill pipes
+    $s =~ s/^\s+|\s+$//g;    # trim
+    $s =~ s/\s+/ /g;         # squish spaces
+    $s =~ s/[^[:ascii:]]//g; # all non-ASCII text
+
+    return qq["$s"];
 }
 
 __END__
@@ -92,8 +109,9 @@ export-pathways.pl - a script
 
 Options:
 
-  --help   Show brief help and exit
-  --man    Show full documentation
+  -d|--dir  Output directory (defaults is cwd)
+  --help    Show brief help and exit
+  --man     Show full documentation
 
 =head1 DESCRIPTION
 
