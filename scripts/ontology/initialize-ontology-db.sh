@@ -3,11 +3,11 @@
 # with default data.
 #
 
-DB=ontology40
+DB=ontology41
 USER=kclark
 PASS=g0p3rl!
 HOST=cabot
-ONT_BASE=$GRM_HOME/schemas/ontology/
+ONT_BASE=/usr/local/gramene/gramene-lib/schemas/ontology/
 SQL=$ONT_BASE/ontology.sql
 
 echo "Recreating $DB on $HOST"

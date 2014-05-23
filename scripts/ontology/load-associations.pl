@@ -7,7 +7,7 @@ use warnings;
 use autodie;
 use feature 'say';
 use Cwd 'cwd';
-use Data::Dumper;
+use Data::Dump 'dump';
 use File::Basename;
 use Getopt::Long;
 use Grm::DB;
@@ -15,15 +15,19 @@ use Grm::Ontology;
 use Grm::Utils qw( commify timer_calc commify );
 use File::CountLines qw( count_lines );
 use File::Spec::Functions;
+use JSON::XS qw( decode_json );
+use LWP::Simple qw( get );
 use IO::Prompt qw( prompt );
+use List::MoreUtils qw( zip );
 use Pod::Usage;
 use Readonly;
+use Template;
 
 Readonly my $NCBI_UNKNOWN_TAXA_ID => '32644';
 Readonly my @FIELD_NAMES => qw(
     db db_object_id db_object_symbol qualifier term_accession db_reference
     evidence_code with aspect db_object_name db_object_synonym db_object_type
-    taxon date assigned_by annotation_extension gene_product_form_id
+    taxon date assigned_by annotation_extension gene_product_form_id url
 );
 
 my $reinitialize = 0;
@@ -41,9 +45,9 @@ if ( $help || $man_page ) {
     });
 }; 
 
-my $timer  = timer_calc();
-my $odb    = Grm::Ontology->new;
-my $schema = $odb->db->dbic;
+my $timer    = timer_calc();
+my $odb      = Grm::Ontology->new;
+my $schema   = $odb->db->dbic;
 
 my @files;
 {
@@ -97,9 +101,11 @@ my $obsolete_file = catfile( cwd(), 'obsolete-terms.txt' );
 open my $obsolete_fh, '>', $obsolete_file;
 say $obsolete_fh join("\t", qw[term_acc obj_type obj_name alternates]);
 
+my %species_cache;
 my ( $num_files, $num_assocs ) = ( 0, 0 );
 my $file_count = scalar @files;
 my $file_width = length $file_count;
+my $tt         = Template->new;
 
 for my $file ( @files ) {
     my $num_lines = count_lines( $file );
@@ -114,7 +120,8 @@ for my $file ( @files ) {
         $num_lines == 1 ? '' : 's',
         basename($file);
 
-    my $line_num = 0;
+    my @field_names = @FIELD_NAMES;
+    my $line_num    = 0;
     REC:
     for my $line ( <$fh> ) {
         $line_num++;
@@ -124,7 +131,13 @@ for my $file ( @files ) {
         chomp $line;
 
         my @data = split /\t/, $line;
-        my %rec  = map { $FIELD_NAMES[$_], $data[$_] } 0..$#FIELD_NAMES;
+
+        if ($line_num == 1) {
+            @field_names = @data;
+            next REC;
+        }
+
+        my %rec = zip @field_names, @data;
 
         my $term_acc = $rec{'term_accession'} || $rec{'go_id'};
 
@@ -133,10 +146,16 @@ for my $file ( @files ) {
             next REC;
         }
 
-        my @term_ids = $odb->search( 
-            query                  => $term_acc,
-            include_obsolete_terms => 1,
-        );
+        my @term_ids;
+        for my $r ( 
+            [ 'Term'       , 'term_accession' ], 
+            [ 'TermSynonym', 'term_synonym'   ] 
+        ) {
+            my ( $rs, $fld ) = @$r;
+            @term_ids = map { $_->term_id() }
+                $schema->resultset( $rs )->search({ $fld, $term_acc });
+            last if @term_ids;
+        }
 
         if ( @term_ids != 1 ) {
             printf STDERR "For '$term_acc', found %s terms\n", scalar @term_ids;
@@ -151,10 +170,11 @@ for my $file ( @files ) {
             next REC;
         }
 
-        my $obj_id   = $rec{'db_object_id'}   or next;
-        my $obj_type = $rec{'db'}             || '';
-        my $obj_name = $rec{'db_object_name'} || '';
-        my $taxon    = $rec{'taxon'}          || 'NA';
+        my $obj_id     = $rec{'db_object_id'}     || '';
+        my $obj_type   = $rec{'db_object_type'}   || '';
+        my $obj_name   = $rec{'db_object_name'}   || '';
+        my $obj_symbol = $rec{'db_object_symbol'} || '';
+        my $taxon      = $rec{'taxon'}            || '';
 
         unless ( $obj_id && $obj_type ) {
             say STDERR "Line $line_num: no type and name/ID";
@@ -185,7 +205,14 @@ for my $file ( @files ) {
             }
         }
 
-        my $Species = get_species( $odb, $schema, $taxon );
+        if ( !defined $species_cache{ $taxon } ) {
+            $species_cache{ $taxon } = get_species( 
+                $odb, $schema, $taxon, $rec{'db'} 
+            );
+        }
+
+        my $Species = $species_cache{ $taxon };
+
         my $Type = $schema->resultset('AssociationObjectType')->find_or_create(
             { type => $obj_type },
         );
@@ -193,12 +220,13 @@ for my $file ( @files ) {
         my $Object = $schema->resultset('AssociationObject')->find_or_create({ 
             db_object_id               => $obj_id, 
             db_object_name             => $obj_name, 
+            db_object_symbol           => $obj_symbol,
             association_object_type_id => $Type->id,
             species_id                 => $Species->id,
         });
 
-        if ( my $symbol = $rec{'db_object_symbol'} ) {
-            $Object->db_object_symbol( $symbol );
+        if ( my $url = $rec{'url'} ) {
+            $Object->url( $url );
             $Object->update;
         }
 
@@ -238,12 +266,12 @@ exit 0;
 
 # ----------------------------------------------------
 sub get_species {
-    my $odb          = shift;
-    my $schema       = shift;
-    my $taxon        = shift or return;
-    my $ncbi_taxa_id = '';
+    my ( $odb, $schema, $taxon, $db_name ) = @_;
 
+    $taxon //= '';
     $taxon =~ s/^taxon://;
+
+    my $ncbi_taxa_id = '';
 
     my ( $Species, $Term );
 
@@ -306,13 +334,52 @@ sub get_species {
             }
         );
     }
+    elsif ( $taxon =~ /^\d+$/ ) {
+        my $ncbi_tax_url = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/' .
+            'esummary.fcgi?db=taxonomy&id=%s&retmode=json';
+        my $json = decode_json(get(sprintf($ncbi_tax_url, $taxon)));
+        my $info = $json->{'result'}{ $taxon };
 
-    $Species ||= $schema->resultset('Species')->find_or_create(
-        { 
-            ncbi_taxa_id => $NCBI_UNKNOWN_TAXA_ID,
-            common_name  => 'Unclassified',
+        if ( $info->{'status'} eq 'merged' ) {
+            if ( my $new_tax_id = $info->{'akataxid'} ) {
+                $taxon = $new_tax_id;
+                my $new_tax = decode_json(get(sprintf($ncbi_tax_url, $taxon)));
+                $info = $new_tax->{'result'}{ $taxon };
+            }
         }
-    );
+
+        my ( $genus, $species, $common_name );
+        if ( $info->{'error'} ) {
+            if ( $db_name =~ /^ensembl_([a-z]+)_([a-z]+)/ ) {
+                $genus       = $1;
+                $species     = $2;
+                $common_name = join(' ', $genus, $species);
+            }
+        }
+        else {
+            $genus       = $info->{'genus'};
+            $species     = $info->{'species'};
+            $common_name = $info->{'commonname'};
+        }
+
+        if ( $genus && $species ) {
+            $Species = $schema->resultset('Species')->find_or_create({ 
+                ncbi_taxa_id => $taxon,
+                genus        => $genus,
+                species      => $species,
+            });
+
+            if ( $common_name ) {
+                $Species->common_name($common_name);
+                $Species->update;
+            }
+        }
+    }
+
+    $Species ||= $schema->resultset('Species')->find_or_create({ 
+        ncbi_taxa_id => $NCBI_UNKNOWN_TAXA_ID,
+        common_name  => 'Unclassified',
+    });
 
     return $Species;
 }
