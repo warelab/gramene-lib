@@ -25,8 +25,8 @@ mysql:
   mysqladmin: /usr/bin/mysqladmin
   mysqlshow: /usr/bin/mysqlshow
   host: colden
-  admin_user: gramene_web
-  admin_password: gram3n3
+  admin_user: gramene_rw
+  admin_password: ()rzy@
 
 modules:
   - amigo
@@ -46,16 +46,16 @@ modules:
 
 database:
   default: 
-    host     : cabot
+    host     : colden
     dbd      : mysql
-    user     : gramene_rw
-    password : ()ryz@
+    user     : gramene_web
+    password : gram3n3
 
   amigo:
     name: amigo41
 
   ontology:
-    name: ontology41
+    name: ontology41a
 
   pathway_arabidopsis_thaliana:
     name: pathway_arabidopsis_thaliana41
