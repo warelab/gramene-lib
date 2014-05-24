@@ -31,6 +31,7 @@ use namespace::autoclean;
 
 use CGI;
 use Carp;
+use Data::Dump 'dump';
 use DateTime;
 use Encode qw( decode );
 use File::Find::Rule;
@@ -133,9 +134,9 @@ tables and records indexed and the elapsed time.
         my $dbh     = $db->dbh;
         my $schema  = $db->dbic;
 
-        printf "Communicating with Solr at '%s'\n", $indexer->solr_url;
+        printf STDERR "Communicating with Solr at '%s'\n", $indexer->solr_url;
 
-        print "Removing all data for '$module'\n";
+        print STDERR "Removing all data for '$module'\n";
         $indexer->truncate;
 
         my @docs;
@@ -631,9 +632,9 @@ Returns a hash(ref) of the tables to index for a given module.
 
 # ----------------------------------------------------
 sub search {
-#
-# Search can be by "id" or "query"
-#
+    #
+    # Search can be by "id" or "query"
+    #
     my ( $self, %args ) = @_;
 
     my $params       = $args{'params'}    || {};
@@ -642,83 +643,89 @@ sub search {
     my $page_size    = $args{'page_size'} || $params->{'page_size'} || 10;
     my $page_num     = $args{'page_num'}  || $params->{'page_num'}  ||  1;
     my $do_highlight = $args{'hl'}        // 1;
-    my $do_facet     = $args{'facet'}     // 1;
+    my $do_facet     = $args{'facet'}     || $params->{'facet'}     // 1;
     my $gconfig      = $self->config;
     my $odb          = Grm::Ontology->new;
     my $timer        = timer_calc();
-    my $results      = {};
+    my %limit_core   = map { $_, 1 } (
+        split /\s*,\s*/, $args{'category'} || $args{'core'} || ''
+    );
+
+    $query =~ s/[^[:ascii:]]//g;
+    $query =~ s/[\r\n]//g;
 
     return {} unless $id or $query;
 
-    my $url_base = sprintf( 
-        '/select?q=%s&wt=json', 
-        $query ? 'text:%s' : "id:$id" 
-    );
-
-    #
-    # Parse out the request, figure out the "fq" facet queries
-    # Create a query string to tack onto the maing "query"
-    #
-    my $get_url_params = "&rows=$page_size";
-    if ( my $fl = $args{'fl'} ) {
-        $get_url_params .= "&fl=$fl";
-    }
-
-    if ( $do_highlight ) {
-        $get_url_params .= 
-          '&hl=true&hl.fl=content&hl.simple.pre=<em>&hl.simple.post=</em>';
-    }
-
-    if ( $do_facet ) {
-        $get_url_params .= '&facet=true&facet.mincount=1' 
-            . '&facet.field=species' 
-            . '&facet.field=ontology' 
-            . '&facet.field=object';
-    }
-
-    my %fq;
-    while ( my ( $key, $value ) = each %$params ) {
-        next if $key eq 'query' || $key eq 'id';
-        my @values = ref $value eq 'ARRAY' ? @$value : ( $value );
-        if ( $key eq 'fq' ) {
-            FQ_VAL:
-            for my $fq_val ( @values ) {
-                my ( $facet_name, $facet_val ) 
-                    = split( /:/, $fq_val, 2 );
-
-                if ( defined $facet_val && $facet_val =~ /\w+/ ) {
-                    if ( $facet_name eq 'species' ) {
-                        if ( lc $facet_val eq 'multi' ) {
-                            next FQ_VAL;
-                        }
-
-                        $facet_val = lc $facet_val;
-                        $facet_val =~ s/\s+/_/g;
-                    }
-
-                    push @{ $fq{ $facet_name } }, $facet_val;
-                }
-            }
-        }
-        else {
-            for my $v ( @values ) {
-                $get_url_params .= sprintf( '&%s=%s', $key, $v );
-            }
-        }
-    }
-
-    while ( my ( $facet_name, $values ) = each %fq ) {
-        for my $val ( @$values ) {
-            $get_url_params .= sprintf( 
-                '&fq=%s:%%22%s%%22', 
-                $facet_name, 
-                trim(unquote(url_unescape($val)))
-            );
-        }
+    my @solr_params = ('wt=json');
+    if ( $page_size > 0 ) {
+        push @solr_params, "rows=$page_size";
     }
 
     if ( $page_num > 1 ) {
-        $get_url_params .= '&start=' . ($page_num - 1) * $page_size;
+        push @solr_params, 'start=' . ($page_num - 1) * $page_size;
+    }
+
+    if ( my $fl = $args{'fl'} ) {
+        push @solr_params, "fl=$fl";
+    }
+
+    if ( $do_highlight ) {
+        push @solr_params, 
+            'hl=true', 
+            'hl.fl=text', 
+            'hl.simple.pre=<em>', 
+            'hl.simple.post=</em>';
+    }
+
+    my %fq;
+    while ( my ($key, $value) = each %$params ) {
+        next if $key =~ /^(query|id|facet)$/;
+
+        my @values = ref $value eq 'ARRAY' ? @$value : ($value);
+
+        if ($key eq 'fq') {
+            FQ_VAL:
+            for my $fq_val ( @values ) {
+                my ($facet_name, $facet_val) = split(/~/, $fq_val, 2);
+
+                next unless $facet_name && 
+                    (defined $facet_val && $facet_val =~ /\w+/);
+
+                if ($facet_name eq 'species') {
+                    if (lc $facet_val eq 'multi') {
+                        next FQ_VAL;
+                    }
+
+                    $facet_val = lc $facet_val;
+                    $facet_val =~ s/\s+/_/g;
+                }
+
+                push @{ $fq{ $facet_name } }, $facet_val;
+            }
+        }
+        else {
+            for my $value (@values) {
+                push @solr_params, sprintf('%s=%s', $key, $value);
+            }
+        }
+    }
+
+    if ($do_facet) {
+        push @solr_params,
+            'facet=true',
+            'facet.mincount=1',
+            (map { 'facet.field=' . $_ } qw[species object ontology])
+        ;
+
+        while ( my ($facet_name, $values) = each %fq ) {
+            for my $val (@$values) {
+                push @solr_params, sprintf( 
+                    'fq=%s:%%22%s%%22', 
+                    $facet_name, 
+                    trim(unquote(url_unescape($val)))
+                );
+            }
+        }
     }
 
     #
@@ -785,56 +792,66 @@ sub search {
             };
         }
 
-        $results->{'suggestions'} = \@suggestions;
+        return { suggestions => \@suggestions };
     }
+
     #
     # Looks legit, so go search Solr
     #
-    else {
-        if ( ref $page_num eq 'ARRAY' ) {
-            $page_num = max( $page_num );
+    my $results = {};
+    if ( ref $page_num eq 'ARRAY' ) {
+        $page_num = max( $page_num );
+    }
+
+    my $sconfig  = $gconfig->get('search');
+    my $solr_url = $sconfig->{'solr'}{'url'} or die 'No Solr URL';
+    $solr_url   .= '/select?';
+    my $ua       = LWP::UserAgent->new;
+
+    $ua->agent('GrmSearch/0.1');
+
+    my @urls;
+    if ($query) {
+        for my $qry (iterative_search_values($query)) {
+            # quote the value if it has a colon as this (e.g., "GO:0001132")
+            # has special meaning to Solr (e.g., "species:Zea_mays")
+            $qry =~ s/\b(\S+[:]\S+)\b/%22$1%22/g; 
+            $qry =~ s/ /+/g;
+
+            push @urls, $solr_url . "q=text:$qry"; 
         }
+    }
+    elsif ($id) {
+        @urls = ($solr_url . "q=id:$id");
+    }
 
-        my $sconfig  = $gconfig->get('search');
-        my $solr_url = $sconfig->{'solr'}{'url'} or die 'No Solr URL';
-        my $ua       = LWP::UserAgent->new;
+    URL:
+    for my $url (@urls) {
+        my $get = $url . join('', map { '&' . $_ } @solr_params);
+        my $res = $ua->request(HTTP::Request->new(GET => $get));
 
-        $ua->agent('GrmSearch/0.1');
+        if ($res->is_success) {
+            $results = decode_json($res->content);
 
-        my @urls;
-        if ( $query ) {
-            for my $qry ( iterative_search_values( $query ) ) {
-                # quote the value if it has a colon as this (e.g., "GO:0001132")
-                # has special meaning to Solr (e.g., "species:Zea_mays")
-                $qry =~ s/\b(.*[:].*)/%22$1%22/g; 
-                $qry =~ s/ /+/g;
+            last URL if $results->{'response'}{'numFound'} > 0;
 
-                push @urls, 
-                    sprintf( $solr_url . $url_base, $qry ) . $get_url_params;
+            if ($results->{'error_code'}) {
+                $results->{'url'} = $get;
+                last URL;
             }
         }
         else {
-            @urls = ( $solr_url . $url_base . $get_url_params );
+            $results = {
+                url           => $get,
+                error_code    => $res->code,
+                error_message => $res->message,
+            };
+
+            last URL;
         }
-
-        for my $url ( @urls ) {
-            my $res = $ua->request( HTTP::Request->new( GET => $url ) );
-
-            if ( $res->is_success ) {
-                $results = decode_json($res->content);
-            }
-            else {
-                $results = { 
-                    code  => $res->code,
-                    error => $res->message,
-                };
-            }
-
-            last if $results->{'response'}{'numFound'} > 0;
-        }
-
-        $results->{'time'} = $timer->( format => 'seconds' );
     }
+
+    $results->{'time'} = $timer->(format => 'seconds');
 
     return $results;
 }

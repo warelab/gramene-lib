@@ -20,11 +20,13 @@ Description of module goes here.
 
 use strict;
 use Carp qw( croak );
+use Data::Dump 'dump';
 use Grm::Config;
 use Grm::DB;
-use List::MoreUtils qw( uniq );
+use List::MoreUtils qw(uniq);
 use Moose;
 use Readonly;
+use String::Trim qw(trim);
 use Template;
 
 no warnings 'redefine';
@@ -263,17 +265,18 @@ sub get_term_xrefs {
 }
 
 # --------------------------------------------------
-sub get_all_association_counts {
-    my ( $self, %args ) = @_;
+sub get_term_association_counts {
+    my $self    = shift;
+    my $term_id = shift or return;
+    my $db      = $self->db->dbh;
 
-    my $id = $args{'term_id'} or die 'No term id';
-    my $db = $self->db->dbh;
-
-    my $assocs = $db->selectall_arrayref(
+    return $db->selectall_arrayref(
         q[
             select t.type as object_type,
-                   s.common_name as object_species,
-                   count(a.association_id) as object_count
+                   concat_ws(' ', s.genus, s.species) as species,
+                   s.common_name,
+                   s.species_id,
+                   count(a.association_id) as count
             from   association a, association_object o, 
                    association_object_type t, species s
             where  a.term_id=?
@@ -284,32 +287,8 @@ sub get_all_association_counts {
             order by 1,2,3
         ],
         { Columns => {} },
-        ( $id )
+        ( $term_id )
     );
-
-    my %assoc;
-    for my $a ( @$assocs ) {
-        push @{ $assoc{ $a->{'object_type'} }{'counts'} }, {
-            species => $a->{'object_species'},
-            count   => $a->{'object_count'},
-        };
-    }
-
-    my $t = Template->new;
-    for my $obj_type ( keys %assoc ) {
-        my $conf         = $self->get_object_xref_url_conf( $obj_type );
-        my $display_tmpl = $conf->{'type_display'};
-        my $display      = '';
-        $t->process(
-            \$display_tmpl,
-            { object_type => $obj_type },
-            \$display,
-        ) or $display = $t->error;
-
-        $assoc{ $obj_type }{'display'} = $display;
-    }
-
-    return wantarray ? %assoc : \%assoc;
 }
 
 # --------------------------------------------------
@@ -480,24 +459,26 @@ sub get_type_label {
 
 # --------------------------------------------------
 sub get_term_associations {
-    my $self        = shift;
-    my %args        = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
-    my $id          = $args{'term_id'}  || '';
-    my $term_acc    = $args{'term_acc'} || '';
-    my $obj_type    = $args{'type'}     || '';
-    my $obj_species = $args{'species'}  || '';
-    my $order_by    = $args{'order_by'} || 'object_type';
-    my $dbh         = $self->db->dbh;
+    my $self       = shift;
+    my %args       = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
+    my $id         = $args{'term_id'}    or die 'No term id';
+    my $term_acc   = $args{'term_acc'}   || $args{'term_accession'} || '';
+    my $obj_type   = $args{'type'}       || $args{'object_type'}    || '';
+    my $order_by   = $args{'order_by'}   || 'species,object_type';
+    my $dbh        = $self->db->dbh;
 
     my $sql = q[
         select t.term_accession,
                t.name as term_name,
                tt.term_type,
                ot.type as object_type,
-               o.db_object_id as object_accession_id,
-               o.db_object_symbol as object_symbol,
-               o.db_object_name as object_name,
-               s.common_name as object_species,
+               o.db_object_id,
+               o.db_object_symbol,
+               o.db_object_name,
+               o.url,
+               concat_ws(' ', s.genus, s.species) as species,
+               s.common_name,
+               s.species_id,
                a.evidence_code
         from   association a, 
                association_object o, 
@@ -511,7 +492,6 @@ sub get_term_associations {
         and    o.association_object_type_id=ot.association_object_type_id
         and    o.species_id=s.species_id
         and    a.term_id=?
-        
     ];
 
     my @params = ( $id );
@@ -520,14 +500,19 @@ sub get_term_associations {
         push @params, $obj_type;
     }
 
-    if ( $obj_species ) {
-        $obj_species =~ s/_/ /g;
-        $sql .= ' and s.common_name=?';
-        push @params, $obj_species;
+    if (my $species_id = $args{'species_id'}) {
+        $sql .= ' and s.species_id=?';
+        push @params, $species_id;
+    }
+
+    if (my $full_species = $args{'species'}) {
+        my ($genus, $species) = split /\s+/, $full_species;
+        $sql .= ' and s.genus=? and s.species=?';
+        push @params, ($genus, $species);
     }
 
     $sql .= qq[
-        group by term_accession, object_accession_id, object_type 
+        group by term_accession, db_object_id, object_type 
         order by $order_by
     ];
 
@@ -585,10 +570,61 @@ Returns an array(ref) of term_ids.
                        ? %{ $_[0] } 
                        : scalar @_ == 1 ? ( query => $_[0] ) : @_;
 
-    my $query        = $args{'query'} or return;
+    my $query        = trim($args{'query'})  or return;
     my $search_field = $args{'search_field'} || '';
     my $order_by     = $args{'order_by'}     || '';
+    my $pref         = join('|', $self->get_ontology_accession_prefixes);
 
+    #
+    # If the query looks like a valid term ("GO:0009414"), look for
+    # it in the term/synonym tables
+    #
+    if ( $query =~ /^($pref):\d+$/ ) {
+        my $schema = $self->db->schema;
+        my ($Term) 
+            = $schema->resultset('Term')->search({term_accession => $query});
+
+        if (!$Term) {
+            my ($Syn) = $schema->resultset('TermSynonym')->search({
+                term_synonym => $query
+            });
+
+            if ($Syn) {
+                $Term = $Syn->term;
+            }
+        }
+
+        if ($Term) {
+            return $Term->id;
+        }
+    }
+
+    #
+    # Let's try Solr, then
+    #
+    my $search  = Grm::Search->new;
+    my $results = $search->search(
+        query     => $query,
+        core      => 'ontologies',
+        page_size => 1_000_000,
+        page_num  => -1,
+    );
+
+    if ( $results->{'num_found'} ) {
+        my @term_ids;
+        for my $doc ( 
+            @{ $results->{'core'}{'ontologies'}{'response'}{'docs'} }
+        ) {
+            my ($module, $table, $id) = split(/\//, $doc->{'id'}); 
+            push @term_ids, $id;
+        }
+
+        return @term_ids;
+    }
+
+    #
+    # Fall back to (slow) wildcard search on ontology db
+    #
     my @matches;
     my $db  = $self->db;
     my $dbh = $db->dbh;
@@ -691,12 +727,46 @@ Returns an array(ref) of term_ids.
         if ( @$data > 0 ) {
             push @matches, @$data;
         }
-        elsif ( $qry !~ /\*$/ ) {
+        elsif ( $qry !~ /[*%]$/ && $qry !~ /^[A-Za-z_]+:\d+$/ ) {
             push @queries, "$qry*";
         }
     }
 
     return wantarray ? @matches : \@matches;
+}
+
+# ----------------------------------------------------
+sub search_accessions {
+
+=pod search_accessions
+
+    my $Term = $odb->strict_search('TO:0000324');
+
+Only search for accessions and synonyms (faster);
+
+=cut
+
+    my $self   = shift;
+    my $acc    = shift or return;
+    my $schema = $self->db->schema;
+    my $pref   = join('|', $self->get_ontology_accession_prefixes);
+
+    if ( $acc !~ /^($pref):\d+$/ ) {
+        return;
+    }
+
+    my ($Term) = $schema->resultset('Term')->search({term_accession => $acc});
+
+    if (!$Term) {
+        my ($Syn) = $schema->resultset('TermSynonym')->search({
+            term_synonym => $acc
+        });
+        if ($Syn) {
+            $Term = $Syn->term;
+        }
+    }
+
+    return $Term;
 }
 
 # ----------------------------------------------------

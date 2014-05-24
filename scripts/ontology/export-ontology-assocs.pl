@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl
+#!/usr/bin/env perl
 
 $| = 1;
 
@@ -23,10 +23,16 @@ use Readonly;
 use Text::TabularDisplay;
 
 Readonly my $SOURCE_DB => 'Gramene';
-Readonly my %ONTOLOGY_ASPECT => (
-    eo  => 'E',
-    to  => 'T',
+
+# cf. http://www.geneontology.org/GO.format.gaf-2_0.shtml#aspect
+Readonly my %ONTOLOGY_ASPECT   => (
+    plant_environment_ontology => 'E',
+    plant_trait_ontology       => 'T',
+    biological_process         => 'P',
+    cellular_component         => 'C',
+    molecular_function         => 'F',
 );
+
 Readonly my @OUT_FIELDS => qw(
     db
     db_object_id
@@ -45,6 +51,7 @@ Readonly my @OUT_FIELDS => qw(
     assigned_by
     annotation_extension
     gene_product_form_id
+    url
 );
 
 my $selected_modules = 'all';
@@ -150,7 +157,7 @@ my $dt     = DateTime->now;
 my $odb    = Grm::Ontology->new;
 my $odbh   = $odb->db->dbh;
 
-my ( %fh_cache, %object_results, %ontology_results );
+my ( %fh_cache, %object_results, %ontology_results, %term_cache );
 my $total_count = 0;
 
 for my $module ( sort @selected_modules ) {
@@ -167,52 +174,50 @@ for my $module ( sort @selected_modules ) {
     {
         no strict 'refs';
         my $sub_name = $DISPATCH{ $module }{'run'};
-        $assocs      = &$sub_name( $module, $progress ); 
+        $assocs      = $sub_name->( $module, $progress ); 
     }
 
+    $count ||= scalar @$assocs;
     print "\n" if $count > 0;
 
     if ( ref $assocs eq 'ARRAY' && @$assocs ) {
         my @obsolete_terms;
-        my $assoc_num;
+        my $assoc_num = 0;
         ASSOC:
         for my $assoc ( @$assocs ) {
             my $term_acc = $assoc->{'term_accession'} or die sprintf( 
                 "ERROR: No term accession\n%s\n", Dumper($assoc) 
             );
 
+            $assoc_num++;
             printf "%-70s\r", sprintf( "%10s (%3d%%): %s", 
-                commify(++$assoc_num), 
+                commify($assoc_num), 
                 int(($assoc_num/$count) * 100), 
                 $term_acc
             );
 
-            my $ont_type;
-            if ( 
-                $term_acc =~ /([A-Z]{2,3})[:]\d+/ ||  
-                $term_acc =~ /(GR_tax)[:]\d+/ 
-            ) {
-                $ont_type = $1;
+            if (!defined $term_cache{$term_acc}) {
+                $term_cache{$term_acc} 
+                    = $odb->search_accessions($term_acc) || '';
             }
-            else {
-                printf "Can't figure out ontology prefix from '$term_acc'\n%s",
-                    Dumper($assoc);
+
+            my $Term = $term_cache{$term_acc};
+            if (!$Term) {
+                printf "Bad term '$term_acc'\n%s", Dumper($assoc);
                 next ASSOC;
             }
 
+            my $ont_type = $Term->term_type->prefix;
             my $fh = get_fh( $out_dir, $module, $ont_type );
 
-            $assoc->{'db'}          ||= $SOURCE_DB;
-            $assoc->{'assigned_by'} ||= $SOURCE_DB;
-            $assoc->{'aspect'}      ||= $ONTOLOGY_ASPECT{ lc $ont_type } || '';
-            $assoc->{'date'}        ||= $date;
+            $assoc->{'db'}           ||= $SOURCE_DB;
+            $assoc->{'assigned_by'}  ||= $SOURCE_DB;
+            $assoc->{'date'}         ||= $date;
+            $assoc->{'db_reference'} ||= 'GR_REF:8396';
+            $assoc->{'aspect'}       ||= 
+                $ONTOLOGY_ASPECT{ $Term->term_type->term_type } || '';
 
-            my $is_obsolete = $odbh->selectrow_array(
-                'select is_obsolete from term where term_accession=?', {},
-                $term_acc
-            );
-
-            if ( $is_obsolete ) {
+            if ( $Term->is_obsolete ) {
                 push @obsolete_terms, $assoc;
             }
     
@@ -257,7 +262,7 @@ for my $module ( sort @selected_modules ) {
                     substr( $assoc->{'alternates'}, 0, 30 ) 
                 );
     
-                say $fh join "\t", map { $assoc->{ $_ } } @flds;
+                say $fh join "\t", map { $assoc->{ $_ } || '' } @flds;
             }
 
             close $fh;
@@ -313,11 +318,7 @@ sub get_fh {
 
         open my $fh, '>', $out_file;
 
-        print $fh join("\n",
-            '!gaf-version: 2.0',
-            '!' . join( "\t", @OUT_FIELDS ),
-            ''
-        );
+        print $fh join("\t", @OUT_FIELDS ), "\n";
 
         $fh_cache{ $object_type }{ $ont_type } = $fh;
     }
@@ -341,8 +342,10 @@ sub _export_ensembl {
     );
 
     my @sql = (
-        q[ 
-            select g.stable_id     as gene,
+        qq[ 
+            select g.gene_id       as db_object_id,
+                   g.stable_id     as db_object_symbol,
+                   g.description   as db_object_name,
                    x.description   as term_name,
                    x.dbprimary_acc as term_accession,
                    gx.linkage_type as evidence_code
@@ -358,12 +361,15 @@ sub _export_ensembl {
             and    p.transcript_id=t.transcript_id
             and    t.gene_id=g.gene_id
             and    ox.object_xref_id=gx.object_xref_id
+            and    x.dbprimary_acc is not null
             and    ox.xref_id=x.xref_id
             and    x.external_db_id=e.external_db_id
             and    e.db_name in ('GO', 'PO', 'TO', 'EO')
         ],
-        q[
-            select g.stable_id     as gene,
+        qq[
+            select g.gene_id       as db_object_id,
+                   g.stable_id     as db_object_symbol,
+                   g.description   as db_object_name,
                    x.description   as term_name,
                    x.dbprimary_acc as term_accession,
                    gx.linkage_type as evidence_code
@@ -378,6 +384,7 @@ sub _export_ensembl {
             and    t.gene_id=g.gene_id
             and    ox.object_xref_id=gx.object_xref_id
             and    ox.xref_id=x.xref_id
+            and    x.dbprimary_acc is not null
             and    x.external_db_id=e.external_db_id
             and    e.db_name in ('GO', 'PO', 'TO', 'EO')
         ],
@@ -388,33 +395,17 @@ sub _export_ensembl {
         push @data, @{ $dbh->selectall_arrayref( $sql, { Columns => {} } ) };
     }
 
-    my $total = scalar @data or return;
+    my $obj_type = 'gene';
+    map { 
+        $_->{'db'}             = $species;
+        $_->{'taxon'}          = $taxon_id;
+        $_->{'db_object_type'} = $obj_type;
+        $_->{'url'}            = join(
+            '/', '', 'view', $species, $obj_type, $_->{'db_object_symbol'}
+        );
+    } @data;
 
-    my $type_check = 0;
-    my ( %seen, @assocs );
-    for my $assoc ( @data ) {
-        my $term_acc = $assoc->{'term_accession'} or next;
-        my $gene     = $assoc->{'gene'}           or next;
-
-        next if $seen{ $term_acc }{ $gene }++;
-
-        $progress->();
-
-        push @assocs, {
-            db                => $species,
-            db_object_id      => $gene,
-            db_object_symbol  => '',
-            term_accession    => $term_acc,
-            db_reference      => 'GR_REF:8396',
-            evidence_code     => $assoc->{'evidence_code'},
-            db_object_name    => '',
-            db_object_synonym => '',
-            db_object_type    => 'gene',
-            taxon             => $taxon_id,
-        };
-    }
-
-    return \@assocs;
+    return \@data;
 }
 
 __END__

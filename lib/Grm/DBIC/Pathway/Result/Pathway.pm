@@ -1,24 +1,28 @@
-package Grm::DBIC::Pathway::Result::Search;
+use utf8;
+package Grm::DBIC::Pathway::Result::Pathway;
 
 # Created by DBIx::Class::Schema::Loader
 # DO NOT MODIFY THE FIRST PART OF THIS FILE
+
+=head1 NAME
+
+Grm::DBIC::Pathway::Result::Pathway
+
+=cut
 
 use strict;
 use warnings;
 
 use Moose;
 use MooseX::NonMoose;
-use namespace::autoclean;
+use MooseX::MarkAsMethods autoclean => 1;
 extends 'DBIx::Class::Core';
 
-
-=head1 NAME
-
-Grm::DBIC::Pathway::Result::Search
+=head1 TABLE: C<pathway>
 
 =cut
 
-__PACKAGE__->table("search");
+__PACKAGE__->table("pathway");
 
 =head1 ACCESSORS
 
@@ -98,11 +102,22 @@ __PACKAGE__->add_columns(
   "pathway_name",
   { data_type => "varchar", is_nullable => 0, size => 255 },
 );
+
+=head1 PRIMARY KEY
+
+=over 4
+
+=item * L</search_id>
+
+=back
+
+=cut
+
 __PACKAGE__->set_primary_key("search_id");
 
 
-# Created by DBIx::Class::Schema::Loader v0.07010 @ 2013-07-24 12:49:22
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:mMC1KLxvflg1eUwLc6UfyQ
+# Created by DBIx::Class::Schema::Loader v0.07036 @ 2014-05-16 10:47:25
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:pOh5mOGTiD0D7oqqNFakUw
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

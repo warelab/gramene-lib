@@ -1,6 +1,3 @@
-# vim: set noai
-
-
 search:
   solr:
     url: "http://gorgonzola.cshl.edu:8983/solr/grm-search"
@@ -18,7 +15,7 @@ search:
       - "content"
 
   database:
-    host     : cabot
+    host     : colden
     user     : gramene_web
     password : gram3n3
 
@@ -60,10 +57,12 @@ search:
     "reactome_*": 
       "reactome": "[search_term,pathway_id,object_id]"
 
-  list_columns:
+  title:
     "ensembl_*.dna_align_feature": "hit_name,analysis.logic_name"
 
     "ensembl_*.gene": "TT:[% SET label=object.display_xref.display_label OR object.stable_id; SET biotype=object.biotype OR 'gene'; SET desc=object.description.remove('\\s*\\[.*'); \"$species Gene &quot;$label&quot; ($biotype): $desc\"; %]" 
+    "ensembl_*.marker": "TT:[% SET name=object.display_marker_synonym.name.replace('\.\d+$',''); \"$species Marker &quot;$name&quot;\"; %]" 
+
     "ensembl_*.prediction_transcript": "display_label"
 
     "ensembl_*.interpro": "id_field,interpro_ac('Interpro accession &quot;%s&quot; in domain &quot;%s&quot;')"
@@ -80,7 +79,7 @@ search:
 
     "maps.map_set": "species.species,map_type.map_type,map_set_name"
 
-    "ontology.term": "TT:Ontology Term '[% object.term_accession %]' ([% object.name %]): [% object.definition | truncate(80) %]"
+    "ontology.term": "TT:Ontology Term [% object.term_accession %][% IF object.name %]: [% object.name %][% END %]"
 
     "pathway*.search": "TT:[% \"$species Pathway $object.pathway_id $object.pathway_name $object.gene_name $object.enzyme_name \"; %]" 
 
@@ -92,6 +91,7 @@ search:
              e.db_name, e.db_display_name
       from   xref x, object_xref ox, gene g, external_db e
       where  x.xref_id=ox.xref_id
+      and    e.db_name not like 'ENA_FEATURE%'
       and    x.external_db_id=e.external_db_id
       and    ox.ensembl_id=g.gene_id
       and    g.gene_id=?
@@ -101,6 +101,7 @@ search:
              e.db_name, e.db_display_name
       from   xref x, object_xref ox, transcript t, gene g, external_db e
       where  x.xref_id=ox.xref_id
+      and    e.db_name not like 'ENA_FEATURE%'
       and    x.external_db_id=e.external_db_id
       and    ox.ensembl_id=t.transcript_id
       and    t.gene_id=g.gene_id
@@ -112,6 +113,7 @@ search:
       from   xref x, object_xref ox, translation p, transcript t, 
              gene g, external_db e
       where  x.xref_id=ox.xref_id
+      and    e.db_name not like 'ENA_FEATURE%'
       and    x.external_db_id=e.external_db_id
       and    ox.ensembl_id=p.translation_id
       and    p.transcript_id=t.transcript_id
