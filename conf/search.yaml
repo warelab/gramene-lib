@@ -1,7 +1,15 @@
+<<<<<<< HEAD
 search:
   solr:
     url: "http://gorgonzola.cshl.edu:8983/solr/grm-search"
     schema: "/usr/local/gramene/solr/gramene/solr/grm-search/conf/schema.xml"
+=======
+---
+search:
+  solr:
+    url: "http://gorgonzola.cshl.edu:8983/solr/grm-search"
+    schema: "/usr/local/gramene-41/solr/solr/gramene/solr/grm-search/conf/schema.xml"
+>>>>>>> master
     port: "8983"
     log_dir: "/var/opt/logs/solr"
     load_fields:
