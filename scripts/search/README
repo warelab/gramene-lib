@@ -5,7 +5,6 @@ Author
 ------
 
 Ken Youens-Clark <kclark@cshl.edu>
-Jan 2014
 
 The data that goes into Solr must be first extracted from the various
 databases that make up Gramene (Ensembl, ontology, pathways,
@@ -154,8 +153,8 @@ multi-valued).  If a valid "GR_tax" term is found associated with the
 object, then it can be used to identify the Solr attribute of
 "taxonomy" if the module is not one of the "reusable" schemas where it
 is expected to be "module" + "_" + "species_name."  Because of all
-this, one should probably rebuild the ontology db from the latest
-ontology sources before indexing.
+this, one should rebuild the ontology db from the latest ontology 
+sources before indexing.
 
 Deleting data
 -------------
