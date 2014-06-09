@@ -16,7 +16,7 @@ use Readonly;
 use Text::RecordParser::Tab;
 
 Readonly my $TABLE_SQL => q[
-    CREATE TABLE IF NOT EXISTS search (
+    CREATE TABLE IF NOT EXISTS pathway (
         search_id int (11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
         species varchar(64), 
         gene_name	varchar(30) NOT NULL,
@@ -89,7 +89,7 @@ else {
     printf "Loading '%s' into '%s'\n", basename($file), $config_name;
 }
 
-for my $sql ( $TABLE_SQL, 'TRUNCATE TABLE search' ){
+for my $sql ( $TABLE_SQL, 'TRUNCATE TABLE pathway' ){
     $dbh->do( $sql );
 }
 
@@ -97,7 +97,7 @@ my $lc   = count_lines( $file ) - 1; # account for header
 my $p    = Text::RecordParser::Tab->new( $file );
 my @flds = $p->field_list;
 my $sql  = sprintf(
-    'insert into search ( %s ) values ( %s )',
+    'insert into pathway ( %s ) values ( %s )',
     join( ', ', @flds ),
     join( ', ', map { '?' } @flds ),
 );
