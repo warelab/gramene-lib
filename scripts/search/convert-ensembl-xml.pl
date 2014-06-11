@@ -22,7 +22,8 @@ Readonly my $FS => chr(31);
 
 Readonly my %SKIP_FIELD = map { $_, 1 } qw( 
     database databse domain_count exon_count genomic_unit haplotype location
-    source system_name species transcript_count featuretype
+    source system_name species transcript_count featuretype seq_region_name
+    genomic_unit domain_count
 );
 
 Readonly my %SKIP_XREF = map { $_, 1 } qw( 
@@ -65,11 +66,11 @@ for my $file (@files) {
     my $name = $xml->{'name'} or next FILE;
 
     my $species;
-    if ($name =~ /^([a-z_]+)_core_.*/) {
+    if ($name =~ /^([a-z_]+)_(core|otherfeatures)_.*/) {
         $species = $1;
     }
     else {
-        say "$name doesn't look like a core, skipping.";
+        say "$name doesn't look like a core/otherfeatures file, skipping.";
         next FILE;
     }
 
@@ -78,7 +79,7 @@ for my $file (@files) {
     my $module   = 'ensembl_' . $species;
     my $out_file = $name . '.adt';
 
-    my @entries = values %{ $xml->{'entries'}{'entry'} || {} };
+    my @entries = values %{ $xml->{'entries'} || {} };
     my $num_entries = scalar @entries;
 
     if ( !$num_entries ) {
