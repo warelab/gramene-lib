@@ -1,20 +1,23 @@
-To update ontologies
+Author: Ken Youens-Clark
+Date:   14 July 2014
 
-1) on brie, "cd /usr/local/ontologies", check and run "fetch.sh" 
+To build the Gramene ontology db:
 
-2) Come back here, run "amigo-load-check.pl" to make sure that went OK
+1) Update "fetch.sh" to download the OBO files to a build directory.
 
-3) Edit and run "initialize-ontology-db.sh" to create a new db with 
-default data
+2) Edit and run "create-amigo.sh" to load OBO files into an Amigo db.
+   This will probably take a long time.
 
-4) "load-from-amigo.pl"
+3) Run "amigo-load-check.pl" to check the current db's numbers with 
+   the previous.
 
-5) "export-ontology-assocs.pl"
+4) Edit and run "initialize-ontology-db.sh" to create a new Gramene
+   ontology db with default data.
 
-Gets all the ontology associations from Ensembl, markers, QTL, etc., for
-placing on the FTP site.
+5) Run "load-from-amigo.pl" to load the Gramene ontology db from Amigo.
 
-6) "load-associations.pl"
+6) Run "export-ontology-assocs.pl" to export Ensembl, etc., ontology 
+   associations to GAF files for the FTP site and for the next step.
 
-Loads the associations from the previous step.  Check the 
-"obsolete-terms.txt" file for dbs to update.
+7) Run "load-associations.pl" to load the associations from the previous 
+   step.  Check the "obsolete-terms.txt" file for dbs to update.
