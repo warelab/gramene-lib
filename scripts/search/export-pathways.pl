@@ -64,10 +64,10 @@ for my $module ( @modules ) {
 
     for my $rec ( @$data ) {
         print $fh join($FS,
-            join('/', $module, 'pathway', $rec->{'pathway_id'}),
+            join('/', $module, 'cyc_pathway', $rec->{'pathway_id'}),
             join(' ', $pretty_species, 'Pathway', $rec->{'pathway_name'}),
             $module,
-            'pathway',
+            'cyc_pathway',
             $species,
             join(' ', 
                 map { defined $rec->{$_} ? clean($rec->{$_}) : () } 
