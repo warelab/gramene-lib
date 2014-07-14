@@ -31,9 +31,9 @@ $MYSQL $AMIGO_DB < $GO_SQL
 
 cat /dev/null > $LOG
 
-for file in `ls $DIR/*.obo`
+for FILE in `ls $DIR/*.obo`
 do
-    echo "Processing $file"
+    echo "Processing $FILE"
 
     $PERL -I$GODBPERL $GODBPERL/scripts/load-go-into-db.pl -datatype obo -h $DBHOST -u $USERNAME -p $PASSWORD -d $AMIGO_DB -append $FILE 1>>$LOG 2>>$LOG
 done
