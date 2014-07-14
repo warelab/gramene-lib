@@ -1,0 +1,45 @@
+Gramene's rickety GFF dumper
+=====================
+
+This is probably obsolete, since it looks like EBI is now generating GFF3 files, since release 19 last year.
+
+So I vote you go download 'em from ftp.ensemblgenomes.org and slap them onto brie4 as part of the release instead.
+
+If there are any issues, fall back on this.
+
+Author
+------
+
+Jim Thomason <thomason@cshl.edu>
+
+This thing dumps out our ensembl databases (as listed in the registry) to GFF3 format,
+suitable for copying to the ftp server. It never works properly. Ever.
+
+There will always be some connection issue, some problem with the database, some invalid
+format. Something. I'm so so sorry.
+
+Sharon can help with database issues, usually. Email her whatever the dumper bitched about
+and cross your fingers.
+
+Running it
+-------
+
+#create an output dir first, or it'll just spit out to /tmp.
+./gff3_dumper.pl --output_dir=/path/to/output
+
+It'll report progress as it goes along. When you see it print SUCCESS! it's like the clouds
+parting and angels descending to sing to you. It's awesome. That'll happen on about the 5th run.
+
+From there, scp 'em to the directory on brie4, which is currently something like:
+brie4:/var/ftp/pub/gramene/CURRENT_RELEASE/data/gff/
+
+
+Note that CURRENT_RELEASE is a symlink and may not properly exist. It might be easier to toss it
+into the releaseXX directory instead.
+
+
+Troubleshooting
+---------------
+
+Good luck. When it breaks, and it will break, it'll always break differently. It is a brittle
+beast.
