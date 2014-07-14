@@ -1,0 +1,33 @@
+Creating text/mysql dumps of databases
+=====================
+
+Author
+------
+
+Jim Thomason <thomason@cshl.edu>
+
+Usage
+-----
+
+This script MUST be run on cabot (or colden, but don't run it on colden), since mysqldump's
+text option requires a local directory on the server, for some asinine reason.
+
+You need to set two environment variables - 
+
+export GRMVAR=current_gramene_release
+export DUMPDIR=path_to_dump_directory
+
+then run it.
+
+./gramene.dbdumper.sh database database2 database3 ...
+
+listing whichever databases you want to dump out.
+
+Step 2:
+Beer.
+
+The script is fairly magical. It may prompt you for your ssh passwords, or for root authorization.
+If so, give it to it (I'd recommend running it under ssh-agent for simplicity's sake). It'll automatically
+create the directories on brie4, compress and scp everything over, and clean up after itself.
+
+It'll tell you if there are any problems, but mostly it's just run and forget it.
