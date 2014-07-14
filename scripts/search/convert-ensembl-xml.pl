@@ -45,6 +45,10 @@ if ( $help || $man_page ) {
     });
 }; 
 
+if (!-d $out_dir) {
+    mkpath($out_dir);
+}
+
 my @files = @ARGV or pod2usage('No input files');
 my $num_files = scalar @files;
 
@@ -65,9 +69,10 @@ for my $file (@files) {
     my $xml  = XMLin($file);
     my $name = $xml->{'name'} or next FILE;
 
-    my $species;
+    my ($species, $db_type);
     if ($name =~ /^([a-z_]+)_(core|otherfeatures)_.*/) {
         $species = $1;
+        $db_type = $2;
     }
     else {
         say "$name doesn't look like a core/otherfeatures file, skipping.";
@@ -79,7 +84,7 @@ for my $file (@files) {
     my $module   = 'ensembl_' . $species;
     my $out_file = $name . '.adt';
 
-    my @entries = values %{ $xml->{'entries'} || {} };
+    my @entries = values %{ $xml->{'entries'}{'entry'} || {} };
     my $num_entries = scalar @entries;
 
     if ( !$num_entries ) {
@@ -90,6 +95,7 @@ for my $file (@files) {
     printf "%s entries => %s\n", commify($num_entries), basename($out_file);
 
     my $out_path = catfile($out_dir, $out_file);
+    
     open my $out_fh, '>', $out_path;
     print $out_fh join($FS,
         qw[id title module object species taxonomy content]
@@ -149,7 +155,11 @@ for my $file (@files) {
         }
 
         print $out_fh join($FS,
-            join('/', $module, $object, $entry->{'id'}),
+            join('/', 
+                $module, 
+                $db_type eq 'otherfeatures' ? $db_type : $object,
+                $entry->{'id'}
+            ),
             $title,
             $module,
             $object,
