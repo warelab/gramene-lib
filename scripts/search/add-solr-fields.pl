@@ -9,6 +9,7 @@ use feature 'say';
 use Cwd 'cwd';
 use Data::Dump 'dump';
 use File::Basename qw( basename fileparse );
+use File::Path 'mkpath';
 use File::Spec::Functions;
 use Getopt::Long;
 use Grm::Ontology;
@@ -19,11 +20,11 @@ use Pod::Usage;
 use Readonly;
 use List::MoreUtils 'uniq';
 
-Readonly my $FS => chr(31);
-Readonly my $RS => chr(30);
+Readonly my %FILE_ATTR => (
+    adt => { fs => chr(31), rs => chr(30) },
+    tab => { fs => "\t"   , rs => "\n"    }
+);
 
-#Readonly my $SOLR => 'http://brie.cshl.edu:8983/solr/genome_features/update?'
-#    . 'commit=true&f.taxonomy.split=true&f.ontology.split=true';
 Readonly my $SOLR => 'http://brie.cshl.edu:8983/solr/grm-search/update?'
     . 'commit=true&f.taxonomy.split=true&f.ontology.split=true';
 
@@ -79,21 +80,28 @@ my $tax_lookup = sub {
     return $tax{ $tax_id };
 };
 
+if (!-d $out_dir) {
+    mkpath($out_dir);
+}
+
 my $shell_file = catfile( $out_dir || cwd(), 'send-to-solr.sh' );
 open my $sh, '>', $shell_file;
 
 my $file_num = 0;
 for my $file ( @files ) {
-    local $/ = $RS;
+    my ($base, $path, $suffix) = fileparse( $file, qr/\.[^.]*/ );
+    $suffix =~ s/^\.//;
+
+    my $file_attr = $FILE_ATTR{$suffix};
+    my $new_file  = catfile( $out_dir || $path, $base . '-ont.csv' );
+
+    local $/ = $file_attr->{'rs'};
 
     open my $in, '<', $file;
 
-    my ( $base, $path, $suffix ) = fileparse( $file, qr/\.[^.]*/ );
-    my $new_file = catfile( $out_dir || $path, $base . '-ont.csv' );
-
     open my $out, '>', $new_file;
     chomp( my $header = <$in> );
-    my @cols = split $FS, $header;
+    my @cols = split $file_attr->{'fs'}, $header;
 
     $file_num++;
     print $sh "curl '$SOLR' -H 'Content-type:application/csv' --data-binary \@" 
@@ -107,7 +115,7 @@ for my $file ( @files ) {
     
     while ( my $line = <$in> ) {
         chomp $line;
-        my @data = split $FS, $line;
+        my @data = split $file_attr->{'fs'}, $line;
         my %rec  = map { $cols[ $_ ], $data[ $_ ] } 0 .. $#cols;
 
         printf "%-70s\r", sprintf( '%3d/%3d: %s (line %s)', 
