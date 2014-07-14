@@ -1,9 +1,13 @@
+#!/bin/bash
+
 #
 # This will drop and recreate the Gramene "ontology" database and load 
 # with default data.
+# Author: Ken Youens-Clark
 #
 
-DB=ontology41
+VERSION=42
+DB="ontology${VERSION}"
 USER=kclark
 PASS=g0p3rl!
 HOST=cabot
