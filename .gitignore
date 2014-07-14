@@ -11,5 +11,7 @@ cover_db
 pod2htm*.tmp
 MYMETA.*
 *.swp
-/search-index*
+scripts/search/send-to-solr.sh
+scripts/search/delete.sh
+*.log
 .*
