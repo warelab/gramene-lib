@@ -134,9 +134,6 @@ tables and records indexed and the elapsed time.
         my $dbh     = $db->dbh;
         my $schema  = $db->dbic;
 
-        printf STDERR "Communicating with Solr at '%s'\n", $indexer->solr_url;
-
-        print STDERR "Removing all data for '$module'\n";
         $indexer->truncate;
 
         my @docs;
