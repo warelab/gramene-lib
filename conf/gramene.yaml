@@ -55,7 +55,7 @@ database:
     name: amigo41
 
   ontology:
-    name: ontology41
+    name: ontology41a
 
   pathway_arabidopsis_thaliana:
     name: pathway_arabidopsis_thaliana41
