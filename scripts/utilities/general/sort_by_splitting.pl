@@ -74,7 +74,13 @@ for my $k (keys %buffers) {
 
 my @catme;
 for my $c (sort keys %fragments) {
-    my @intervals = sort {$a->[0] <=> $b->[0]} @{$fragments{$c}};
+    my @intervals;
+    for my $s (sort {$a <=> $b} keys %{$fragments{$c}}) {
+        for (my $i=0; $i<@{$fragments{$c}{$s}}; $i++) {
+            my $e = $fragments{$c}{$s}[$i];
+            push @intervals, [$s,$e,$i+1];
+        }
+    }
     # find overlapping intervals
     # cluster is 4-tuple (start pos, end pos, start interval, end interval)
     my @cluster = ($intervals[0][0], $intervals[0][1], 0, 0);
@@ -86,29 +92,37 @@ for my $c (sort keys %fragments) {
             }
         }
         else { # no overlap, process previous cluster
+            my $fname = "$prefix.$c.$cluster[0].$cluster[1]";
             if ($cluster[2] < $cluster[3]) { # need to merge these files
                 my @files;
                 for(my $j = $cluster[2]; $j <= $cluster[3]; $j++) {
-                    push @files, "$prefix.$c.$intervals[$j][0].$intervals[$j][1]";
+                    push @files, join('.', $prefix, $c, @{$intervals[$j]});
                 }
-                my $cmd = join(" ", $sort_cmd, @files) . " > $prefix.$c.$cluster[0].$cluster[1]";
+                my $cmd = join(" ", $sort_cmd, @files) . " > $fname";
                 system($cmd);
                 unlink @files;
             }
-            push @catme, "$prefix.$c.$cluster[0].$cluster[1]";
+            else {
+                $fname .= ".1";
+            }
+            push @catme, $fname;
             @cluster = ($intervals[$i][0], $intervals[$i][1], $i, $i);
         }
     }
+    my $fname = "$prefix.$c.$cluster[0].$cluster[1]";
     if ($cluster[2] < $cluster[3]) { # need to merge these files
         my @files;
         for(my $j = $cluster[2]; $j <= $cluster[3]; $j++) {
-            push @files, "$prefix.$c.$intervals[$j][0].$intervals[$j][1]";
+            push @files, join('.', $prefix, $c, @{$intervals[$j]});
         }
-        my $cmd = join(" ", $sort_cmd, @files) . " > $prefix.$c.$cluster[0].$cluster[1]";
+        my $cmd = join(" ", $sort_cmd, @files) . " > $fname";
         system($cmd);
         unlink @files;
     }
-    push @catme, "$prefix.$c.$cluster[0].$cluster[1]";
+    else {
+        $fname .= ".1";
+    }
+    push @catme, $fname;
 }
 my $cmd = "cat " . join(" ", @catme) . " > $prefix.sorted";
 system($cmd);
@@ -117,9 +131,11 @@ unlink @catme;
 sub flush_buffer {
     my $c = shift;
     my $b = shift;
-    $fragments{$c} = [] if (not exists $fragments{$c});
-    push @{$fragments{$c}}, [$$b{range}[0], $$b{range}[1]];
-    open(my $fh, ">", "$prefix.$c.$$b{range}[0].$$b{range}[1]");
+    $fragments{$c} = {} if (not exists $fragments{$c});
+    my ($s,$e) = @{$$b{range}};
+    push @{$fragments{$c}{$s}}, $e;
+    my $fname = join('.',$prefix,$c,$s,$e,scalar @{$fragments{$c}{$s}});
+    open(my $fh, ">", $fname);
     for my $line (@{$b->{lines}}) {
         print $fh $line;
     }
