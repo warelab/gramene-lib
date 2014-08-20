@@ -145,6 +145,7 @@ CREATE TABLE association_object (
   db_object_name varchar(255) NOT NULL,
   db_object_symbol varchar(255) NOT NULL,
   species_id INT NOT NULL DEFAULT '0',
+  url varchar(255) DEFAULT NULL,
   KEY (association_object_type_id),
   KEY (species_id),
   FOREIGN KEY (association_object_type_id) REFERENCES association_object_type (association_object_type_id),
