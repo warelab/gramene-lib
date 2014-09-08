@@ -52,10 +52,10 @@ database:
     password : ()ryz@
 
   amigo:
-    name: amigo41
+    name: amigo42
 
   ontology:
-    name: ontology41a
+    name: ontology42
 
   pathway_arabidopsis_thaliana:
     name: pathway_arabidopsis_thaliana41

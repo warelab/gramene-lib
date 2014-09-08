@@ -1,7 +1,7 @@
 ---
 search:
   solr:
-    url: "http://gorgonzola.cshl.edu:8983/solr/grm-search"
+    url: "http://brie.cshl.edu:8983/solr/grm-search"
     schema: "/usr/local/gramene-41/solr/solr/gramene/solr/grm-search/conf/schema.xml"
     port: "8983"
     log_dir: "/var/opt/logs/solr"

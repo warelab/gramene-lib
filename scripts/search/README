@@ -74,17 +74,21 @@ From there, you can export it to a ADT file:
 Reactome
 --------
 
-Data from the Plant Reactome project is exported to a text file by the
-curators, as well.  So far, it looks like this:
+Data from the Plant Reactome project is exported to a tab-delimited text file 
+by the curators (e.g., Justin Preece).  It follows the Solr schema:
 
-    search_term: 10-formyl-THF
-     pathway_id: 1119265
-      object_id: 419151
+       id: reactome/plant_reactome_pathway/109395-1119394-186860
+    title: Oryza sativa reactant CMP (pathway: pantothenate and coenzyme
+           A biosynthesis III)
+   module: reactome
+   object: plant_reactome_pathway
+  species: oryza_sativa
+ taxonomy: 4530
+  content: CMP SimpleEntity cytidine 5'-monophosphate cytidylic acid 
+           Cytidine-5'-monophosphate
 
-In "gramene-lib/scripts/reactome," you will find a simple bash script
-called "load-reactome.sh" to drop/create a "DB" on the specified
-"HOST" and load your "DATA."  You should edit these variables at the
-beginning of the script, then execute it.
+Nothing further needs to be done.  Simply take this to the "Prep for Solr" 
+step.
 
 Ontologies
 ----------
