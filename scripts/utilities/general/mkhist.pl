@@ -5,17 +5,19 @@ use autodie;
 
 my ($min, $max, $stride, $file, $col) = @ARGV;
 
+$stride or die "usage: $0 <min> <max> <stride> [input file] [column number]\n";
+
 $file ||= '/dev/fd/0';
 $col ||= 0;
 
-my $n = int(($max - $min + 1)/$stride);
+my $n = int(($max - $min)/$stride);
 my @counts = (0) x $n;
 open (my $fh, "<", $file);
 while (<$fh>) {
   chomp;
   my @x = split /\t/, $_;
-  my $bin = int(($x[$col] - $min)/$stride);
-  $counts[$bin]++ if ($bin >= 0);
+  next if ($x[$col] < $min or $x[$col] > $max);
+  $counts[int(($x[$col] - $min)/$stride)]++;
 }
 close $fh;
 for(my $i=0;$i<$n;$i++) {
