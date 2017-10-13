@@ -10,7 +10,7 @@ $stride or die "usage: $0 <min> <max> <stride> [input file] [column number]\n";
 $file ||= '/dev/fd/0';
 $col ||= 0;
 
-my $n = int(($max - $min)/$stride);
+my $n = int(($max - $min)/$stride) + 1;
 my @counts = (0) x $n;
 open (my $fh, "<", $file);
 while (<$fh>) {

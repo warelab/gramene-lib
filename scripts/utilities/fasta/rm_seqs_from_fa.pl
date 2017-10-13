@@ -1,18 +1,21 @@
 #!/usr/bin/env perl
+use strict;
+use warnings;
+use autodie;
 
-$desired = shift @ARGV;
-%get_seq;
+my $desired = shift @ARGV;
+my %get_seq;
 defined $desired or die "usage: $0 <desired seqs> < fasta file on STDIN or second arg";
 if (-f $desired) {
-  open (IN, $desired) or die "failed to open file '$desired': $!\n";
+  open (IN, "<", $desired);
   while (<IN>) {
     chomp;
-    split;
-    $get_seq{$_[0]} = 1;
+    $get_seq{$_} = 1;
   }
+  close (IN);
 } else {
   print STDERR "will reinterpret $desired as a (comma separated) list of sequences\n";
-  foreach $seq (split /,/, $desired) {
+  foreach my $seq (split /,/, $desired) {
     next unless ($seq =~ m/\w/);
     $get_seq{$seq} = 1;
   }
@@ -20,7 +23,7 @@ if (-f $desired) {
 
 # read through fasta on stdin sequentially, printing desired sequences
 # print a warning on STDERR if a sequence appears more than once in the fasta file
-
+my $name;
 while (<>) {
   if (/^>/) {
     if (/^>gi\|\d+\|\w+\|([^|]+\.\d+)\|/) {

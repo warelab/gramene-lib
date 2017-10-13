@@ -8,10 +8,10 @@ if (-f $desired) {
   open (IN, $desired) or die "failed to open file '$desired': $!\n";
   while (<IN>) {
     chomp;
-    split;
-    $_[0] =~ s/^>//;
-    $usegi=0 if ($usegi and $_[0] !~ /^\d+$/);
-    $get_seq{$_[0]} = $_[1] ? $_[1] : 1;
+    my @x = split(/\t/, $_);
+    $x[0] =~ s/^>//;
+    $usegi=0 if ($usegi and $x[0] !~ /^\d+$/);
+    $get_seq{$x[0]} = @x>1 ? $x[1] : 1;
   }
 } else {
   print STDERR "will reinterpret $desired as a (comma separated) list of sequences\n";

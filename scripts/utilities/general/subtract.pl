@@ -11,7 +11,7 @@ if (@ARGV >= 4 and $ARGV[0] eq "-F") {
   $delim = shift @ARGV;
 }
 $n_args = @ARGV;
-(($n_args % 2 == 0) and ($n_args >= 2)) or die "usage: intersect.pl (-F <delimiter>) <file 1> <columns> <file 2> <columns>";
+(($n_args % 2 == 0) and ($n_args >= 2)) or die "usage: subtract.pl (-F <delimiter>) <file 1> <columns> <file 2> <columns>";
 
 open (FILE1, $ARGV[0]) or die "failed to open '$ARGV[0]'";
 open (FILE2, $ARGV[$n_args/2]) or die "failed to open '$ARGV[$n_args/2]'";
