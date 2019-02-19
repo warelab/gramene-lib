@@ -33,7 +33,8 @@ while ( my $line = <$fh> ) {
         $start,  $end,    $score,
         $strand, $phase,  $attributeString
     ) = split /\t/, $line;
-    my ($gene_id) = $attributeString =~ m/gene_id\s\"(\w+)"/;
+    my ($gene_id) = $attributeString =~ m/gene_id\s\"(.+?)"/;
+    $gene_id or die "failed to parse gene_id from '$line'\n";
     next unless exists $genomic_alignments{$gene_id};
     next if ( $failed{$gene_id} );
 
